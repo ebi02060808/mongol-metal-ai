@@ -1,153 +1,405 @@
 <!DOCTYPE html>
 <html lang="mn">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mongol Metal AI</title>
-<style>
-* {
-box-sizing: border-box;
-margin: 0;
-padding: 0;
-font-family: Arial, sans-serif;
-}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mongol Metal AI — Бизнесийн AI автоматжуулалт</title>
 
-body {
-background: #f5f7fb;
-color: #172033;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-header {
-background: #111827;
-color: white;
-padding: 20px 8%;
-display: flex;
-justify-content: space-between;
-align-items: center;
-}
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8fafc;
+      color: #111827;
+      line-height: 1.6;
+    }
 
-.logo {
-font-size: 22px;
-font-weight: bold;
-}
+    header {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 18px 7%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
 
-nav a {
-color: white;
-text-decoration: none;
-margin-left: 25px;
-}
+    .logo {
+      font-size: 22px;
+      font-weight: 800;
+      color: #111827;
+    }
 
-.hero {
-padding: 90px 8%;
-text-align: center;
-background: white;
-}
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 25px;
+    }
 
-.hero h1 {
-font-size: 48px;
-margin-bottom: 20px;
-}
+    nav a {
+      text-decoration: none;
+      color: #4b5563;
+      font-size: 15px;
+    }
 
-.hero p {
-font-size: 20px;
-color: #667085;
-margin-bottom: 35px;
-}
+    .login {
+      padding: 10px 18px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      color: #111827;
+    }
 
-.btn {
-display: inline-block;
-background: #2563eb;
-color: white;
-padding: 15px 30px;
-border-radius: 10px;
-text-decoration: none;
-font-weight: bold;
-}
+    .hero {
+      padding: 90px 7% 80px;
+      text-align: center;
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+    }
 
-.features {
-padding: 60px 8%;
-display: grid;
-grid-template-columns: repeat(3, 1fr);
-gap: 25px;
-}
+    .badge {
+      display: inline-block;
+      background: #eef2ff;
+      color: #4338ca;
+      padding: 8px 15px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 25px;
+    }
 
-.card {
-background: white;
-padding: 30px;
-border-radius: 15px;
-box-shadow: 0 5px 20px rgba(0,0,0,0.06);
-}
+    .hero h1 {
+      max-width: 850px;
+      margin: auto;
+      font-size: 52px;
+      line-height: 1.15;
+      letter-spacing: -1.5px;
+    }
 
-.card h3 {
-margin-bottom: 12px;
-}
+    .hero h1 span {
+      color: #2563eb;
+    }
 
-.card p {
-color: #667085;
-line-height: 1.6;
-}
+    .hero p {
+      max-width: 700px;
+      margin: 25px auto 35px;
+      color: #64748b;
+      font-size: 19px;
+    }
 
-footer {
-text-align: center;
-padding: 30px;
-background: #111827;
-color: white;
-}
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
 
-@media (max-width: 700px) {
-.features {
-grid-template-columns: 1fr;
-}
+    .primary {
+      background: #2563eb;
+      color: white;
+      padding: 15px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: bold;
+    }
 
-.hero h1 {
-font-size: 34px;
-}
+    .secondary {
+      background: white;
+      color: #111827;
+      padding: 15px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      border: 1px solid #d1d5db;
+      font-weight: bold;
+    }
 
-nav {
-display: none;
-}
-}
-</style>
+    .section {
+      padding: 75px 7%;
+    }
+
+    .section-title {
+      text-align: center;
+      max-width: 700px;
+      margin: auto auto 45px;
+    }
+
+    .section-title h2 {
+      font-size: 34px;
+      margin-bottom: 12px;
+    }
+
+    .section-title p {
+      color: #64748b;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+      max-width: 1100px;
+      margin: auto;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 30px;
+      transition: 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+    }
+
+    .icon {
+      font-size: 35px;
+      margin-bottom: 18px;
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      font-size: 20px;
+    }
+
+    .card p {
+      color: #64748b;
+    }
+
+    .steps {
+      max-width: 900px;
+      margin: auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .step {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 25px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .number {
+      min-width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      background: #2563eb;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    .cta {
+      margin: 30px 7% 80px;
+      padding: 60px 30px;
+      border-radius: 20px;
+      background: #111827;
+      color: white;
+      text-align: center;
+    }
+
+    .cta h2 {
+      font-size: 34px;
+      margin-bottom: 15px;
+    }
+
+    .cta p {
+      color: #cbd5e1;
+      margin-bottom: 25px;
+    }
+
+    footer {
+      background: #0f172a;
+      color: #94a3b8;
+      padding: 30px 7%;
+      text-align: center;
+    }
+
+    @media (max-width: 800px) {
+      nav a:not(.login) {
+        display: none;
+      }
+
+      .hero h1 {
+        font-size: 38px;
+      }
+
+      .features {
+        grid-template-columns: 1fr;
+      }
+
+      .section-title h2 {
+        font-size: 28px;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
 <header>
-<div class="logo">Mongol Metal AI</div>
-<nav>
-<a href="#">Нүүр</a>
-<a href="#">Үйлчилгээ</a>
-<a href="#">Холбоо</a>
-</nav>
+  <div class="logo">Mongol Metal AI</div>
+
+  <nav>
+    <a href="#services">Үйлчилгээ</a>
+    <a href="#how">Хэрхэн ажиллах вэ?</a>
+    <a href="#contact">Холбоо</a>
+    <a href="#" class="login">Нэвтрэх</a>
+  </nav>
 </header>
 
 <section class="hero">
-<h1>Бизнесээ AI-аар автоматжуул</h1>
-<p>Facebook Messenger, захиалга, харилцагчийн мэдээллийг нэг системээс удирдана.</p>
-<a href="#" class="btn">Эхлэх</a>
+
+  <div class="badge">🤖 Монгол бизнесүүдэд зориулсан AI автоматжуулалт</div>
+
+  <h1>
+    Бизнесээ <span>AI-аар автоматжуул</span>
+  </h1>
+
+  <p>
+    Facebook Messenger, Comment, харилцагч болон захиалгаа
+    нэг системээс автомат удирдаарай.
+  </p>
+
+  <div class="buttons">
+    <a href="#services" class="primary">Үнэгүй эхлүүлэх →</a>
+    <a href="#how" class="secondary">Хэрхэн ажиллах вэ?</a>
+  </div>
+
 </section>
 
-<section class="features">
+<section class="section" id="services">
 
-<div class="card">
-<h3>🤖 AI Chatbot</h3>
-<p>Харилцагчийн асуултад AI автоматаар хариулна.</p>
-</div>
+  <div class="section-title">
+    <h2>Бизнесийн бүх харилцааг нэг дор</h2>
+    <p>
+      Таны өдөр бүр хийдэг давтагдсан ажлуудыг AI автоматжуулна.
+    </p>
+  </div>
 
-<div class="card">
-<h3>💬 Messenger</h3>
-<p>Facebook Messenger-ийн харилцагчдыг нэг дор удирдана.</p>
-</div>
+  <div class="features">
 
-<div class="card">
-<h3>📦 Захиалга</h3>
-<p>Захиалга, утас, хэмжээ болон харилцагчийн мэдээллийг бүртгэнэ.</p>
-</div>
+    <div class="card">
+      <div class="icon">🤖</div>
+      <h3>AI Chatbot</h3>
+      <p>
+        Харилцагчийн асуултад таны бизнесийн мэдээлэл дээр
+        үндэслэн AI автоматаар хариулна.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="icon">💬</div>
+      <h3>Messenger автоматжуулалт</h3>
+      <p>
+        Facebook Messenger-ийн асуулт, харилцагчийн мэдээллийг
+        нэг системээс удирдана.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="icon">📣</div>
+      <h3>Comment → Messenger</h3>
+      <p>
+        Facebook пост дээрх сэтгэгдэлд автоматаар хариулж,
+        Messenger рүү харилцагчийг шилжүүлнэ.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="icon">📦</div>
+      <h3>Захиалга авах</h3>
+      <p>
+        Бүтээгдэхүүн, хэмжээ, тоо ширхэг, утас, байршил зэрэг
+        мэдээллийг автоматаар цуглуулна.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="icon">👥</div>
+      <h3>Харилцагчийн бүртгэл</h3>
+      <p>
+        Харилцагчийн мэдээлэл болон өмнөх харилцааг
+        системтэй хадгална.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="icon">📊</div>
+      <h3>Dashboard</h3>
+      <p>
+        Захиалга, харилцагч, чат болон автоматжуулалтаа
+        нэг самбараас хянаарай.
+      </p>
+    </div>
+
+  </div>
+
+</section>
+
+<section class="section" id="how">
+
+  <div class="section-title">
+    <h2>Хэрхэн ажиллах вэ?</h2>
+    <p>Системийг хэдхэн алхмаар тохируулна.</p>
+  </div>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="number">1</div>
+      <div>
+        <h3>Facebook Page холбоно</h3>
+        <p>Өөрийн Facebook бизнес хуудсаа системтэй холбоно.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="number">2</div>
+      <div>
+        <h3>Бизнесийн мэдээллээ оруулна</h3>
+        <p>Бүтээгдэхүүн, үнэ, үйлчилгээ болон асуулт-хариултаа тохируулна.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="number">3</div>
+      <div>
+        <h3>AI ажиллаж эхэлнэ</h3>
+        <p>AI харилцагчтай автоматаар харилцаж, захиалгын мэдээлэл цуглуулна.</p>
+      </div>
+    </div>
+
+  </div>
+
+</section>
+
+<section class="cta" id="contact">
+
+  <h2>Бизнесээ автоматжуулахад бэлэн үү?</h2>
+
+  <p>
+    Mongol Metal AI ашиглан өдөр тутмын давтагдсан ажлаа автоматжуул.
+  </p>
+
+  <a href="#" class="primary">Үнэгүй эхлүүлэх →</a>
 
 </section>
 
 <footer>
-© 2026 Mongol Metal AI
+  © 2026 Mongol Metal AI — Монгол бизнесүүдэд зориулсан AI автоматжуулалт
 </footer>
 
 </body>
