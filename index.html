@@ -383,11 +383,22 @@ const SUPABASE_URL = "https://sqywsxbaknjznvohnsim.supabase.co";  const SUPABASE
     const password = prompt("Нууц үгээ оруулна уу:");
     if (!password) return;
 
-    const { data, error } =
-      await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
+    try {
+  const { data, error } =
+    await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+  if (error) {
+    alert("SUPABASE ERROR: " + error.message);
+    return;
+  }
+
+  alert("АМЖИЛТТАЙ НЭВТЭРЛЭЭ! 🎉");
+} catch (err) {
+  alert("JAVASCRIPT ERROR: " + err.message);
+}
 alert("Supabase хариу ирлээ");
     if (error) {
       alert("Нэвтрэхэд алдаа гарлаа: " + error.message);
