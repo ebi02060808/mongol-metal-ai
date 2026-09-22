@@ -398,14 +398,14 @@
     alert("Амжилттай нэвтэрлээ! 🎉");
   }
 
-  document.querySelectorAll('a[href="#"]').forEach(function(link) {
-    if (link.textContent.includes("Нэвтрэх")) {
-      link.addEventListener("click", function(event) {
-        event.preventDefault();
-        loginUser();
-      });
-    }
+const loginLink = document.querySelector('a[href="#"]');
+
+if (loginLink) {
+  loginLink.addEventListener("click", function(event) {
+    event.preventDefault();
+    loginUser();
   });
+}
 </script>
 
 </body>
