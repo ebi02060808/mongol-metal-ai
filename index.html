@@ -376,40 +376,35 @@ const SUPABASE_URL = "https://sqywsxbaknjznvohnsim.supabase.co";  const SUPABASE
     SUPABASE_PUBLISHABLE_KEY
   );
 
-  async function loginUser() {
-    alert("loginUser ажиллаж байна");
-    
-    const email = prompt("И-мэйл хаягаа оруулна уу:");
-    if (!email) return;
+async function loginUser() {
+  alert("loginUser ажиллаж байна");
 
-    const password = prompt("Нууц үгээ оруулна уу:");
-    if (!password) return;
+  const email = prompt("И-мэйл хаягаа оруулна уу:");
+  if (!email) return;
 
-    try {
-  const { data, error } =
-    alert("SUPABASE ДУУДАЖ БАЙНА");
+  const password = prompt("Нууц үгээ оруулна уу:");
+  if (!password) return;
+
+  alert("SUPABASE ДУУДАЖ БАЙНА");
+
+  try {
+    const { data, error } =
       await supabaseClient.auth.signInWithPassword({
-      email: email,
-      password: password
-    });
+        email: email,
+        password: password
+      });
 
-  if (error) {
-    alert("SUPABASE ERROR: " + error.message);
-    return;
-  }
-
-  alert("АМЖИЛТТАЙ НЭВТЭРЛЭЭ! 🎉");
-} catch (err) {
-  alert("JAVASCRIPT ERROR: " + err.message);
-}
-alert("Supabase хариу ирлээ");
     if (error) {
-      alert("Нэвтрэхэд алдаа гарлаа: " + error.message);
+      alert("SUPABASE ERROR: " + error.message);
       return;
     }
 
-    alert("Амжилттай нэвтэрлээ! 🎉");
+    alert("АМЖИЛТТАЙ НЭВТЭРЛЭЭ! 🎉");
+
+  } catch (err) {
+    alert("JAVASCRIPT ERROR: " + err.message);
   }
+}
 
 const loginLink = document.getElementById("loginLink");
 
