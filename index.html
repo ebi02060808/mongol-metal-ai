@@ -365,6 +365,48 @@
 <footer>
   © 2026 Mongol Metal AI — Монгол бизнесүүдэд зориулсан AI автоматжуулалт
 </footer>
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  const SUPABASE_URL = "sqywsxbaknjznvohnsim";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_CHG1wlFZf2L7n9m99QXMZA_TdWJRXs_";
+
+  const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+  async function loginUser() {
+    const email = prompt("И-мэйл хаягаа оруулна уу:");
+    if (!email) return;
+
+    const password = prompt("Нууц үгээ оруулна уу:");
+    if (!password) return;
+
+    const { data, error } =
+      await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+    if (error) {
+      alert("Нэвтрэхэд алдаа гарлаа: " + error.message);
+      return;
+    }
+
+    alert("Амжилттай нэвтэрлээ! 🎉");
+  }
+
+  document.querySelectorAll('a[href="#"]').forEach(function(link) {
+    if (link.textContent.includes("Нэвтрэх")) {
+      link.addEventListener("click", function(event) {
+        event.preventDefault();
+        loginUser();
+      });
+    }
+  });
+</script>
 
 </body>
 </html>
