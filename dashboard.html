@@ -323,9 +323,36 @@ async function addOrder() {
       📐 ${order.size}<br>
       💰 ${Number(order.price).toLocaleString()} ₮<br>
       📅 ${new Date(order.created_at).toLocaleString("mn-MN")}<br>
-      🔵 Төлөв: ${order.status}
-    </div>
+<select onchange="updateOrderStatus('${order.id}', this.value)">
+  <option value="Шинэ" ${order.status === "Шинэ" ? "selected" : ""}>Шинэ</option>
+  <option value="Холбогдсон" ${order.status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
+  <option value="Үнийн санал" ${order.status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
+  <option value="Баталгаажсан" ${order.status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option>
+  <option value="Дууссан" ${order.status === "Дууссан" ? "selected" : ""}>Дууссан</option>
+</select>    </div>
   `).join("");
+}
+   async function updateOrderStatus(orderId, newStatus) {
+  const { data: { session } } =
+    await supabaseClient.auth.getSession();
+
+  if (!session) {
+    alert("Та эхлээд нэвтэрнэ үү.");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("orders")
+    .update({ status: newStatus })
+    .eq("id", orderId)
+    .eq("user_id", session.user.id);
+
+  if (error) {
+    alert("Алдаа: " + error.message);
+    return;
+  }
+
+  loadOrders();
 }
     async function checkLogin() {
 
