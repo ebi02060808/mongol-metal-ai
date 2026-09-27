@@ -201,10 +201,19 @@
 
       </div>
 
-      <div class="section">
-        <h2>📦 Захиалгын мэдээлэл</h2>
-        <p>Одоогоор захиалга байхгүй байна.</p>
-      </div>
+     <div class="section">
+  <h2>📦 Шинэ захиалга</h2>
+
+  <input type="text" id="customerName" placeholder="Харилцагчийн нэр">
+  <input type="text" id="phone" placeholder="Утасны дугаар">
+  <input type="text" id="product" placeholder="Бүтээгдэхүүн">
+  <input type="text" id="size" placeholder="Хэмжээ (жишээ: 2м × 1.5м)">
+  <input type="number" id="price" placeholder="Үнэ">
+
+  <button onclick="addOrder()">Захиалга хадгалах</button>
+
+  <p id="orderMessage"></p>
+</div>
 
       <div class="section">
         <h2>💬 Messenger</h2>
@@ -225,7 +234,57 @@
       SUPABASE_URL,
       SUPABASE_PUBLISHABLE_KEY
     );
+async function addOrder() {
+  const { data: { session } } =
+    await supabaseClient.auth.getSession();
 
+  if (!session) {
+    alert("Та эхлээд нэвтэрнэ үү.");
+    return;
+  }
+
+  const customerName =
+    document.getElementById("customerName").value;
+
+  const phone =
+    document.getElementById("phone").value;
+
+  const product =
+    document.getElementById("product").value;
+
+  const size =
+    document.getElementById("size").value;
+
+  const price =
+    document.getElementById("price").value;
+
+  const { error } = await supabaseClient
+    .from("orders")
+    .insert({
+      user_id: session.user.id,
+      customer_name: customerName,
+      phone: phone,
+      product: product,
+      size: size,
+      price: price,
+      status: "Шинэ"
+    });
+
+  if (error) {
+    document.getElementById("orderMessage").textContent =
+      "Алдаа: " + error.message;
+    return;
+  }
+
+  document.getElementById("orderMessage").textContent =
+    "✅ Захиалга амжилттай хадгалагдлаа!";
+
+  document.getElementById("customerName").value = "";
+  document.getElementById("phone").value = "";
+  document.getElementById("product").value = "";
+  document.getElementById("size").value = "";
+  document.getElementById("price").value = "";
+}
     async function checkLogin() {
 
       const { data: { session } } =
