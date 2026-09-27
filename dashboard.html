@@ -222,6 +222,13 @@
   </div>
 </div>
       <div class="section">
+  <h2>👥 Харилцагчид</h2>
+
+  <div id="customersList">
+    Харилцагчдыг ачаалж байна...
+  </div>
+</div>
+      <div class="section">
         <h2>💬 Messenger</h2>
         <p>Facebook Messenger холболтыг дараагийн шатанд тохируулна.</p>
       </div>
@@ -354,6 +361,44 @@ async function addOrder() {
 
   loadOrders();
 }
+   async function loadCustomers() {
+  const { data: { session } } =
+    await supabaseClient.auth.getSession();
+
+  if (!session) return;
+
+  const { data: orders, error } = await supabaseClient
+    .from("orders")
+    .select("customer_name, phone, product, size, price, created_at")
+    .eq("user_id", session.user.id)
+    .order("created_at", { ascending: false });
+
+  const customersList =
+    document.getElementById("customersList");
+
+  if (error) {
+    customersList.textContent =
+      "Алдаа: " + error.message;
+    return;
+  }
+
+  if (!orders || orders.length === 0) {
+    customersList.textContent =
+      "Одоогоор харилцагч байхгүй байна.";
+    return;
+  }
+
+  customersList.innerHTML = orders.map(customer => `
+    <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; border-radius:10px;">
+      <strong>👤 ${customer.customer_name}</strong><br>
+      📞 ${customer.phone}<br>
+      📦 ${customer.product}<br>
+      📐 ${customer.size}<br>
+      💰 ${Number(customer.price).toLocaleString()} ₮<br>
+      📅 ${new Date(customer.created_at).toLocaleString("mn-MN")}
+    </div>
+  `).join("");
+}
     async function checkLogin() {
 
       const { data: { session } } =
@@ -375,8 +420,9 @@ async function addOrder() {
       window.location.href = "index.html";
     }
 
-    checkLogin();
-    loadOrders();
+  checkLogin();
+  loadOrders();
+  loadCustomers();
 
   </script>
 
