@@ -369,7 +369,7 @@ async function addOrder() {
 
   const { data: orders, error } = await supabaseClient
     .from("orders")
-    .select("customer_name, phone, product, size, price, created_at")
+    .select("customer_name, phone, price")
     .eq("user_id", session.user.id)
     .order("created_at", { ascending: false });
 
@@ -388,16 +388,33 @@ async function addOrder() {
     return;
   }
 
-  customersList.innerHTML = orders.map(customer => `
-    <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; border-radius:10px;">
-      <strong>👤 ${customer.customer_name}</strong><br>
-      📞 ${customer.phone}<br>
-      📦 ${customer.product}<br>
-      📐 ${customer.size}<br>
-      💰 ${Number(customer.price).toLocaleString()} ₮<br>
-      📅 ${new Date(customer.created_at).toLocaleString("mn-MN")}
-    </div>
-  `).join("");
+  const customers = {};
+
+  orders.forEach(order => {
+    const key = order.phone;
+
+    if (!customers[key]) {
+      customers[key] = {
+        name: order.customer_name,
+        phone: order.phone,
+        orderCount: 0,
+        total: 0
+      };
+    }
+
+    customers[key].orderCount += 1;
+    customers[key].total += Number(order.price) || 0;
+  });
+
+  customersList.innerHTML =
+    Object.values(customers).map(customer => `
+      <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; border-radius:10px;">
+        <strong>👤 ${customer.name}</strong><br>
+        📞 ${customer.phone}<br>
+        📦 Захиалга: ${customer.orderCount} ширхэг<br>
+        💰 Нийт дүн: ${customer.total.toLocaleString()} ₮
+      </div>
+    `).join("");
 }
     async function checkLogin() {
 
