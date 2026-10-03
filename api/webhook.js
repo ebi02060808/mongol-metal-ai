@@ -29,7 +29,29 @@ export default async function handler(req, res) {
             console.log("Customer:", senderId);
             console.log("Message:", messageText);
 
-            // Дараагийн алхамд энд автомат хариу нэмнэ
+            if (messageText) {
+              const response = await fetch(
+                `https://graph.facebook.com/v26.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    recipient: {
+                      id: senderId,
+                    },
+                    message: {
+                      text: "Сайн байна уу 👋 Монгол металл хийцэд хандсанд баярлалаа. Та металл хаалга эсвэл цонх захиалах уу?",
+                    },
+                  }),
+                }
+              );
+
+              const result = await response.json();
+
+              console.log("Messenger reply result:", result);
+            }
           }
         }
       }
