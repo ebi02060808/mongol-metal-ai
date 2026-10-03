@@ -1,4 +1,4 @@
-export default function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method === "GET") {
     const mode = req.query["hub.mode"];
     const token = req.query["hub.verify_token"];
@@ -15,7 +15,25 @@ export default function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    console.log("Messenger webhook event:", req.body);
+    const body = req.body;
+
+    console.log("Messenger webhook event:", body);
+
+    if (body.object === "page") {
+      for (const entry of body.entry || []) {
+        for (const event of entry.messaging || []) {
+          if (event.message && event.sender) {
+            const senderId = event.sender.id;
+            const messageText = event.message.text;
+
+            console.log("Customer:", senderId);
+            console.log("Message:", messageText);
+
+            // Дараагийн алхамд энд автомат хариу нэмнэ
+          }
+        }
+      }
+    }
 
     return res.status(200).send("EVENT_RECEIVED");
   }
