@@ -178,7 +178,7 @@ export default async function handler(req, res) {
               .match(/\d+(?:\.\d+)?/g);
 
             if (!numbers || numbers.length < 2) {
-              await sendMessage(
+await sendMessage(
   senderId,
   "Хэмжээг зөв оруулна уу.\n\nЖишээ: 1.5 × 1.2"
 );
