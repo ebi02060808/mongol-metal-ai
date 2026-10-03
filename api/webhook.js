@@ -179,11 +179,9 @@ export default async function handler(req, res) {
 
             if (!numbers || numbers.length < 2) {
               await sendMessage(
-                senderId,
-                "Хэмжээг зөв оруулна уу.
-
-Жишээ: 1.5 × 1.2"
-              );
+  senderId,
+  "Хэмжээг зөв оруулна уу.\n\nЖишээ: 1.5 × 1.2"
+);
               continue;
             }
 
