@@ -145,8 +145,8 @@ export default async function handler(req, res) {
       // Шинэ захиалга эхлүүлэх команд
       if (
         messageText.toLowerCase() === "шинэ захиалга" ||
-        messageText.toLowerCase() === "shine zahialga"
-        messageText.toLowerCase() === "дахиад захиалга өгөе"
+        messageText.toLowerCase() === "shine zahialga" ||
+        messageText.toLowerCase() === "дахиад захиалга өгөе" ||
         messageText.toLowerCase() === "dahiad zahialga uguy"
 
 
