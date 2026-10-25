@@ -142,6 +142,50 @@ export default async function handler(req, res) {
         continue;
       }
 
+      // Шинэ захиалга эхлүүлэх команд
+      if (
+        messageText.toLowerCase() === "шинэ захиалга" ||
+        messageText.toLowerCase() === "shine zahialga"
+      ) {
+        const { error: resetError } = await supabase
+          .from("messenger_sessions")
+          .update({
+            product_type: null,
+            width: null,
+            height: null,
+            quantity: null,
+            customer_name: null,
+            phone: null,
+            address: null,
+            step: "product",
+            updated_at: new Date().toISOString()
+          })
+          .eq("sender_id", senderId);
+
+        if (resetError) {
+          console.error("New order reset error:", resetError);
+
+          await sendMessage(
+            senderId,
+            "Уучлаарай, шинэ захиалга эхлүүлэхэд алдаа гарлаа. Дахин оролдоно уу."
+          );
+
+          continue;
+        }
+
+        await sendMessage(
+          senderId,
+          "🛠️ Шинэ захиалга эхэллээ!\n\n" +
+          "Та ямар бүтээгдэхүүн захиалах вэ?\n\n" +
+          "1. Металл цонх\n" +
+          "2. Металл хаалга\n" +
+          "3. Металл хаалт\n\n" +
+          "Та 1, 2 эсвэл 3 гэж хариулна уу."
+        );
+
+        continue;
+      }
+
       if (session.step === "product") {
 
         let productType = null;
