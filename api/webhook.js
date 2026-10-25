@@ -141,16 +141,15 @@ export default async function handler(req, res) {
 
         continue;
       }
-
+    
       // Шинэ захиалга эхлүүлэх команд
       if (
         messageText.toLowerCase() === "шинэ захиалга" ||
         messageText.toLowerCase() === "shine zahialga" ||
         messageText.toLowerCase() === "дахиад захиалга өгөе" ||
         messageText.toLowerCase() === "dahiad zahialga uguy"
-
-
       ) {
+
         const { error: resetError } = await supabase
           .from("messenger_sessions")
           .update({
