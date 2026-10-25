@@ -356,6 +356,19 @@ export default async function handler(req, res) {
           "Манай ажилтан удахгүй тантай холбогдоно. Баярлалаа!"
         );
 
+        await sendMessage(
+          process.env.ADMIN_PSID,
+          "🔔 ШИНЭ ЗАХИАЛГА ИРЛЭЭ!\n\n" +
+          "Бүтээгдэхүүн: " + updatedSession.product_type + "\n" +
+          "Хэмжээ: " + updatedSession.width + " × " +
+          updatedSession.height + " м\n" +
+          "Тоо: " + updatedSession.quantity + " ш\n" +
+          "Нийт талбай: " + area.toFixed(2) + " м²\n" +
+          "Нэр: " + updatedSession.customer_name + "\n" +
+          "Утас: " + updatedSession.phone + "\n" +
+          "Байршил: " + updatedSession.address
+        );
+
         continue;
       }
 
