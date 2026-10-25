@@ -146,7 +146,9 @@ export default async function handler(req, res) {
       if (
         messageText.toLowerCase() === "шинэ захиалга" ||
         messageText.toLowerCase() === "shine zahialga"
-        messageText.toLowerCase() === "дахин захиалга өгөе"
+        messageText.toLowerCase() === "дахиад захиалга өгөе"
+        messageText.toLowerCase() === "dahiad zahialga uguy"
+
 
       ) {
         const { error: resetError } = await supabase
