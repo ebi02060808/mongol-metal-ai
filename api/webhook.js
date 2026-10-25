@@ -5,6 +5,7 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 );
 
+
 async function sendMessage(senderId, text) {
   const response = await fetch(
     `https://graph.facebook.com/v26.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`,
@@ -26,6 +27,12 @@ async function sendMessage(senderId, text) {
 
   const result = await response.json();
   console.log("Messenger reply result:", result);
+
+  if (!response.ok) {
+    console.error("Messenger send error:", result);
+  }
+
+  return result;
 }
 
 export default async function handler(req, res) {
