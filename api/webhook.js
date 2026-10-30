@@ -1,11 +1,29 @@
 import { createClient } from "@supabase/supabase-js";
-
+import { randomUUID } from "crypto";
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 );
 
+const priceList = {
+  "Металл цонх, давхар шилтэй": 420000,
+  "Металл хаалга, давхар шилтэй": 840000,
+  "Хуванцар хаалт, дан шилтэй": 160000,
+  "Хуванцар цонх, 2 давхар шилтэй": 180000,
+  "Хуванцар хаалга, 2 давхар шилтэй": 220000,
+  "Металл фасад": 330000,
+  "Шилэн фасад, хатаалгатай, 2 давхар шилтэй": 580000
+};
 
+const products = {
+  "1": "Металл цонх, давхар шилтэй",
+  "2": "Металл хаалга, давхар шилтэй",
+  "3": "Хуванцар хаалт, дан шилтэй",
+  "4": "Хуванцар цонх, 2 давхар шилтэй",
+  "5": "Хуванцар хаалга, 2 давхар шилтэй",
+  "6": "Металл фасад",
+  "7": "Шилэн фасад, хатаалгатай, 2 давхар шилтэй"
+};
 async function sendMessage(senderId, text) {
   const response = await fetch(
     `https://graph.facebook.com/v26.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`,
@@ -105,10 +123,11 @@ export default async function handler(req, res) {
         const { data: newSession, error: insertError } =
           await supabase
             .from("messenger_sessions")
-            .insert({
-              sender_id: senderId,
-              step: "product"
-            })
+           .insert({
+  sender_id: senderId,
+  order_id: randomUUID(),
+  step: "product"
+})
             .select()
             .single();
 
@@ -164,6 +183,7 @@ continue;
             customer_name: null,
             phone: null,
             address: null,
+            order_id: randomUUID(),
             step: "product",
             updated_at: new Date().toISOString()
           })
@@ -283,39 +303,147 @@ continue;
         continue;
       }
 
-      if (session.step === "quantity") {
 
-        const quantity = parseInt(messageText, 10);
+if (session.step === "quantity") {
 
-        if (!Number.isInteger(quantity) || quantity <= 0) {
+  const quantity = Number(messageText);
 
-          await sendMessage(
-            senderId,
-            "Ширхэгийн тоог зөв оруулна уу.\n\n" +
-            "Жишээ: 2"
-          );
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    await sendMessage(
+      senderId,
+      "Ширхэгийн тоог зөв оруулна уу.\n\nЖишээ: 2"
+    );
+    continue;
+  }
 
-          continue;
-        }
+  const unitPrice = priceList[session.product_type];
+  const area = session.width * session.height * quantity;
+  const totalPrice = Math.round(area * unitPrice);
 
-        await supabase
-          .from("messenger_sessions")
-          .update({
-            quantity: quantity,
-            step: "name",
-            updated_at: new Date().toISOString()
-          })
-          .eq("sender_id", senderId);
+  if (!unitPrice || !session.order_id) {
+    await sendMessage(
+      senderId,
+      "Захиалгын мэдээлэл дутуу байна. Шинэ захиалга эхлүүлнэ үү."
+    );
+    continue;
+  }
 
-        await sendMessage(
-          senderId,
-          "Захиалга авахын тулд нэрээ оруулна уу."
-        );
+  const { error: itemError } = await supabase
+    .from("messenger_order_items")
+    .insert({
+      order_id: session.order_id,
+      sender_id: senderId,
+      product_type: session.product_type,
+      width: session.width,
+      height: session.height,
+      quantity: quantity,
+      unit_price: unitPrice,
+      area: session.width * session.height,
+      total_price: totalPrice
+    });
 
-        continue;
-      }
+  if (itemError) {
+    console.error("Order item insert error:", itemError);
 
-      if (session.step === "name") {
+    await sendMessage(
+      senderId,
+      "Захиалгын мөр хадгалахад алдаа гарлаа. Дахин оролдоно уу."
+    );
+    continue;
+  }
+
+  const { error: updateError } = await supabase
+    .from("messenger_sessions")
+    .update({
+      quantity: quantity,
+      step: "add_more",
+      updated_at: new Date().toISOString()
+    })
+    .eq("sender_id", senderId);
+
+  if (updateError) {
+    console.error("Session update error:", updateError);
+
+    await sendMessage(
+      senderId,
+      "Захиалгын мэдээлэл шинэчлэхэд алдаа гарлаа."
+    );
+    continue;
+  }
+
+  await sendMessage(
+    senderId,
+    "✅ Бүтээгдэхүүн захиалгад нэмэгдлээ!\n\n" +
+    "Бүтээгдэхүүн: " + session.product_type + "\n" +
+    "Хэмжээ: " + session.width + " × " + session.height + " м\n" +
+    "Тоо: " + quantity + " ш\n" +
+    "Үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n\n" +
+    "Өөр бүтээгдэхүүн эсвэл өөр хэмжээ нэмэх үү?\n\n" +
+    "1 — Тийм, нэмэх\n" +
+    "2 — Үгүй, захиалгаа дуусгах"
+  );
+
+  continue;
+}
+
+if (session.step === "add_more") {
+
+  if (messageText === "1") {
+    await supabase
+      .from("messenger_sessions")
+      .update({
+        product_type: null,
+        width: null,
+        height: null,
+        quantity: null,
+        step: "product",
+        updated_at: new Date().toISOString()
+      })
+      .eq("sender_id", senderId);
+
+    await sendMessage(
+      senderId,
+      "Дараагийн бүтээгдэхүүн эсвэл өөр хэмжээгээ сонгоно уу.\n\n" +
+      "1. Металл цонх — 420,000₮/м²\n" +
+      "2. Металл хаалга — 840,000₮/м²\n" +
+      "3. Хуванцар хаалт — 160,000₮/м²\n" +
+      "4. Хуванцар цонх — 180,000₮/м²\n" +
+      "5. Хуванцар хаалга — 220,000₮/м²\n" +
+      "6. Металл фасад — 330,000₮/м²\n" +
+      "7. Шилэн фасад — 580,000₮/м²"
+    );
+
+    continue;
+  }
+
+  if (messageText === "2") {
+    await supabase
+      .from("messenger_sessions")
+      .update({
+        step: "name",
+        updated_at: new Date().toISOString()
+      })
+      .eq("sender_id", senderId);
+
+    await sendMessage(
+      senderId,
+      "Захиалга авахын тулд нэрээ оруулна уу."
+    );
+
+    continue;
+  }
+
+  await sendMessage(
+    senderId,
+    "1 — Өөр бүтээгдэхүүн эсвэл хэмжээ нэмэх\n" +
+    "2 — Захиалгаа дуусгах гэж сонгоно уу."
+  );
+
+  continue;
+}
+
+if (session.step === "name") {
+
 
         await supabase
           .from("messenger_sessions")
@@ -354,131 +482,195 @@ continue;
         continue;
       }
 
-      if (session.step === "address") {
+     
+if (session.step === "address") {
 
-        const { data: updatedSession, error: updateError } =
-          await supabase
-            .from("messenger_sessions")
-            .update({
-            address: messageText,
-step: "confirm",
-updated_at: new Date().toISOString()
-            })
-            .eq("sender_id", senderId)
-            .select()
-            .single();
-
-        if (updateError) {
-          console.error(
-            "Supabase update error:",
-            updateError
-          );
-
-          await sendMessage(
-            senderId,
-            "Уучлаарай, захиалга хадгалахад алдаа гарлаа."
-          );
-
-          continue;
-        }
-
-        const area =
-          updatedSession.width *
-          updatedSession.height *
-          updatedSession.quantity;
-        const priceList = {
-  "Металл цонх, давхар шилтэй": 420000,
-  "Металл хаалга, давхар шилтэй": 840000,
-  "Хуванцар хаалт, дан шилтэй": 160000,
-  "Хуванцар цонх, 2 давхар шилтэй": 180000,
-  "Хуванцар хаалга, 2 давхар шилтэй": 220000,
-  "Металл фасад": 330000,
-  "Шилэн фасад, хатаалгатай, 2 давхар шилтэй": 580000
-};
-
-const unitPrice = priceList[updatedSession.product_type];
-
-if (!unitPrice) {
-  await sendMessage(
-    senderId,
-    "Уучлаарай, бүтээгдэхүүний үнийг олсонгүй. Манай ажилтантай холбогдоно уу."
-  );
-  continue;
-}
-
-const totalPrice = Math.round(area * unitPrice);
-        await sendMessage(
-  senderId,
-  "📋 ТАНЫ ЗАХИАЛГЫН МЭДЭЭЛЭЛ\n\n" +
-  "Бүтээгдэхүүн: " + updatedSession.product_type + "\n" +
-  "Хэмжээ: " + updatedSession.width + " × " +
-  updatedSession.height + " м\n" +
-  "Тоо: " + updatedSession.quantity + " ш\n" +
-  "Нийт талбай: " + area.toFixed(2) + " м²\n" +
-  "Нэгж үнэ: " + unitPrice.toLocaleString("en-US") + "₮/м²\n" +
-  "Нийт үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n" +
-  "Нэр: " + updatedSession.customer_name + "\n" +
-  "Утас: " + updatedSession.phone + "\n" +
-  "Байршил: " + updatedSession.address + "\n\n" +
-  "Захиалгаа баталгаажуулах уу?\n\n" +
-  "1️⃣ — Баталгаажуулах\n" +
-  "2️⃣ — Буцах"
-);
-
-        continue;
-      }
-if (session.step === "confirm") {
-
-  if (messageText === "2") {
+  const { data: updatedSession, error: updateError } =
     await supabase
       .from("messenger_sessions")
       .update({
-        step: "product",
+        address: messageText,
+        step: "confirm",
+        updated_at: new Date().toISOString()
+      })
+      .eq("sender_id", senderId)
+      .select()
+      .single();
+
+  if (updateError) {
+    console.error("Supabase update error:", updateError);
+
+    await sendMessage(
+      senderId,
+      "Уучлаарай, захиалга хадгалахад алдаа гарлаа."
+    );
+    continue;
+  }
+
+  const { data: items, error: itemsError } = await supabase
+    .from("messenger_order_items")
+    .select("*")
+    .eq("order_id", updatedSession.order_id)
+    .order("created_at", { ascending: true });
+
+  if (itemsError || !items || items.length === 0) {
+    console.error("Order items fetch error:", itemsError);
+
+    await sendMessage(
+      senderId,
+      "Захиалгын бүтээгдэхүүний мэдээлэл олдсонгүй. Дахин шалгуулна уу."
+    );
+    continue;
+  }
+
+  let totalPrice = 0;
+  let totalArea = 0;
+
+  let itemDetails = "";
+
+  items.forEach((item, index) => {
+    const itemArea = Number(item.area) * Number(item.quantity);
+    const itemTotal = Number(item.total_price);
+
+    totalArea += itemArea;
+    totalPrice += itemTotal;
+
+    itemDetails +=
+      (index + 1) + ". " + item.product_type + "\n" +
+      "Хэмжээ: " + item.width + " × " + item.height + " м\n" +
+      "Тоо: " + item.quantity + " ш\n" +
+      "Нийт талбай: " + itemArea.toFixed(2) + " м²\n" +
+      "Нэгж үнэ: " + Number(item.unit_price).toLocaleString("en-US") + "₮/м²\n" +
+      "Дүн: " + itemTotal.toLocaleString("en-US") + "₮\n\n";
+  });
+
+  await sendMessage(
+    senderId,
+    "📋 ТАНЫ ЗАХИАЛГЫН МЭДЭЭЛЭЛ\n\n" +
+    itemDetails +
+    "--------------------\n" +
+    "Нийт бүтээгдэхүүн: " + items.length + " мөр\n" +
+    "Нийт талбай: " + totalArea.toFixed(2) + " м²\n" +
+    "НИЙТ ТӨЛБӨР: " + totalPrice.toLocaleString("en-US") + "₮\n\n" +
+    "Нэр: " + updatedSession.customer_name + "\n" +
+    "Утас: " + updatedSession.phone + "\n" +
+    "Байршил: " + updatedSession.address + "\n\n" +
+    "Захиалгаа баталгаажуулах уу?\n\n" +
+    "1️⃣ — Баталгаажуулах\n" +
+    "2️⃣ — Буцах"
+  );
+
+  continue;
+}
+
+
+if (session.step === "confirm") {
+
+  // 2 — Захиалгыг шинээр эхлүүлэх
+  if (messageText === "2") {
+
+    const { error: deleteError } = await supabase
+      .from("messenger_order_items")
+      .delete()
+      .eq("order_id", session.order_id);
+
+    if (deleteError) {
+      console.error("Order items delete error:", deleteError);
+
+      await sendMessage(
+        senderId,
+        "Захиалгыг шинэчлэхэд алдаа гарлаа. Дахин оролдоно уу."
+      );
+      continue;
+    }
+
+    const { error: resetError } = await supabase
+      .from("messenger_sessions")
+      .update({
+        order_id: randomUUID(),
+        product_type: null,
+        width: null,
+        height: null,
+        quantity: null,
+        customer_name: null,
+        phone: null,
         address: null,
+        step: "product",
         updated_at: new Date().toISOString()
       })
       .eq("sender_id", senderId);
 
+    if (resetError) {
+      console.error("Order reset error:", resetError);
+
+      await sendMessage(
+        senderId,
+        "Захиалгыг дахин эхлүүлэхэд алдаа гарлаа."
+      );
+      continue;
+    }
+
     await sendMessage(
       senderId,
-      "Захиалгаа засах боломжтой. Бүтээгдэхүүнээ дахин сонгоно уу.\n\n" +
-      "1. Металл цонх\n" +
-      "2. Металл хаалга\n" +
-      "3. Хуванцар хаалт\n" +
-      "4. Хуванцар цонх\n" +
-      "5. Хуванцар хаалга\n" +
-      "6. Металл фасад\n" +
-      "7. Шилэн фасад"
+      "Шинэ захиалга эхэллээ. Бүтээгдэхүүнээ сонгоно уу.\n\n" +
+      "1. Металл цонх — 420,000₮/м²\n" +
+      "2. Металл хаалга — 840,000₮/м²\n" +
+      "3. Хуванцар хаалт — 160,000₮/м²\n" +
+      "4. Хуванцар цонх — 180,000₮/м²\n" +
+      "5. Хуванцар хаалга — 220,000₮/м²\n" +
+      "6. Металл фасад — 330,000₮/м²\n" +
+      "7. Шилэн фасад — 580,000₮/м²"
     );
 
     continue;
   }
 
+  // 1 — Захиалгыг баталгаажуулах
   if (messageText !== "1") {
     await sendMessage(
       senderId,
-      "1 — Баталгаажуулах, 2 — Буцах гэж сонгоно уу."
+      "1 — Баталгаажуулах\n2 — Захиалгаа шинээр эхлүүлэх гэж сонгоно уу."
     );
     continue;
   }
 
-  const area =
-    session.width * session.height * session.quantity;
+  const { data: items, error: itemsError } = await supabase
+    .from("messenger_order_items")
+    .select("*")
+    .eq("order_id", session.order_id)
+    .order("created_at", { ascending: true });
 
-  const priceList = {
-    "Металл цонх, давхар шилтэй": 420000,
-    "Металл хаалга, давхар шилтэй": 840000,
-    "Хуванцар хаалт, дан шилтэй": 160000,
-    "Хуванцар цонх, 2 давхар шилтэй": 180000,
-    "Хуванцар хаалга, 2 давхар шилтэй": 220000,
-    "Металл фасад": 330000,
-    "Шилэн фасад, хатаалгатай, 2 давхар шилтэй": 580000
-  };
+  if (itemsError || !items || items.length === 0) {
+    console.error("Confirm items error:", itemsError);
 
-  const unitPrice = priceList[session.product_type];
-  const totalPrice = Math.round(area * unitPrice);
+    await sendMessage(
+      senderId,
+      "Захиалгын бүтээгдэхүүний мэдээлэл олдсонгүй. Дахин шалгуулна уу."
+    );
+    continue;
+  }
 
-  await supabase
+  let totalPrice = 0;
+  let totalArea = 0;
+  let itemDetails = "";
+
+  items.forEach((item, index) => {
+    const itemArea = Number(item.area) * Number(item.quantity);
+    const itemTotal = Number(item.total_price);
+
+    totalArea += itemArea;
+    totalPrice += itemTotal;
+
+    itemDetails +=
+      (index + 1) + ". " + item.product_type + "\n" +
+      "Хэмжээ: " + item.width + " × " + item.height + " м\n" +
+      "Тоо: " + item.quantity + " ш\n" +
+      "Талбай: " + itemArea.toFixed(2) + " м²\n" +
+      "Нэгж үнэ: " + Number(item.unit_price).toLocaleString("en-US") + "₮/м²\n" +
+      "Дүн: " + itemTotal.toLocaleString("en-US") + "₮\n\n";
+  });
+
+  const { error: completeError } = await supabase
     .from("messenger_sessions")
     .update({
       step: "completed",
@@ -486,15 +678,24 @@ if (session.step === "confirm") {
     })
     .eq("sender_id", senderId);
 
+  if (completeError) {
+    console.error("Complete order error:", completeError);
+
+    await sendMessage(
+      senderId,
+      "Захиалга баталгаажуулахад алдаа гарлаа."
+    );
+    continue;
+  }
+
   await sendMessage(
     process.env.ADMIN_PSID,
     "🔔 ШИНЭ ЗАХИАЛГА БАТАЛГААЖЛАА!\n\n" +
-    "Бүтээгдэхүүн: " + session.product_type + "\n" +
-    "Хэмжээ: " + session.width + " × " + session.height + " м\n" +
-    "Тоо: " + session.quantity + " ш\n" +
-    "Нийт талбай: " + area.toFixed(2) + " м²\n" +
-    "Нэгж үнэ: " + unitPrice.toLocaleString("en-US") + "₮/м²\n" +
-    "Нийт үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n" +
+    itemDetails +
+    "--------------------\n" +
+    "Нийт мөр: " + items.length + "\n" +
+    "Нийт талбай: " + totalArea.toFixed(2) + " м²\n" +
+    "НИЙТ ҮНЭ: " + totalPrice.toLocaleString("en-US") + "₮\n\n" +
     "Нэр: " + session.customer_name + "\n" +
     "Утас: " + session.phone + "\n" +
     "Байршил: " + session.address
@@ -502,11 +703,15 @@ if (session.step === "confirm") {
 
   await sendMessage(
     senderId,
-    "✅ Таны захиалга амжилттай баталгаажлаа. Манай ажилтан удахгүй холбогдоно. Баярлалаа!"
+    "✅ Таны захиалга амжилттай баталгаажлаа.\n\n" +
+    "Нийт бүтээгдэхүүн: " + items.length + " мөр\n" +
+    "Нийт үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n\n" +
+    "Манай ажилтан удахгүй холбогдоно. Баярлалаа!"
   );
 
   continue;
 }
+
       if (session.step === "completed") {
 
         await sendMessage(
