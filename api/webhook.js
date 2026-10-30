@@ -557,36 +557,47 @@ if (session.step === "add_more") {
   continue;
 }
 
+
 if (session.step === "name") {
   const customerName = messageText.trim();
 
-if (!/^[\p{L}][\p{L}\s'-]{1,49}$/u.test(customerName) ||
-    (customerName.match(/\p{L}/gu) || []).length < 2) {
+  if (
+    !/^[\p{L}][\p{L}\s'-]{1,49}$/u.test(customerName) ||
+    (customerName.match(/\p{L}/gu) || []).length < 2
+  ) {
+    await sendMessage(
+      senderId,
+      "Нэрээ зөв оруулна уу.\nЖишээ: Бат-Эрдэнэ"
+    );
+    continue;
+  }
+
+  const { error: nameError } = await supabase
+    .from("messenger_sessions")
+    .update({
+      customer_name: customerName,
+      step: "phone",
+      updated_at: new Date().toISOString()
+    })
+    .eq("sender_id", senderId);
+
+  if (nameError) {
+    console.error("Name update error:", nameError);
+
+    await sendMessage(
+      senderId,
+      "Нэр хадгалахад алдаа гарлаа. Дахин оруулна уу."
+    );
+    continue;
+  }
 
   await sendMessage(
     senderId,
-    "Нэрээ зөв оруулна уу.\nЖишээ: Бат-Эрдэнэ"
+    "Утасны дугаараа оруулна уу."
   );
+
   continue;
 }
-
-
-        await supabase
-          .from("messenger_sessions")
-          .update({
-           customer_name: customerName,
-            step: "phone",
-            updated_at: new Date().toISOString()
-          })
-          .eq("sender_id", senderId);
-
-        await sendMessage(
-          senderId,
-          "Утасны дугаараа оруулна уу."
-        );
-
-        continue;
-      }
 
     if (session.step === "phone") {
 
