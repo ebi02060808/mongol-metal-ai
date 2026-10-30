@@ -198,6 +198,7 @@ continue;
             width: null,
             height: null,
             quantity: null,
+            area: null,
             customer_name: null,
             phone: null,
             address: null,
@@ -302,7 +303,77 @@ if (isFacade) {
 
 continue;
 }
+if (session.step === "area") {
+  const enteredArea = Number(messageText.trim().replace(",", "."));
 
+  if (!Number.isFinite(enteredArea) || enteredArea <= 0) {
+    await sendMessage(
+      senderId,
+      "Талбайгаа зөв оруулна уу.\n\nЖишээ: 25 эсвэл 25.5"
+    );
+    continue;
+  }
+
+  const unitPrice = priceList[session.product_type];
+
+  if (!unitPrice) {
+    await sendMessage(senderId, "Бүтээгдэхүүний үнэ олдсонгүй. Дахин эхлүүлнэ үү.");
+    continue;
+  }
+
+  const totalPrice = Math.round(enteredArea * unitPrice);
+
+  const { error: itemError } = await supabase
+    .from("messenger_order_items")
+    .insert({
+      order_id: session.order_id,
+      sender_id: senderId,
+      product_type: session.product_type,
+      width: null,
+      height: null,
+      quantity: 1,
+      unit_price: unitPrice,
+      area: enteredArea,
+      total_price: totalPrice
+    });
+
+  if (itemError) {
+    console.error("Facade item insert error:", itemError);
+    await sendMessage(senderId, "Захиалгын мэдээлэл хадгалахад алдаа гарлаа. Дахин оролдоно уу.");
+    continue;
+  }
+
+  const { error: sessionError } = await supabase
+    .from("messenger_sessions")
+    .update({
+      area: enteredArea,
+      quantity: 1,
+      step: "add_more",
+      updated_at: new Date().toISOString()
+    })
+    .eq("sender_id", senderId);
+
+  if (sessionError) {
+    console.error("Facade session update error:", sessionError);
+    await sendMessage(senderId, "Захиалгын төлөв хадгалахад алдаа гарлаа. Админтай холбогдоно уу.");
+    continue;
+  }
+
+  await sendMessage(
+    senderId,
+    "📐 Нийт талбай: " + enteredArea.toFixed(2) + " м²\n" +
+    "💰 Нэгж үнэ: " + unitPrice.toLocaleString("en-US") + "₮/м²\n" +
+    "💵 Урьдчилсан үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n\n" +
+    "📷 Боломжтой бол фасад хийх объектын зураг илгээнэ үү.\n\n" +
+    "Манай мэргэжилтэн объект дээр очиж бодит хэмжилт, нөхцөл байдлыг шалгасны дараа материал, хийц, угсралтын ажлыг тооцож, эцсийн үнийг харилцан тохиролцоно.\n\n" +
+    "Анхаарна уу: Эцсийн үнэ нь бодит хэмжилт, объектын нөхцөлөөс хамаарч өөрчлөгдөж болно.\n\n" +
+    "Өөр бүтээгдэхүүн эсвэл өөр хэмжээ нэмэх үү?\n\n" +
+    "1 — Тийм, нэмэх\n" +
+    "2 — Үгүй, захиалгаа дуусгах"
+  );
+
+  continue;
+}
 if (session.step === "size") {
 
         const numbers = messageText
@@ -435,13 +506,14 @@ if (session.step === "add_more") {
     await supabase
       .from("messenger_sessions")
       .update({
-        product_type: null,
-        width: null,
-        height: null,
-        quantity: null,
-        step: "product",
-        updated_at: new Date().toISOString()
-      })
+  product_type: null,
+  width: null,
+  height: null,
+  quantity: null,
+  area: null,
+  step: "product",
+  updated_at: new Date().toISOString()
+})
       .eq("sender_id", senderId);
 
     await sendMessage(
@@ -566,27 +638,31 @@ if (session.step === "address") {
     continue;
   }
 
-  let totalPrice = 0;
-  let totalArea = 0;
+let totalPrice = 0;
+let totalArea = 0;
+let itemDetails = "";
 
-  let itemDetails = "";
+items.forEach((item, index) => {
+  const itemArea = Number(item.area) * Number(item.quantity);
+  const itemTotal = Number(item.total_price);
 
-  items.forEach((item, index) => {
-    const itemArea = Number(item.area) * Number(item.quantity);
-    const itemTotal = Number(item.total_price);
+  totalArea += itemArea;
+  totalPrice += itemTotal;
 
-    totalArea += itemArea;
-    totalPrice += itemTotal;
+  const isFacade = item.width == null || item.height == null;
 
-    itemDetails +=
-      (index + 1) + ". " + item.product_type + "\n" +
-      "Хэмжээ: " + item.width + " × " + item.height + " м\n" +
+  const measurementDetails = isFacade
+    ? "Нийт талбай: " + itemArea.toFixed(2) + " м²\n"
+    : "Хэмжээ: " + item.width + " × " + item.height + " м\n" +
       "Тоо: " + item.quantity + " ш\n" +
-      "Нийт талбай: " + itemArea.toFixed(2) + " м²\n" +
-      "Нэгж үнэ: " + Number(item.unit_price).toLocaleString("en-US") + "₮/м²\n" +
-      "Дүн: " + itemTotal.toLocaleString("en-US") + "₮\n\n";
-  });
+      "Нийт талбай: " + itemArea.toFixed(2) + " м²\n";
 
+  itemDetails +=
+    (index + 1) + ". " + item.product_type + "\n" +
+    measurementDetails +
+    "Нэгж үнэ: " + Number(item.unit_price).toLocaleString("en-US") + "₮/м²\n" +
+    "Дүн: " + itemTotal.toLocaleString("en-US") + "₮\n\n";
+});
   await sendMessage(
     senderId,
     "📋 ТАНЫ ЗАХИАЛГЫН МЭДЭЭЛЭЛ\n\n" +
@@ -637,6 +713,7 @@ if (session.step === "confirm") {
         width: null,
         height: null,
         quantity: null,
+        area: null,
         customer_name: null,
         phone: null,
         address: null,
@@ -699,21 +776,27 @@ if (session.step === "confirm") {
   let totalArea = 0;
   let itemDetails = "";
 
-  items.forEach((item, index) => {
-    const itemArea = Number(item.area) * Number(item.quantity);
-    const itemTotal = Number(item.total_price);
+ items.forEach((item, index) => {
+  const itemArea = Number(item.area) * Number(item.quantity);
+  const itemTotal = Number(item.total_price);
 
-    totalArea += itemArea;
-    totalPrice += itemTotal;
+  totalArea += itemArea;
+  totalPrice += itemTotal;
 
-    itemDetails +=
-      (index + 1) + ". " + item.product_type + "\n" +
-      "Хэмжээ: " + item.width + " × " + item.height + " м\n" +
+  const isFacade = item.width == null || item.height == null;
+
+  const measurementDetails = isFacade
+    ? "Нийт талбай: " + itemArea.toFixed(2) + " м²\n"
+    : "Хэмжээ: " + item.width + " × " + item.height + " м\n" +
       "Тоо: " + item.quantity + " ш\n" +
-      "Талбай: " + itemArea.toFixed(2) + " м²\n" +
-      "Нэгж үнэ: " + Number(item.unit_price).toLocaleString("en-US") + "₮/м²\n" +
-      "Дүн: " + itemTotal.toLocaleString("en-US") + "₮\n\n";
-  });
+      "Нийт талбай: " + itemArea.toFixed(2) + " м²\n";
+
+  itemDetails +=
+    (index + 1) + ". " + item.product_type + "\n" +
+    measurementDetails +
+    "Нэгж үнэ: " + Number(item.unit_price).toLocaleString("en-US") + "₮/м²\n" +
+    "Дүн: " + itemTotal.toLocaleString("en-US") + "₮\n\n";
+});
 
 const { data: completedSession, error: completeError } =
   await supabase
