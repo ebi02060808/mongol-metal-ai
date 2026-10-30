@@ -251,36 +251,59 @@ continue;
 
   const productType = products[messageText];
 
-  if (!productType) {
-    await sendMessage(
-      senderId,
-      "1–7 хүртэлх сонголтын дугаараас сонгоно уу."
-    );
-    continue;
-  }
-      
+if (!productType) {
+  await sendMessage(
+    senderId,
+    "1–7 хүртэлх сонголтын дугаараас сонгоно уу."
+  );
+  continue;
+}
 
-        await supabase
-          .from("messenger_sessions")
-          .update({
-            product_type: productType,
-            step: "size",
-            updated_at: new Date().toISOString()
-          })
-          .eq("sender_id", senderId);
+const isFacade =
+  productType === "Металл фасад" ||
+  productType === "Шилэн фасад, хатаалгатай, 2 давхар шилтэй";
 
-        await sendMessage(
-          senderId,
-          productType +
-          " сонголоо.\n\n" +
-          "Өргөн × өндөр хэмжээг метрээр оруулна уу.\n\n" +
-          "Жишээ: 1.5 × 1.2"
-        );
+const { error: productUpdateError } = await supabase
+  .from("messenger_sessions")
+  .update({
+    product_type: productType,
+    width: null,
+    height: null,
+    quantity: null,
+    area: null,
+    step: isFacade ? "area" : "size",
+    updated_at: new Date().toISOString()
+  })
+  .eq("sender_id", senderId);
 
-        continue;
-      }
+if (productUpdateError) {
+  console.error("Product update error:", productUpdateError);
+  await sendMessage(senderId, "Бүтээгдэхүүн сонгоход алдаа гарлаа. Дахин оролдоно уу.");
+  continue;
+}
 
-      if (session.step === "size") {
+if (isFacade) {
+  await sendMessage(
+    senderId,
+    productType +
+    " сонголоо.\n\n" +
+    "Нийт хэдэн м² талбай вэ?\n\n" +
+    "Жишээ: 25"
+  );
+} else {
+  await sendMessage(
+    senderId,
+    productType +
+    " сонголоо.\n\n" +
+    "Өргөн × өндөр хэмжээг метрээр оруулна уу.\n\n" +
+    "Жишээ: 1.5 × 1.2"
+  );
+}
+
+continue;
+}
+
+if (session.step === "size") {
 
         const numbers = messageText
           .replace(",", ".")
