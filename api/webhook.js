@@ -599,8 +599,8 @@ if (session.step === "name") {
   continue;
 }
 
-    if (session.step === "phone") {
 
+if (session.step === "phone") {
   const phoneNumber = messageText.replace(/[\s-]/g, "");
   const normalizedPhone = phoneNumber.replace(/^\+?976/, "");
 
@@ -616,41 +616,135 @@ if (session.step === "name") {
     .from("messenger_sessions")
     .update({
       phone: normalizedPhone,
-      step: "address",
+      step: "location_type",
       updated_at: new Date().toISOString()
     })
     .eq("sender_id", senderId);
 
   if (phoneError) {
     console.error("Phone update error:", phoneError);
-    await sendMessage(senderId, "Утас хадгалахад алдаа гарлаа. Дахин оролдоно уу.");
+    await sendMessage(
+      senderId,
+      "Утас хадгалахад алдаа гарлаа. Дахин оролдоно уу."
+    );
     continue;
   }
 
   await sendMessage(
     senderId,
-    "Хаана суурилуулах вэ?\n\n" +
-    "Жишээ: Баянзүрх дүүрэг, 13-р хороолол"
+    "Та хаана байрлаж байна вэ?\n\n" +
+    "1. Улаанбаатар\n" +
+    "2. Орон нутаг"
   );
 
   continue;
 }
 
-     
-if (session.step === "address") {
-  const customerAddress = messageText.trim();
 
-if (
-  customerAddress.length < 5 ||
-  (customerAddress.match(/\p{L}/gu) || []).length < 4
-) {
+if (session.step === "location_type") {
+  const choice = messageText.trim();
+
+  if (choice === "1") {
+    const { error } = await supabase
+      .from("messenger_sessions")
+      .update({
+        address: null,
+        step: "district",
+        updated_at: new Date().toISOString()
+      })
+      .eq("sender_id", senderId);
+
+    if (error) {
+      console.error("Location type error:", error);
+      await sendMessage(senderId, "Алдаа гарлаа. Дахин сонгоно уу.");
+      continue;
+    }
+
+    await sendMessage(
+      senderId,
+      "Улаанбаатарын аль дүүрэг вэ?\n\nЖишээ: Баянзүрх дүүрэг"
+    );
+    continue;
+  }
+
+  if (choice === "2") {
+  const { error } = await supabase
+    .from("messenger_sessions")
+    .update({
+      address: null,
+      province: null,
+      step: "province",
+      updated_at: new Date().toISOString()
+    })
+    .eq("sender_id", senderId);
+
+  if (error) {
+    console.error("Province step error:", error);
+    await sendMessage(senderId, "Алдаа гарлаа. Дахин сонгоно уу.");
+    continue;
+  }
+
+   await sendMessage(
+  senderId,
+  "Та аль аймагт байрлаж байна вэ?\n\nЖишээ: Өмнөговь аймаг"
+);
+    continue;
+  }
+
   await sendMessage(
     senderId,
-    "Байршлаа дэлгэрэнгүй оруулна уу.\n\n" +
-    "Жишээ: Баянзүрх дүүрэг, 13-р хороолол, 5-р байр."
+    "1. Улаанбаатар\n2. Орон нутаг\n\n1 эсвэл 2 гэж сонгоно уу."
   );
   continue;
 }
+
+if (session.step === "province") {
+  const provinceName = messageText.trim();
+
+  if ((provinceName.match(/\p{L}/gu) || []).length < 4) {
+    await sendMessage(
+      senderId,
+      "Аймгийн нэрээ зөв оруулна уу.\nЖишээ: Өмнөговь аймаг"
+    );
+    continue;
+  }
+
+  const { error } = await supabase
+    .from("messenger_sessions")
+    .update({
+      province: provinceName,
+      step: "soum",
+      updated_at: new Date().toISOString()
+    })
+    .eq("sender_id", senderId);
+
+  if (error) {
+    console.error("Province save error:", error);
+    await sendMessage(senderId, "Аймаг хадгалахад алдаа гарлаа. Дахин оруулна уу.");
+    continue;
+  }
+
+  await sendMessage(
+    senderId,
+    "Та аль суманд байрлаж байна вэ?\nЖишээ: Даланзадгад сум"
+  );
+  continue;
+}
+
+if (session.step === "district" || session.step === "soum") {
+const locationDetail = messageText.trim();
+
+const customerAddress =
+  session.step === "soum"
+    ? `${session.province}, ${locationDetail}`
+    : locationDetail;
+ if (
+  customerAddress.length < 4 ||
+  !/[\p{L}]{2,}/u.test(customerAddress)
+) {
+    await sendMessage(senderId, "Дүүрэг эсвэл сумын нэрээ зөв оруулна уу.");
+    continue;
+  }
 
   const { data: updatedSession, error: updateError } =
     await supabase
