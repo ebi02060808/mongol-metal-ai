@@ -24,6 +24,22 @@ const products = {
   "6": "Металл фасад",
   "7": "Шилэн фасад, хатаалгатай, 2 давхар шилтэй"
 };
+
+function createOrderNumber() {
+  const now = new Date();
+
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ulaanbaatar",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(now).replace(/-/g, "");
+
+  const randomPart = Math.floor(1000 + Math.random() * 9000);
+
+  return "MP-" + date + "-" + randomPart;
+}
+
 async function sendMessage(senderId, text) {
   const response = await fetch(
     `https://graph.facebook.com/v26.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`,
@@ -123,9 +139,10 @@ export default async function handler(req, res) {
         const { data: newSession, error: insertError } =
           await supabase
             .from("messenger_sessions")
-           .insert({
+       .insert({
   sender_id: senderId,
   order_id: randomUUID(),
+  order_number: createOrderNumber(),
   step: "product"
 })
             .select()
@@ -173,29 +190,7 @@ continue;
         messageText.toLowerCase() === "dahiad zahialga uguy"
       ) {
 
-        const { error: resetError } = await supabase
-          .from("messenger_sessions")
-          .update({
-            product_type: null,
-            width: null,
-            height: null,
-            quantity: null,
-            customer_name: null,
-            phone: null,
-            address: null,
-            order_id: randomUUID(),
-            step: "product",
-            updated_at: new Date().toISOString()
-          })
-          .eq("sender_id", senderId);
-
-        if (resetError) {
-          console.error("New order reset error:", resetError);
-
-          await sendMessage(
-            senderId,
-            "Уучлаарай, шинэ захиалга эхлүүлэхэд алдаа гарлаа. Дахин оролдоно уу."
-          );
+      c
 
           continue;
         }
@@ -547,6 +542,7 @@ if (session.step === "address") {
   await sendMessage(
     senderId,
     "📋 ТАНЫ ЗАХИАЛГЫН МЭДЭЭЛЭЛ\n\n" +
+    "Захиалгын дугаар: " + updatedSession.order_number + "\n\n" +
     itemDetails +
     "--------------------\n" +
     "Нийт бүтээгдэхүүн: " + items.length + " мөр\n" +
@@ -586,9 +582,10 @@ if (session.step === "confirm") {
 
     const { error: resetError } = await supabase
       .from("messenger_sessions")
-      .update({
-        order_id: randomUUID(),
-        product_type: null,
+.update({
+  order_id: randomUUID(),
+  order_number: createOrderNumber(),
+  product_type: null,
         width: null,
         height: null,
         quantity: null,
@@ -691,6 +688,7 @@ if (session.step === "confirm") {
   await sendMessage(
     process.env.ADMIN_PSID,
     "🔔 ШИНЭ ЗАХИАЛГА БАТАЛГААЖЛАА!\n\n" +
+    "Захиалгын дугаар: " + session.order_number + "\n\n" +
     itemDetails +
     "--------------------\n" +
     "Нийт мөр: " + items.length + "\n" +
@@ -704,6 +702,7 @@ if (session.step === "confirm") {
   await sendMessage(
     senderId,
     "✅ Таны захиалга амжилттай баталгаажлаа.\n\n" +
+    "Захиалгын дугаар: " + session.order_number + "\n\n" +
     "Нийт бүтээгдэхүүн: " + items.length + " мөр\n" +
     "Нийт үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n\n" +
     "Манай ажилтан удахгүй холбогдоно. Баярлалаа!"
