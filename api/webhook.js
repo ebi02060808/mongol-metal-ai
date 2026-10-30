@@ -558,12 +558,23 @@ if (session.step === "add_more") {
 }
 
 if (session.step === "name") {
+  const customerName = messageText.trim();
+
+if (!/^[\p{L}][\p{L}\s'-]{1,49}$/u.test(customerName) ||
+    (customerName.match(/\p{L}/gu) || []).length < 2) {
+
+  await sendMessage(
+    senderId,
+    "Нэрээ зөв оруулна уу.\nЖишээ: Бат-Эрдэнэ"
+  );
+  continue;
+}
 
 
         await supabase
           .from("messenger_sessions")
           .update({
-            customer_name: messageText,
+           customer_name: customerName,
             step: "phone",
             updated_at: new Date().toISOString()
           })
@@ -577,36 +588,66 @@ if (session.step === "name") {
         continue;
       }
 
-      if (session.step === "phone") {
+    if (session.step === "phone") {
 
-        await supabase
-          .from("messenger_sessions")
-          .update({
-            phone: messageText,
-            step: "address",
-            updated_at: new Date().toISOString()
-          })
-          .eq("sender_id", senderId);
+  const phoneNumber = messageText.replace(/[\s-]/g, "");
+  const normalizedPhone = phoneNumber.replace(/^\+?976/, "");
 
-        await sendMessage(
-          senderId,
-          "Хаана суурилуулах вэ?\n\n" +
-          "Жишээ: Баянзүрх дүүрэг, 13-р хороолол"
-        );
+  if (!/^[0-9]{8}$/.test(normalizedPhone)) {
+    await sendMessage(
+      senderId,
+      "Утасны дугаараа зөв оруулна уу.\nЖишээ: 99112233"
+    );
+    continue;
+  }
 
-        continue;
-      }
+  const { error: phoneError } = await supabase
+    .from("messenger_sessions")
+    .update({
+      phone: normalizedPhone,
+      step: "address",
+      updated_at: new Date().toISOString()
+    })
+    .eq("sender_id", senderId);
+
+  if (phoneError) {
+    console.error("Phone update error:", phoneError);
+    await sendMessage(senderId, "Утас хадгалахад алдаа гарлаа. Дахин оролдоно уу.");
+    continue;
+  }
+
+  await sendMessage(
+    senderId,
+    "Хаана суурилуулах вэ?\n\n" +
+    "Жишээ: Баянзүрх дүүрэг, 13-р хороолол"
+  );
+
+  continue;
+}
 
      
 if (session.step === "address") {
+  const customerAddress = messageText.trim();
+
+if (
+  customerAddress.length < 5 ||
+  (customerAddress.match(/\p{L}/gu) || []).length < 4
+) {
+  await sendMessage(
+    senderId,
+    "Байршлаа дэлгэрэнгүй оруулна уу.\n\n" +
+    "Жишээ: Баянзүрх дүүрэг, 13-р хороолол, 5-р байр."
+  );
+  continue;
+}
 
   const { data: updatedSession, error: updateError } =
     await supabase
       .from("messenger_sessions")
       .update({
-        address: messageText,
-        step: "confirm",
-        updated_at: new Date().toISOString()
+      address: customerAddress,
+      step: "confirm",
+      updated_at: new Date().toISOString()
       })
       .eq("sender_id", senderId)
       .select()
