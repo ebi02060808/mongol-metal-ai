@@ -692,23 +692,32 @@ if (session.step === "confirm") {
       "Дүн: " + itemTotal.toLocaleString("en-US") + "₮\n\n";
   });
 
-  const { error: completeError } = await supabase
+const { data: completedSession, error: completeError } =
+  await supabase
     .from("messenger_sessions")
     .update({
       step: "completed",
       updated_at: new Date().toISOString()
     })
-    .eq("sender_id", senderId);
+    .eq("sender_id", senderId)
+    .eq("step", "confirm")
+    .select("sender_id")
+    .maybeSingle();
 
-  if (completeError) {
-    console.error("Complete order error:", completeError);
+if (completeError) {
+  console.error("Complete order error:", completeError);
 
-    await sendMessage(
-      senderId,
-      "Захиалга баталгаажуулахад алдаа гарлаа."
-    );
-    continue;
-  }
+  await sendMessage(
+    senderId,
+    "Захиалга баталгаажуулахад алдаа гарлаа."
+  );
+  continue;
+}
+
+if (!completedSession) {
+  console.log("Order already confirmed:", session.order_number);
+  continue;
+}
 
   await sendMessage(
     process.env.ADMIN_PSID,
