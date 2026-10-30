@@ -360,9 +360,9 @@ continue;
           await supabase
             .from("messenger_sessions")
             .update({
-              address: messageText,
-              step: "completed",
-              updated_at: new Date().toISOString()
+            address: messageText,
+step: "confirm",
+updated_at: new Date().toISOString()
             })
             .eq("sender_id", senderId)
             .select()
@@ -397,46 +397,19 @@ continue;
 };
 
 const unitPrice = priceList[updatedSession.product_type];
+
+if (!unitPrice) {
+  await sendMessage(
+    senderId,
+    "Уучлаарай, бүтээгдэхүүний үнийг олсонгүй. Манай ажилтантай холбогдоно уу."
+  );
+  continue;
+}
+
 const totalPrice = Math.round(area * unitPrice);
-
         await sendMessage(
-          senderId,
-          "Захиалгын мэдээлэл:\n\n" +
-          "Бүтээгдэхүүн: " +
-          updatedSession.product_type +
-          "\n" +
-          "Хэмжээ: " +
-          updatedSession.width +
-          " × " +
-          updatedSession.height +
-          " м\n" +
-          "Тоо: " +
-         updatedSession.quantity +
-          " ш\n" +
-          "Нийт талбай: " +
-          area.toFixed(2) +
-          " м²\n" +
-          "Нэгж үнэ: " +
-          unitPrice.toLocaleString("en-US") +
-          "₮/м²\n" +
-          "Нийт үнэ: " +
-          totalPrice.toLocaleString("en-US") +
-          "₮\n" +
-          "Нэр: " +
-          updatedSession.customer_name +
-          "\n" +
-          "Утас: " +
-          updatedSession.phone +
-          "\n" +
-          "Байршил: " +
-          updatedSession.address +
-          "\n\n" +
-          "Манай ажилтан удахгүй тантай холбогдоно. Баярлалаа!"
-        );
-
-     await sendMessage(
-  process.env.ADMIN_PSID,
-  "🔔 ШИНЭ ЗАХИАЛГА ИРЛЭЭ!\n\n" +
+  senderId,
+  "📋 ТАНЫ ЗАХИАЛГЫН МЭДЭЭЛЭЛ\n\n" +
   "Бүтээгдэхүүн: " + updatedSession.product_type + "\n" +
   "Хэмжээ: " + updatedSession.width + " × " +
   updatedSession.height + " м\n" +
@@ -446,12 +419,94 @@ const totalPrice = Math.round(area * unitPrice);
   "Нийт үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n" +
   "Нэр: " + updatedSession.customer_name + "\n" +
   "Утас: " + updatedSession.phone + "\n" +
-  "Байршил: " + updatedSession.address
+  "Байршил: " + updatedSession.address + "\n\n" +
+  "Захиалгаа баталгаажуулах уу?\n\n" +
+  "1️⃣ — Баталгаажуулах\n" +
+  "2️⃣ — Буцах"
 );
 
         continue;
       }
+if (session.step === "confirm") {
 
+  if (messageText === "2") {
+    await supabase
+      .from("messenger_sessions")
+      .update({
+        step: "product",
+        address: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("sender_id", senderId);
+
+    await sendMessage(
+      senderId,
+      "Захиалгаа засах боломжтой. Бүтээгдэхүүнээ дахин сонгоно уу.\n\n" +
+      "1. Металл цонх\n" +
+      "2. Металл хаалга\n" +
+      "3. Хуванцар хаалт\n" +
+      "4. Хуванцар цонх\n" +
+      "5. Хуванцар хаалга\n" +
+      "6. Металл фасад\n" +
+      "7. Шилэн фасад"
+    );
+
+    continue;
+  }
+
+  if (messageText !== "1") {
+    await sendMessage(
+      senderId,
+      "1 — Баталгаажуулах, 2 — Буцах гэж сонгоно уу."
+    );
+    continue;
+  }
+
+  const area =
+    session.width * session.height * session.quantity;
+
+  const priceList = {
+    "Металл цонх, давхар шилтэй": 420000,
+    "Металл хаалга, давхар шилтэй": 840000,
+    "Хуванцар хаалт, дан шилтэй": 160000,
+    "Хуванцар цонх, 2 давхар шилтэй": 180000,
+    "Хуванцар хаалга, 2 давхар шилтэй": 220000,
+    "Металл фасад": 330000,
+    "Шилэн фасад, хатаалгатай, 2 давхар шилтэй": 580000
+  };
+
+  const unitPrice = priceList[session.product_type];
+  const totalPrice = Math.round(area * unitPrice);
+
+  await supabase
+    .from("messenger_sessions")
+    .update({
+      step: "completed",
+      updated_at: new Date().toISOString()
+    })
+    .eq("sender_id", senderId);
+
+  await sendMessage(
+    process.env.ADMIN_PSID,
+    "🔔 ШИНЭ ЗАХИАЛГА БАТАЛГААЖЛАА!\n\n" +
+    "Бүтээгдэхүүн: " + session.product_type + "\n" +
+    "Хэмжээ: " + session.width + " × " + session.height + " м\n" +
+    "Тоо: " + session.quantity + " ш\n" +
+    "Нийт талбай: " + area.toFixed(2) + " м²\n" +
+    "Нэгж үнэ: " + unitPrice.toLocaleString("en-US") + "₮/м²\n" +
+    "Нийт үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n" +
+    "Нэр: " + session.customer_name + "\n" +
+    "Утас: " + session.phone + "\n" +
+    "Байршил: " + session.address
+  );
+
+  await sendMessage(
+    senderId,
+    "✅ Таны захиалга амжилттай баталгаажлаа. Манай ажилтан удахгүй холбогдоно. Баярлалаа!"
+  );
+
+  continue;
+}
       if (session.step === "completed") {
 
         await sendMessage(
