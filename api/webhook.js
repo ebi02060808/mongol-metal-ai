@@ -126,20 +126,24 @@ export default async function handler(req, res) {
           continue;
         }
 
-        session = newSession;
+       session = newSession;
 
-        await sendMessage(
-          senderId,
-          "Сайн байна уу 👋\n\n" +
-          "Монгол металл хийцэд хандсанд баярлалаа.\n\n" +
-          "Та ямар бүтээгдэхүүн захиалах вэ?\n\n" +
-          "1. Металл цонх\n" +
-          "2. Металл хаалга\n" +
-          "3. Металл хаалт\n\n" +
-          "Та 1, 2 эсвэл 3 гэж хариулна уу."
-        );
+await sendMessage(
+  senderId,
+  "Сайн байна уу 👋\n\n" +
+  "Монгол металл хийцэд хандсанд баярлалаа.\n\n" +
+  "Та ямар бүтээгдэхүүн захиалах вэ?\n\n" +
+  "1. Металл цонх, давхар шилтэй — 420,000₮/м²\n" +
+  "2. Металл хаалга, давхар шилтэй — 840,000₮/м²\n" +
+  "3. Хуванцар хаалт, дан шилтэй — 160,000₮/м²\n" +
+  "4. Хуванцар цонх, 2 давхар шилтэй — 180,000₮/м²\n" +
+  "5. Хуванцар хаалга, 2 давхар шилтэй — 220,000₮/м²\n" +
+  "6. Металл фасад — 330,000₮/м²\n" +
+  "7. Шилэн фасад, хатаалгатай, 2 давхар шилтэй — 580,000₮/м²\n\n" +
+  "Та 1–7 хүртэлх сонголтын дугаараа илгээнэ үү."
+);
 
-        continue;
+continue;
       }
     
       // Шинэ захиалга эхлүүлэх команд
@@ -176,43 +180,45 @@ export default async function handler(req, res) {
           continue;
         }
 
-        await sendMessage(
-          senderId,
-          "🛠️ Шинэ захиалга эхэллээ!\n\n" +
-          "Та ямар бүтээгдэхүүн захиалах вэ?\n\n" +
-          "1. Металл цонх\n" +
-          "2. Металл хаалга\n" +
-          "3. Металл хаалт\n\n" +
-          "Та 1, 2 эсвэл 3 гэж хариулна уу."
-        );
+await sendMessage(
+  senderId,
+  "🛠️ Шинэ захиалга эхэллээ!\n\n" +
+  "Та ямар бүтээгдэхүүн захиалах вэ?\n\n" +
+  "1. Металл цонх, давхар шилтэй — 420,000₮/м²\n" +
+  "2. Металл хаалга, давхар шилтэй — 840,000₮/м²\n" +
+  "3. Хуванцар хаалт, дан шилтэй — 160,000₮/м²\n" +
+  "4. Хуванцар цонх, 2 давхар шилтэй — 180,000₮/м²\n" +
+  "5. Хуванцар хаалга, 2 давхар шилтэй — 220,000₮/м²\n" +
+  "6. Металл фасад — 330,000₮/м²\n" +
+  "7. Шилэн фасад, хатаалгатай, 2 давхар шилтэй — 580,000₮/м²\n\n" +
+  "Та 1–7 хүртэлх сонголтын дугаараа илгээнэ үү."
+);
 
-        continue;
+continue;
       }
 
-      if (session.step === "product") {
+    if (session.step === "product") {
 
-        let productType = null;
+  const products = {
+    "1": "Металл цонх, давхар шилтэй",
+    "2": "Металл хаалга, давхар шилтэй",
+    "3": "Хуванцар хаалт, дан шилтэй",
+    "4": "Хуванцар цонх, 2 давхар шилтэй",
+    "5": "Хуванцар хаалга, 2 давхар шилтэй",
+    "6": "Металл фасад",
+    "7": "Шилэн фасад, хатаалгатай, 2 давхар шилтэй"
+  };
 
-        if (messageText === "1") {
-          productType = "Металл цонх";
-        }
+  const productType = products[messageText];
 
-        if (messageText === "2") {
-          productType = "Металл хаалга";
-        }
-
-        if (messageText === "3") {
-          productType = "Металл хаалт";
-        }
-
-        if (!productType) {
-          await sendMessage(
-            senderId,
-            "1, 2 эсвэл 3 гэсэн сонголтоос сонгоно уу."
-          );
-
-          continue;
-        }
+  if (!productType) {
+    await sendMessage(
+      senderId,
+      "1–7 хүртэлх сонголтын дугаараас сонгоно уу."
+    );
+    continue;
+  }
+      
 
         await supabase
           .from("messenger_sessions")
@@ -380,6 +386,18 @@ export default async function handler(req, res) {
           updatedSession.width *
           updatedSession.height *
           updatedSession.quantity;
+        const priceList = {
+  "Металл цонх, давхар шилтэй": 420000,
+  "Металл хаалга, давхар шилтэй": 840000,
+  "Хуванцар хаалт, дан шилтэй": 160000,
+  "Хуванцар цонх, 2 давхар шилтэй": 180000,
+  "Хуванцар хаалга, 2 давхар шилтэй": 220000,
+  "Металл фасад": 330000,
+  "Шилэн фасад, хатаалгатай, 2 давхар шилтэй": 580000
+};
+
+const unitPrice = priceList[updatedSession.product_type];
+const totalPrice = Math.round(area * unitPrice);
 
         await sendMessage(
           senderId,
@@ -393,11 +411,17 @@ export default async function handler(req, res) {
           updatedSession.height +
           " м\n" +
           "Тоо: " +
-          updatedSession.quantity +
+         updatedSession.quantity +
           " ш\n" +
           "Нийт талбай: " +
           area.toFixed(2) +
           " м²\n" +
+          "Нэгж үнэ: " +
+          unitPrice.toLocaleString("en-US") +
+          "₮/м²\n" +
+          "Нийт үнэ: " +
+          totalPrice.toLocaleString("en-US") +
+          "₮\n" +
           "Нэр: " +
           updatedSession.customer_name +
           "\n" +
@@ -410,18 +434,20 @@ export default async function handler(req, res) {
           "Манай ажилтан удахгүй тантай холбогдоно. Баярлалаа!"
         );
 
-        await sendMessage(
-          process.env.ADMIN_PSID,
-          "🔔 ШИНЭ ЗАХИАЛГА ИРЛЭЭ!\n\n" +
-          "Бүтээгдэхүүн: " + updatedSession.product_type + "\n" +
-          "Хэмжээ: " + updatedSession.width + " × " +
-          updatedSession.height + " м\n" +
-          "Тоо: " + updatedSession.quantity + " ш\n" +
-          "Нийт талбай: " + area.toFixed(2) + " м²\n" +
-          "Нэр: " + updatedSession.customer_name + "\n" +
-          "Утас: " + updatedSession.phone + "\n" +
-          "Байршил: " + updatedSession.address
-        );
+     await sendMessage(
+  process.env.ADMIN_PSID,
+  "🔔 ШИНЭ ЗАХИАЛГА ИРЛЭЭ!\n\n" +
+  "Бүтээгдэхүүн: " + updatedSession.product_type + "\n" +
+  "Хэмжээ: " + updatedSession.width + " × " +
+  updatedSession.height + " м\n" +
+  "Тоо: " + updatedSession.quantity + " ш\n" +
+  "Нийт талбай: " + area.toFixed(2) + " м²\n" +
+  "Нэгж үнэ: " + unitPrice.toLocaleString("en-US") + "₮/м²\n" +
+  "Нийт үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n" +
+  "Нэр: " + updatedSession.customer_name + "\n" +
+  "Утас: " + updatedSession.phone + "\n" +
+  "Байршил: " + updatedSession.address
+);
 
         continue;
       }
