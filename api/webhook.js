@@ -374,22 +374,74 @@ if (session.step === "area") {
 
   continue;
 }
+
 if (session.step === "size") {
+  const normalizedText = messageText.trim().replace(/,/g, ".");
 
-        const numbers = messageText
-          .replace(",", ".")
-          .match(/\d+(?:\.\d+)?/g);
+  const match = normalizedText.match(
+    /^(\d+(?:\.\d+)?)\s*[xх×*]\s*(\d+(?:\.\d+)?)$/i
+  );
 
-        if (!numbers || numbers.length < 2) {
+  if (!match) {
+    await sendMessage(
+      senderId,
+      "Хэмжээг зөв оруулна уу.\n\n" +
+      "Жишээ: 1.5 × 1.2\n" +
+      "Эсвэл: 1.5x1.2"
+    );
+    continue;
+  }
 
-          await sendMessage(
-            senderId,
-            "Хэмжээг зөв оруулна уу.\n\n" +
-            "Жишээ: 1.5 × 1.2"
-          );
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  const pieceArea = width * height;
 
-          continue;
-        }
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width < 0.1 ||
+    height < 0.1 ||
+    width > 20 ||
+    height > 20 ||
+    pieceArea > 100
+  ) {
+    await sendMessage(
+      senderId,
+      "Оруулсан хэмжээ боломжит хязгаараас хэтэрсэн байна.\n\n" +
+      "Өргөн, өндөр тус бүр 0.1–20 метр байх бөгөөд нэг ширхэгийн талбай 100 м²-ээс ихгүй байна.\n\n" +
+      "Хэмжээгээ дахин шалгана уу."
+    );
+    continue;
+  }
+
+  const { error: sizeError } = await supabase
+    .from("messenger_sessions")
+    .update({
+      width: width,
+      height: height,
+      step: "quantity",
+      updated_at: new Date().toISOString()
+    })
+    .eq("sender_id", senderId);
+
+  if (sizeError) {
+    console.error("Size update error:", sizeError);
+    await sendMessage(
+      senderId,
+      "Хэмжээ хадгалахад алдаа гарлаа. Дахин оруулна уу."
+    );
+    continue;
+  }
+
+  await sendMessage(
+    senderId,
+    "Хэмжээ: " + width + " × " + height + " м.\n" +
+    "Нэг ширхэгийн талбай: " + pieceArea.toFixed(2) + " м²\n\n" +
+    "Хэдэн ширхэг захиалах вэ?"
+  );
+
+  continue;
+}
 
         const width = Number(numbers[0]);
         const height = Number(numbers[1]);
