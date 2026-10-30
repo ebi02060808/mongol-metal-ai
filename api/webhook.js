@@ -187,13 +187,38 @@ continue;
         messageText.toLowerCase() === "шинэ захиалга" ||
         messageText.toLowerCase() === "shine zahialga" ||
         messageText.toLowerCase() === "дахиад захиалга өгөе" ||
-        messageText.toLowerCase() === "dahiad zahialga uguy"
+        messageText.toLowerCase() === "dahiad zahialga uguy" ||
+        messageText.toLowerCase() === "zahialga uguy"
       ) {
 
-      c
+        const { error: resetError } = await supabase
+          .from("messenger_sessions")
+          .update({
+            product_type: null,
+            width: null,
+            height: null,
+            quantity: null,
+            customer_name: null,
+            phone: null,
+            address: null,
+            order_id: randomUUID(),
+            order_number: createOrderNumber(),
+            step: "product",
+            updated_at: new Date().toISOString()
+          })
+          .eq("sender_id", senderId);
+
+        if (resetError) {
+          console.error("New order reset error:", resetError);
+
+          await sendMessage(
+            senderId,
+            "Уучлаарай, шинэ захиалга эхлүүлэхэд алдаа гарлаа. Дахин оролдоно уу."
+          );
 
           continue;
         }
+
 
 await sendMessage(
   senderId,
