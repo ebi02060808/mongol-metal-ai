@@ -443,33 +443,6 @@ if (session.step === "size") {
   continue;
 }
 
-        const width = Number(numbers[0]);
-        const height = Number(numbers[1]);
-
-        await supabase
-          .from("messenger_sessions")
-          .update({
-            width: width,
-            height: height,
-            step: "quantity",
-            updated_at: new Date().toISOString()
-          })
-          .eq("sender_id", senderId);
-
-        await sendMessage(
-          senderId,
-          "Хэмжээ: " +
-          width +
-          " × " +
-          height +
-          " м.\n\n" +
-          "Хэдэн ширхэг захиалах вэ?"
-        );
-
-        continue;
-      }
-
-
 if (session.step === "quantity") {
 
   const quantity = Number(messageText);
