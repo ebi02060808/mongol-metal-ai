@@ -76,28 +76,98 @@ async function saveMessengerPhoto(senderId, orderId, attachment) {
     throw new Error("Зургийн URL олдсонгүй");
   }
 
-  const response = await fetch(imageUrl);
+  // URL болон домэйныг шалгах
+  let parsedUrl;
+
+  try {
+    parsedUrl = new URL(imageUrl);
+  } catch {
+    throw new Error("Зургийн URL буруу байна");
+  }
+
+  const host = parsedUrl.hostname.toLowerCase();
+
+  const allowedHost =
+    host === "lookaside.fbsbx.com" ||
+    host === "platform-lookaside.fbsbx.com" ||
+    host.endsWith(".fbcdn.net");
+
+  if (
+    parsedUrl.protocol !== "https:" ||
+    !allowedHost ||
+    parsedUrl.username ||
+    parsedUrl.password ||
+    (parsedUrl.port && parsedUrl.port !== "443")
+  ) {
+    throw new Error("Зургийн хаяг зөвшөөрөгдөөгүй");
+  }
+
+  // Redirect дагахгүй, хүсэлтийн хугацааг хязгаарлах
+  const response = await fetch(parsedUrl.href, {
+    redirect: "error",
+    signal: AbortSignal.timeout(15000)
+  });
 
   if (!response.ok) {
     throw new Error("Зургийг татаж чадсангүй");
   }
 
-  const imageBuffer = Buffer.from(await response.arrayBuffer());
+  // Файлын форматыг шалгах
+  const contentType = (response.headers.get("content-type") || "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
 
-  if (imageBuffer.length > 10 * 1024 * 1024) {
-    throw new Error("Зургийн хэмжээ 10 MB-аас их байна");
-  }
+  const extensions = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp"
+  };
 
-  const contentType = response.headers.get("content-type");
-
-  if (!["image/jpeg", "image/png", "image/webp"].includes(contentType)) {
+  if (!extensions[contentType]) {
     throw new Error("Зургийн формат зөвшөөрөгдөөгүй");
   }
 
+  // 10 MB-аас хэтэрвэл татахгүй
+  const maxSize = 10 * 1024 * 1024;
+  const contentLength = Number(response.headers.get("content-length"));
+
+  if (contentLength > maxSize) {
+    throw new Error("Зургийн хэмжээ 10 MB-аас их байна");
+  }
+
+  if (!response.body) {
+    throw new Error("Зургийн өгөгдөл олдсонгүй");
+  }
+
+  // Татаж байх явцдаа хэмжээг шалгах
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalSize = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      totalSize += value.length;
+
+      if (totalSize > maxSize) {
+        await reader.cancel();
+        throw new Error("Зургийн хэмжээ 10 MB-аас их байна");
+      }
+
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const imageBuffer = Buffer.concat(chunks);
+
   const fileName =
-    `${orderId}/${Date.now()}-${randomUUID()}.` +
-    (contentType === "image/png" ? "png" :
-     contentType === "image/webp" ? "webp" : "jpg");
+    `${orderId}/${Date.now()}-${randomUUID()}.${extensions[contentType]}`;
 
   const { error } = await supabase.storage
     .from("messenger-photos")
@@ -228,6 +298,17 @@ if (!messageText && !hasImage) {
               );
 
               console.log("Saved customer photo:", fileName);
+              const { error: photoDbError } = await supabase
+  .from("messenger_order_photos")
+  .insert({
+    order_id: session.order_id,
+    sender_id: senderId,
+    file_path: fileName
+  });
+
+if (photoDbError) {
+  throw photoDbError;
+}
 
               await sendMessage(
                 senderId,
@@ -263,37 +344,49 @@ await sendMessage(
 continue;
       }
 
-            // Зураг хадгалах
-      if (hasImage) {
-        for (const attachment of attachments) {
-          if (attachment.type !== "image") continue;
+// Зураг хадгалах
+if (hasImage) {
+  for (const attachment of attachments) {
+    if (attachment.type !== "image") continue;
 
-          try {
-            const fileName = await saveMessengerPhoto(
-              senderId,
-              session.order_id,
-              attachment
-            );
+    try {
+      const fileName = await saveMessengerPhoto(
+        senderId,
+        session.order_id,
+        attachment
+      );
 
-            console.log("Saved customer photo:", fileName);
+      console.log("Saved customer photo:", fileName);
 
-            await sendMessage(
-              senderId,
-              "📷 Зураг амжилттай хадгалагдлаа.\n" +
-              "Захиалгын дугаар: " + session.order_number
-            );
-          } catch (photoError) {
-            console.error("Photo save error:", photoError);
+      const { error: photoDbError } = await supabase
+        .from("messenger_order_photos")
+        .insert({
+          order_id: session.order_id,
+          sender_id: senderId,
+          file_path: fileName
+        });
 
-            await sendMessage(
-              senderId,
-              "Зургийг хадгалахад алдаа гарлаа. JPG, PNG эсвэл WEBP форматаар 10 MB-аас бага зураг дахин илгээнэ үү."
-            );
-          }
-        }
-
-        continue;
+      if (photoDbError) {
+        throw photoDbError;
       }
+
+      await sendMessage(
+        senderId,
+        "📷 Зураг амжилттай хадгалагдлаа.\n" +
+        "Захиалгын дугаар: " + session.order_number
+      );
+    } catch (photoError) {
+      console.error("Photo save error:", photoError);
+
+      await sendMessage(
+        senderId,
+        "Зургийг хадгалахад алдаа гарлаа. JPG, PNG эсвэл WEBP форматаар 10 MB-аас бага зураг дахин илгээнэ үү."
+      );
+    }
+  }
+
+  continue;
+}
     
       // Шинэ захиалга эхлүүлэх команд
       if (
