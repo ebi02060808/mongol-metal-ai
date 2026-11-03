@@ -652,6 +652,40 @@ checkLogin().then(isAdmin => {
     loadDashboardStats();
   }
 });
+    async function updateOrderStatus(orderId, newStatus) {
+  try {
+    const { data: { user }, error: userError } =
+      await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      alert("Та эхлээд нэвтэрнэ үү.");
+      return;
+    }
+
+    const { data, error } = await supabaseClient
+      .from("orders")
+      .update({ status: newStatus })
+      .eq("id", orderId)
+      .eq("user_id", user.id)
+      .select();
+
+    if (error) {
+      alert("Алдаа: " + error.message);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      alert("Захиалга олдсонгүй.");
+      return;
+    }
+
+    alert("Төлөв амжилттай шинэчлэгдлээ!");
+    loadOrders();
+
+  } catch (err) {
+    alert("Алдаа: " + err.message);
+  }
+}
   </script>
 
 </body>
