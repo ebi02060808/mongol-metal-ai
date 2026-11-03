@@ -297,10 +297,11 @@ async function addOrder() {
   document.getElementById("product").value = "";
   document.getElementById("size").value = "";
   document.getElementById("price").value = "";
+
+  await loadOrders();
+  await loadCustomers();
+  await loadDashboardStats();
 }
-    await loadOrders();
-    await loadCustomers();
-    await loadDashboardStats();
     
     async function loadDashboardStats() {
   const { data: { session } } =
@@ -318,13 +319,25 @@ async function addOrder() {
     return;
   }
 
-  const allOrders = orders || [];
-  const today = new Date().toLocaleDateString("en-CA");
+ const allOrders = orders || [];
 
-  const todayOrders = allOrders.filter(order =>
-    new Date(order.created_at).toLocaleDateString("en-CA") === today
-  );
+const now = new Date();
+const start = new Date(
+  now.getFullYear(),
+  now.getMonth(),
+  now.getDate()
+);
+const end = new Date(
+  now.getFullYear(),
+  now.getMonth(),
+  now.getDate() + 1
+);
 
+const todayOrders = allOrders.filter(order => {
+  const created = new Date(order.created_at);
+  return created >= start && created < end;
+});
+      
   const customers = new Set(
     allOrders.map(order => order.phone).filter(Boolean)
   );
@@ -410,9 +423,11 @@ async function addOrder() {
     alert("Алдаа: " + error.message);
     return;
   }
-
-  loadOrders();
+     
+   await loadOrders();
+   await loadDashboardStats();
 }
+    
    async function loadCustomers() {
   const { data: { session } } =
     await supabaseClient.auth.getSession();
