@@ -1175,6 +1175,86 @@ if (session.step === "confirm") {
     "Дүн: " + itemTotal.toLocaleString("en-US") + "₮\n\n";
 });
 
+// Админ хэрэглэгчийн ID-г авах
+const { data: admin, error: adminError } = await supabase
+  .from("admin_users")
+  .select("user_id")
+  .eq("role", "admin")
+  .limit(1)
+  .maybeSingle();
+
+if (adminError || !admin?.user_id) {
+  console.error("Admin user lookup error:", adminError);
+
+  await sendMessage(
+    senderId,
+    "Захиалгыг бүртгэхэд админы мэдээлэл олдсонгүй. Түр хүлээнэ үү."
+  );
+  continue;
+}
+
+// Захиалгын мэдээллийг нэгтгэх
+const orderProduct = items
+  .map(item => item.product_type)
+  .join(", ");
+
+const orderSize = items.map((item, index) => {
+  const isFacade = item.width == null || item.height == null;
+
+  const measurement = isFacade
+    ? Number(item.area).toFixed(2) + " м²"
+    : item.width + " × " + item.height + " м, " +
+      item.quantity + " ш";
+
+  return (index + 1) + ". " + measurement;
+}).join("; ");
+
+const orderStatus = "Шинэ захиалга - " + session.order_number;
+
+// Давхар бүртгэл үүсэхээс хамгаалж шалгах
+const { data: existingOrder, error: checkError } = await supabase
+  .from("orders")
+  .select("id")
+  .eq("status", orderStatus)
+  .eq("user_id", admin.user_id)
+  .maybeSingle();
+
+if (checkError) {
+  console.error("Existing order check error:", checkError);
+
+  await sendMessage(
+    senderId,
+    "Захиалгыг шалгахад алдаа гарлаа. Дахин оролдоно уу."
+  );
+  continue;
+}
+
+// Өмнө бүртгэгдээгүй бол orders хүснэгтэд хадгалах
+if (!existingOrder) {
+  const { error: saveOrderError } = await supabase
+    .from("orders")
+    .insert({
+      customer_name: session.customer_name,
+      phone: session.phone,
+      product: orderProduct,
+      size: orderSize,
+      price: totalPrice,
+      status: orderStatus,
+      user_id: admin.user_id
+    });
+
+  if (saveOrderError) {
+    console.error("Save Messenger order error:", saveOrderError);
+
+    await sendMessage(
+      senderId,
+      "Захиалгыг бүртгэхэд алдаа гарлаа. Манай ажилтан шалгаж холбогдоно."
+    );
+    continue;
+  }
+}
+
+// Захиалгыг баталгаажсан төлөвт шилжүүлэх
 const { data: completedSession, error: completeError } =
   await supabase
     .from("messenger_sessions")
@@ -1192,7 +1272,7 @@ if (completeError) {
 
   await sendMessage(
     senderId,
-    "Захиалга баталгаажуулахад алдаа гарлаа."
+    "Захиалгын төлөв шинэчлэхэд алдаа гарлаа."
   );
   continue;
 }
