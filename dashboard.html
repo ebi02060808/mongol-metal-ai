@@ -424,7 +424,8 @@ function escapeHTML(value) {
   })[char]);
 }
 
-   async function updateOrderStatus(orderId, newStatus) {
+
+async function updateOrderStatus(orderId, newStatus) {
   const { data: { session } } =
     await supabaseClient.auth.getSession();
 
@@ -432,6 +433,22 @@ function escapeHTML(value) {
     alert("Та эхлээд нэвтэрнэ үү.");
     return;
   }
+
+  const { error } = await supabaseClient
+    .from("orders")
+    .update({ status: newStatus })
+    .eq("id", orderId)
+    .eq("user_id", session.user.id);
+
+  if (error) {
+    alert("Алдаа: " + error.message);
+    return;
+  }
+
+  await loadOrders();
+  await loadCustomers();
+  await loadDashboardStats();
+}
 
 window.editOrder = async function(orderId) {
   const { data: { session } } =
@@ -440,40 +457,7 @@ window.editOrder = async function(orderId) {
   if (!session) {
     alert("Та эхлээд нэвтэрнэ үү.");
     return;
-  };
-
-window.deleteOrder = async function(orderId) {
-  const confirmDelete = confirm(
-    "Энэ захиалгыг бүрмөсөн устгах уу?"
-  );
-
-  if (!confirmDelete) return;
-
-  const { data: { session } } =
-    await supabaseClient.auth.getSession();
-
-  if (!session) {
-    alert("Та эхлээд нэвтэрнэ үү.");
-    return;
-  };
-
-  const { error } = await supabaseClient
-    .from("orders")
-    .delete()
-    .eq("id", orderId)
-    .eq("user_id", session.user.id);
-
-  if (error) {
-    alert("Устгахад алдаа гарлаа: " + error.message);
-    return;
   }
-
-  alert("🗑️ Захиалга устгагдлаа.");
-
-  await loadOrders();
-  await loadCustomers();
-  await loadDashboardStats();
-}
 
   const { data: order, error: fetchError } = await supabaseClient
     .from("orders")
@@ -483,7 +467,7 @@ window.deleteOrder = async function(orderId) {
     .single();
 
   if (fetchError || !order) {
-    alert("Захиалга олдсонгүй: " + (fetchError?.message || ""));
+    alert("Захиалга олдсонгүй.");
     return;
   }
 
@@ -504,7 +488,8 @@ window.deleteOrder = async function(orderId) {
 
   if (!customerName.trim() || !phone.trim() ||
       !product.trim() || !size.trim() ||
-      price.trim() === "" || !Number.isFinite(Number(price)) ||
+      price.trim() === "" ||
+      !Number.isFinite(Number(price)) ||
       Number(price) < 0) {
     alert("Мэдээллээ зөв оруулна уу.");
     return;
@@ -527,27 +512,44 @@ window.deleteOrder = async function(orderId) {
     return;
   }
 
-  alert("✅ Захиалга амжилттай засагдлаа!");
+  alert("Захиалга амжилттай засагдлаа!");
 
   await loadOrders();
   await loadCustomers();
   await loadDashboardStats();
-}
+};
+
+window.deleteOrder = async function(orderId) {
+  if (!confirm("Энэ захиалгыг бүрмөсөн устгах уу?")) {
+    return;
+  }
+
+  const { data: { session } } =
+    await supabaseClient.auth.getSession();
+
+  if (!session) {
+    alert("Та эхлээд нэвтэрнэ үү.");
+    return;
+  }
 
   const { error } = await supabaseClient
     .from("orders")
-    .update({ status: newStatus })
+    .delete()
     .eq("id", orderId)
     .eq("user_id", session.user.id);
 
   if (error) {
-    alert("Алдаа: " + error.message);
+    alert("Устгахад алдаа гарлаа: " + error.message);
     return;
   }
-     
-   await loadOrders();
-   await loadDashboardStats();
-}
+
+  alert("Захиалга устгагдлаа!");
+
+  await loadOrders();
+  await loadCustomers();
+  await loadDashboardStats();
+};
+
     
    async function loadCustomers() {
   const { data: { session } } =
