@@ -416,31 +416,44 @@ async function addOrder() {
       </div>
     `).join("");
 }
-    async function checkLogin() {
+   async function checkLogin() {
+  const { data: { session } } =
+    await supabaseClient.auth.getSession();
 
-      const { data: { session } } =
-        await supabaseClient.auth.getSession();
+  if (!session) {
+    window.location.href = "index.html";
+    return false;
+  }
 
-      if (!session) {
-        window.location.href = "index.html";
-        return;
-      }
+  const { data: admin, error } = await supabaseClient
+    .from("admin_users")
+    .select("role")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
 
-      document.getElementById("userEmail").textContent =
-        session.user.email;
-    }
+  if (error || !admin || admin.role !== "admin") {
+    alert("Танд админ эрх байхгүй байна.");
+    window.location.href = "index.html";
+    return false;
+  }
+
+  document.getElementById("userEmail").textContent =
+    session.user.email;
+
+  return true;
+}
 
     async function logoutUser() {
-
       await supabaseClient.auth.signOut();
-
       window.location.href = "index.html";
     }
 
-  checkLogin();
-  loadOrders();
-  loadCustomers();
-
+checkLogin().then(isAdmin => {
+  if (isAdmin) {
+    loadOrders();
+    loadCustomers();
+  }
+});
   </script>
 
 </body>
