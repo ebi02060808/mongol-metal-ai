@@ -363,7 +363,8 @@ const todayOrders = allOrders.filter(order => {
       totalAmount.toLocaleString("mn-MN") + " ₮";
   }
 }
-   async function loadOrders() {
+
+async function loadOrders() {
   const { data: { session } } =
     await supabaseClient.auth.getSession();
 
@@ -389,21 +390,40 @@ const todayOrders = allOrders.filter(order => {
 
   ordersList.innerHTML = orders.map(order => `
     <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; border-radius:10px;">
-      <strong>👤 ${order.customer_name}</strong><br>
-      📞 ${order.phone}<br>
-      📦 ${order.product}<br>
-      📐 ${order.size}<br>
+      <strong>👤 ${escapeHTML(order.customer_name)}</strong><br>
+      📞 ${escapeHTML(order.phone)}<br>
+      📦 ${escapeHTML(order.product)}<br>
+      📐 ${escapeHTML(order.size)}<br>
       💰 ${Number(order.price).toLocaleString()} ₮<br>
       📅 ${new Date(order.created_at).toLocaleString("mn-MN")}<br>
-<select onchange="updateOrderStatus('${order.id}', this.value)">
-  <option value="Шинэ" ${order.status === "Шинэ" ? "selected" : ""}>Шинэ</option>
-  <option value="Холбогдсон" ${order.status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
-  <option value="Үнийн санал" ${order.status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
-  <option value="Баталгаажсан" ${order.status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option>
-  <option value="Дууссан" ${order.status === "Дууссан" ? "selected" : ""}>Дууссан</option>
-</select>    </div>
+
+      <p>Төлөв:
+        <select onchange="updateOrderStatus('${order.id}', this.value)">
+          <option value="Шинэ" ${order.status === "Шинэ" ? "selected" : ""}>Шинэ</option>
+          <option value="Холбогдсон" ${order.status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
+          <option value="Үнийн санал" ${order.status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
+          <option value="Баталгаажсан" ${order.status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option>
+          <option value="Дууссан" ${order.status === "Дууссан" ? "selected" : ""}>Дууссан</option>
+        </select>
+      </p>
+
+      <button onclick="editOrder('${order.id}')">✏️ Засах</button>
+      <button onclick="deleteOrder('${order.id}')">🗑️ Устгах</button>
+    </div>
   `).join("");
 }
+
+    
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
    async function updateOrderStatus(orderId, newStatus) {
   const { data: { session } } =
     await supabaseClient.auth.getSession();
@@ -412,6 +432,107 @@ const todayOrders = allOrders.filter(order => {
     alert("Та эхлээд нэвтэрнэ үү.");
     return;
   }
+
+async function editOrder(orderId) {
+  const { data: { session } } =
+    await supabaseClient.auth.getSession();
+
+  if (!session) {
+    alert("Та эхлээд нэвтэрнэ үү.");
+    return;
+  }
+
+async function deleteOrder(orderId) {
+  const confirmDelete = confirm(
+    "Энэ захиалгыг бүрмөсөн устгах уу?"
+  );
+
+  if (!confirmDelete) return;
+
+  const { data: { session } } =
+    await supabaseClient.auth.getSession();
+
+  if (!session) {
+    alert("Та эхлээд нэвтэрнэ үү.");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("orders")
+    .delete()
+    .eq("id", orderId)
+    .eq("user_id", session.user.id);
+
+  if (error) {
+    alert("Устгахад алдаа гарлаа: " + error.message);
+    return;
+  }
+
+  alert("🗑️ Захиалга устгагдлаа.");
+
+  await loadOrders();
+  await loadCustomers();
+  await loadDashboardStats();
+}
+
+  const { data: order, error: fetchError } = await supabaseClient
+    .from("orders")
+    .select("*")
+    .eq("id", orderId)
+    .eq("user_id", session.user.id)
+    .single();
+
+  if (fetchError || !order) {
+    alert("Захиалга олдсонгүй: " + (fetchError?.message || ""));
+    return;
+  }
+
+  const customerName = prompt("Харилцагчийн нэр:", order.customer_name);
+  if (customerName === null) return;
+
+  const phone = prompt("Утасны дугаар:", order.phone);
+  if (phone === null) return;
+
+  const product = prompt("Бүтээгдэхүүн:", order.product);
+  if (product === null) return;
+
+  const size = prompt("Хэмжээ:", order.size);
+  if (size === null) return;
+
+  const price = prompt("Үнэ (₮):", order.price);
+  if (price === null) return;
+
+  if (!customerName.trim() || !phone.trim() ||
+      !product.trim() || !size.trim() ||
+      price.trim() === "" || !Number.isFinite(Number(price)) ||
+      Number(price) < 0) {
+    alert("Мэдээллээ зөв оруулна уу.");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("orders")
+    .update({
+      customer_name: customerName.trim(),
+      phone: phone.trim(),
+      product: product.trim(),
+      size: size.trim(),
+      price: Number(price)
+    })
+    .eq("id", orderId)
+    .eq("user_id", session.user.id);
+
+  if (error) {
+    alert("Засахад алдаа гарлаа: " + error.message);
+    return;
+  }
+
+  alert("✅ Захиалга амжилттай засагдлаа!");
+
+  await loadOrders();
+  await loadCustomers();
+  await loadDashboardStats();
+}
 
   const { error } = await supabaseClient
     .from("orders")
