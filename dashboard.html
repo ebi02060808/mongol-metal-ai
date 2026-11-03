@@ -180,24 +180,24 @@
       <div class="cards">
 
         <div class="card">
-          <h3>Нийт захиалга</h3>
-          <div class="number">0</div>
-        </div>
+<h3>Нийт захиалга</h3>
+<div class="number" id="totalOrders">0</div>
+</div>
 
-        <div class="card">
-          <h3>Шинэ харилцагч</h3>
-          <div class="number">0</div>
-        </div>
+<div class="card">
+  <h3>Шинэ харилцагч</h3>
+  <div class="number" id="totalCustomers">0</div>
+</div>
 
-        <div class="card">
-          <h3>Messenger чат</h3>
-          <div class="number">0</div>
-        </div>
+<div class="card">
+  <h3>Messenger чат</h3>
+  <div class="number" id="totalChats">0</div>
+</div>
 
-        <div class="card">
-          <h3>Өнөөдрийн захиалга</h3>
-          <div class="number">0</div>
-        </div>
+<div class="card">
+  <h3>Өнөөдрийн захиалга</h3>
+  <div class="number" id="todayOrders">0</div>
+</div>
 
       </div>
 
@@ -297,6 +297,58 @@ async function addOrder() {
   document.getElementById("product").value = "";
   document.getElementById("size").value = "";
   document.getElementById("price").value = "";
+}
+    await loadOrders();
+    await loadCustomers();
+    await loadDashboardStats();
+    
+    async function loadDashboardStats() {
+  const { data: { session } } =
+    await supabaseClient.auth.getSession();
+
+  if (!session) return;
+
+  const { data: orders, error } = await supabaseClient
+    .from("orders")
+    .select("id, phone, price, status, created_at")
+    .eq("user_id", session.user.id);
+
+  if (error) {
+    console.error("Статистик ачаалах алдаа:", error.message);
+    return;
+  }
+
+  const allOrders = orders || [];
+  const today = new Date().toLocaleDateString("en-CA");
+
+  const todayOrders = allOrders.filter(order =>
+    new Date(order.created_at).toLocaleDateString("en-CA") === today
+  );
+
+  const customers = new Set(
+    allOrders.map(order => order.phone).filter(Boolean)
+  );
+
+  const totalAmount = allOrders.reduce(
+    (sum, order) => sum + (Number(order.price) || 0), 0
+  );
+
+  document.getElementById("totalOrders").textContent =
+    allOrders.length;
+
+  document.getElementById("totalCustomers").textContent =
+    customers.size;
+
+  document.getElementById("todayOrders").textContent =
+    todayOrders.length;
+
+  const totalAmountElement =
+    document.getElementById("totalAmount");
+
+  if (totalAmountElement) {
+    totalAmountElement.textContent =
+      totalAmount.toLocaleString("mn-MN") + " ₮";
+  }
 }
    async function loadOrders() {
   const { data: { session } } =
@@ -452,6 +504,7 @@ checkLogin().then(isAdmin => {
   if (isAdmin) {
     loadOrders();
     loadCustomers();
+    loadDashboardStats();
   }
 });
   </script>
