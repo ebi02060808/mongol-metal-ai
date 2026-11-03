@@ -105,14 +105,21 @@ export default async function handler(req, res) {
         continue;
       }
 
-      const senderId = event.sender.id;
-      const messageText = event.message.text
-        ? event.message.text.trim()
-        : "";
+     const senderId = event.sender.id;
 
-      if (!messageText) {
-        continue;
-      }
+const messageText = event.message.text
+  ? event.message.text.trim()
+  : "";
+
+const attachments = event.message.attachments || [];
+
+const hasImage = attachments.some(
+  item => item.type === "image"
+);
+
+if (!messageText && !hasImage) {
+  continue;
+}
 
       console.log("Customer:", senderId);
       console.log("Message:", messageText);
