@@ -364,6 +364,7 @@ const todayOrders = allOrders.filter(order => {
   }
 }
 
+
 async function loadOrders() {
   const { data: { session } } =
     await supabaseClient.auth.getSession();
@@ -390,16 +391,16 @@ async function loadOrders() {
 
   ordersList.innerHTML = orders.map(order => `
     <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; border-radius:10px;">
-      <strong>👤 ${escapeHTML(order.customer_name)}</strong><br>
-      📞 ${escapeHTML(order.phone)}<br>
-      📦 ${escapeHTML(order.product)}<br>
-      📐 ${escapeHTML(order.size)}<br>
-      💰 ${Number(order.price).toLocaleString()} ₮<br>
+      <strong>👤 ${escapeHTML(order.customer_name || "")}</strong><br>
+      📞 ${escapeHTML(order.phone || "")}<br>
+      📦 ${escapeHTML(order.product || "")}<br>
+      📐 ${escapeHTML(order.size || "")}<br>
+      💰 ${Number(order.price || 0).toLocaleString()} ₮<br>
       📅 ${new Date(order.created_at).toLocaleString("mn-MN")}<br>
 
       <p>Төлөв:
         <select onchange="updateOrderStatus('${order.id}', this.value)">
-         <option value="Шинэ" ${(order.status === "Шинэ" || order.status.startsWith("Шинэ захиалга")) ? "selected" : ""}>Шинэ</option>
+          <option value="Шинэ" ${(order.status === "Шинэ" || (order.status || "").startsWith("Шинэ захиалга")) ? "selected" : ""}>Шинэ</option>
           <option value="Холбогдсон" ${order.status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
           <option value="Үнийн санал" ${order.status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
           <option value="Баталгаажсан" ${order.status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option>
@@ -407,10 +408,92 @@ async function loadOrders() {
         </select>
       </p>
 
+      <button onclick="viewOrderPhotos('${order.id}')">🖼️ Зураг харах</button>
       <button onclick="editOrder('${order.id}')">✏️ Засах</button>
       <button onclick="deleteOrder('${order.id}')">🗑️ Устгах</button>
     </div>
-  `).join("");
+   `).join("");
+}
+
+// Зураг харах функц
+async function viewOrderPhotos(orderId) {
+  const { data: { session } } =
+    await supabaseClient.auth.getSession();
+
+  if (!session) {
+    alert("Та эхлээд нэвтэрнэ үү.");
+    return;
+  }
+
+  let overlay = document.getElementById("photoViewer");
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "photoViewer";
+    overlay.style.cssText = `
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.85);
+      z-index:99999;
+      overflow:auto;
+      padding:25px;
+      box-sizing:border-box;
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  overlay.innerHTML = `
+    <div style="max-width:900px;margin:auto;background:white;padding:20px;border-radius:12px;">
+      <button onclick="document.getElementById('photoViewer').remove()">
+        ✖ Хаах
+      </button>
+      <h3>Захиалгын зураг</h3>
+      <p>Зураг ачаалж байна...</p>
+      <div id="orderPhotoList"></div>
+    </div>
+  `;
+
+  try {
+    const response = await fetch(
+      `/api/get-order-photos?orderId=${encodeURIComponent(orderId)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || result.error || "Зураг авахад алдаа гарлаа.");
+    }
+
+    const photoList = document.getElementById("orderPhotoList");
+
+    if (!result.photos || result.photos.length === 0) {
+      photoList.textContent = "Энэ захиалгад зураг бүртгэгдээгүй байна.";
+      return;
+    }
+
+    photoList.innerHTML = result.photos.map(photo => `
+      <div style="margin:15px 0;">
+        <img
+          src="${escapeHTML(photo.url)}"
+          alt="Захиалгын зураг"
+          style="width:100%;max-width:700px;height:auto;border-radius:8px;"
+        >
+        <p>${new Date(photo.created_at).toLocaleString("mn-MN")}</p>
+      </div>
+    `).join("");
+
+  } catch (error) {
+    const photoList = document.getElementById("orderPhotoList");
+    if (photoList) {
+      photoList.textContent = error.message;
+    }
+  }
 }
 
     
