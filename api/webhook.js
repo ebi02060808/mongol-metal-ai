@@ -1233,16 +1233,18 @@ if (checkError) {
 if (!existingOrder) {
   const { error: saveOrderError } = await supabase
     .from("orders")
-    .insert({
-      customer_name: session.customer_name,
-      phone: session.phone,
-      product: orderProduct,
-      size: orderSize,
-      price: totalPrice,
-      status: orderStatus,
-      user_id: admin.user_id
-    });
-
+  .insert({
+  customer_name: session.customer_name,
+  phone: session.phone,
+  product: orderProduct,
+  size: orderSize,
+  price: totalPrice,
+  status: orderStatus,
+  user_id: admin.user_id,
+  messenger_sender_id: senderId,
+  messenger_order_number: session.order_number
+});
+  
   if (saveOrderError) {
     console.error("Save Messenger order error:", saveOrderError);
 
