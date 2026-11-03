@@ -399,7 +399,7 @@ async function loadOrders() {
 
       <p>Төлөв:
         <select onchange="updateOrderStatus('${order.id}', this.value)">
-          <option value="Шинэ" ${order.status === "Шинэ" ? "selected" : ""}>Шинэ</option>
+         <option value="Шинэ" ${(order.status === "Шинэ" || order.status.startsWith("Шинэ захиалга")) ? "selected" : ""}>Шинэ</option>
           <option value="Холбогдсон" ${order.status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
           <option value="Үнийн санал" ${order.status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
           <option value="Баталгаажсан" ${order.status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option>
@@ -426,28 +426,42 @@ function escapeHTML(value) {
 
 
 async function updateOrderStatus(orderId, newStatus) {
-  const { data: { session } } =
-    await supabaseClient.auth.getSession();
+  try {
+    const {
+      data: { session },
+      error: sessionError
+    } = await supabaseClient.auth.getSession();
 
-  if (!session) {
-    alert("Та эхлээд нэвтэрнэ үү.");
-    return;
+    if (sessionError || !session) {
+      alert("Та эхлээд нэвтэрнэ үү.");
+      return;
+    }
+
+    const response = await fetch("/api/update-order-status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({
+        orderId,
+        newStatus
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      alert("Алдаа: " + (result.error || "Төлөв шинэчилж чадсангүй."));
+      return;
+    }
+
+    alert(result.message);
+    await loadOrders();
+
+  } catch (err) {
+    alert("Алдаа: " + err.message);
   }
-
-  const { error } = await supabaseClient
-    .from("orders")
-    .update({ status: newStatus })
-    .eq("id", orderId)
-    .eq("user_id", session.user.id);
-
-  if (error) {
-    alert("Алдаа: " + error.message);
-    return;
-  }
-
-  await loadOrders();
-  await loadCustomers();
-  await loadDashboardStats();
 }
 
 window.editOrder = async function(orderId) {
@@ -606,8 +620,8 @@ window.deleteOrder = async function(orderId) {
   customersList.innerHTML =
     Object.values(customers).map(customer => `
       <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; border-radius:10px;">
-        <strong>👤 ${customer.name}</strong><br>
-        📞 ${customer.phone}<br>
+<strong>👤 ${escapeHTML(customer.name)}</strong><br>
+📞 ${escapeHTML(customer.phone)}<br>
         📦 Захиалга: ${customer.orderCount} ширхэг<br>
         💰 Нийт дүн: ${customer.total.toLocaleString()} ₮
       </div>
@@ -652,40 +666,6 @@ checkLogin().then(isAdmin => {
     loadDashboardStats();
   }
 });
-    async function updateOrderStatus(orderId, newStatus) {
-  try {
-    const { data: { user }, error: userError } =
-      await supabaseClient.auth.getUser();
-
-    if (userError || !user) {
-      alert("Та эхлээд нэвтэрнэ үү.");
-      return;
-    }
-
-    const { data, error } = await supabaseClient
-      .from("orders")
-      .update({ status: newStatus })
-      .eq("id", orderId)
-      .eq("user_id", user.id)
-      .select();
-
-    if (error) {
-      alert("Алдаа: " + error.message);
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      alert("Захиалга олдсонгүй.");
-      return;
-    }
-
-    alert("Төлөв амжилттай шинэчлэгдлээ!");
-    loadOrders();
-
-  } catch (err) {
-    alert("Алдаа: " + err.message);
-  }
-}
   </script>
 
 </body>
