@@ -433,16 +433,16 @@ function escapeHTML(value) {
     return;
   }
 
-async function editOrder(orderId) {
+window.editOrder = async function(orderId) {
   const { data: { session } } =
     await supabaseClient.auth.getSession();
 
   if (!session) {
     alert("Та эхлээд нэвтэрнэ үү.");
     return;
-  }
+  };
 
-async function deleteOrder(orderId) {
+window.deleteOrder = async function(orderId) {
   const confirmDelete = confirm(
     "Энэ захиалгыг бүрмөсөн устгах уу?"
   );
@@ -455,7 +455,7 @@ async function deleteOrder(orderId) {
   if (!session) {
     alert("Та эхлээд нэвтэрнэ үү.");
     return;
-  }
+  };
 
   const { error } = await supabaseClient
     .from("orders")
