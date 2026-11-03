@@ -519,6 +519,7 @@ window.editOrder = async function(orderId) {
   await loadDashboardStats();
 };
 
+
 window.deleteOrder = async function(orderId) {
   if (!confirm("Энэ захиалгыг бүрмөсөн устгах уу?")) {
     return;
@@ -532,18 +533,24 @@ window.deleteOrder = async function(orderId) {
     return;
   }
 
-  const { error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("orders")
     .delete()
     .eq("id", orderId)
-    .eq("user_id", session.user.id);
+    .eq("user_id", session.user.id)
+    .select("id");
 
   if (error) {
     alert("Устгахад алдаа гарлаа: " + error.message);
     return;
   }
 
-  alert("Захиалга устгагдлаа!");
+  if (!data || data.length === 0) {
+    alert("Устгагдсангүй. Захиалгын ID таарахгүй эсвэл DELETE эрх байхгүй байна.");
+    return;
+  }
+
+  alert("✅ Захиалга амжилттай устгагдлаа!");
 
   await loadOrders();
   await loadCustomers();
