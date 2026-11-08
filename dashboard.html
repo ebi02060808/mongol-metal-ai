@@ -289,10 +289,13 @@
         <div id="financeSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:15px 0;">
           <div style="padding:16px;background:#ecfdf5;border-radius:10px;"><small>Нийт орлого (бодитоор хүлээн авсан)</small><h3 id="financeIncome">0 ₮</h3></div>
           <div style="padding:16px;background:#fff7ed;border-radius:10px;"><small>Нийт зарлага</small><h3 id="financeExpense">0 ₮</h3></div>
+          <div style="padding:16px;background:#f0fdf4;border-radius:10px;"><small>Урьдчилгаа орлого</small><h3 id="financeDeposit">0 ₮</h3></div>
+          <div style="padding:16px;background:#eff6ff;border-radius:10px;"><small>Бүтэн төлбөрийн орлого</small><h3 id="financeFullPayment">0 ₮</h3></div>
+          <div style="padding:16px;background:#fefce8;border-radius:10px;"><small>Үлдэгдэл орлого</small><h3 id="financeRemaining">0 ₮</h3></div>
           <div style="padding:16px;background:#eff6ff;border-radius:10px;"><small>Мөнгөн үлдэгдэл</small><h3 id="financeBalance">0 ₮</h3></div>
           <div style="padding:16px;background:#f5f3ff;border-radius:10px;"><small>Дууссан захиалгын борлуулалт</small><h3 id="financeCompletedSales">0 ₮</h3><small id="financeCompletedCount">0 захиалга</small></div>
         </div>
-        <p style="font-size:12px;color:#64748b;margin:4px 0 12px;">“Баталгаажсан” төлөв сонгоход админ эсвэл ажилтан бодитоор хүлээн авсан мөнгөний дүнг оруулна. Тэр дүн энэ нийт орлогод нэмэгдэнэ. Үнийн саналын нийт үнэ биш, зөвхөн бодитоор авсан мөнгийг бүртгэнэ. Дууссан захиалгын борлуулалт тусдаа харагдана.</p>
+        <p style="font-size:12px;color:#64748b;margin:4px 0 12px;">“Баталгаажсан” үед урьдчилгаа эсвэл бүтэн төлбөрийг, “Дууссан” үед нийт зарлага болон бодитоор авсан үлдэгдэл төлбөрийг бүртгэнэ. Нийт орлого нь эдгээр бодит орлогын нийлбэр байна.</p>
         <div id="financeCompletedOrders" style="margin:18px 0;"></div>
         <div id="financeOrderProfit" style="margin:18px 0;"></div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:15px 0;">
@@ -934,12 +937,18 @@ async function loadFinance() {
   const entries = entriesResult.data || [];
   const orders = ordersResult.data || [];
   const income = entries.filter(x => x.entry_type === "income").reduce((sum,x) => sum + Number(x.amount || 0), 0);
+  const depositIncome = entries.filter(x => x.entry_type === "income" && x.category === "Урьдчилгаа орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
+  const fullPaymentIncome = entries.filter(x => x.entry_type === "income" && x.category === "Бүтэн төлбөрийн орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
+  const remainingPaymentIncome = entries.filter(x => x.entry_type === "income" && x.category === "Үлдэгдэл орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const expense = entries.filter(x => x.entry_type === "expense").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const completedOrders = orders.filter(order => order.status === "Дууссан");
   const completedSales = completedOrders.reduce((sum, order) => sum + Number(order.price || 0), 0);
   const money = value => Math.round(value).toLocaleString("mn-MN") + " ₮";
   document.getElementById("financeIncome").textContent = money(income);
   document.getElementById("financeExpense").textContent = money(expense);
+  document.getElementById("financeDeposit").textContent = money(depositIncome);
+  document.getElementById("financeFullPayment").textContent = money(fullPaymentIncome);
+  document.getElementById("financeRemaining").textContent = money(remainingPaymentIncome);
   document.getElementById("financeBalance").textContent = money(income-expense);
   const completedSalesEl = document.getElementById("financeCompletedSales");
   const completedCountEl = document.getElementById("financeCompletedCount");
@@ -1371,7 +1380,18 @@ async function createOrderQuotePdf(order) {
 async function updateOrderStatus(orderId, newStatus) {
   let confirmationIncome = null;
   if (newStatus === "Баталгаажсан") {
-    const amountText = prompt("Үнийн саналтай энэ захиалгаар ОДОО бодитоор хүлээн авсан мөнгөний дүнг оруулна уу (₮). Бүтэн төлбөр аваагүй бол зөвхөн авсан дүнг бичнэ үү:", "");
+    const paymentType = prompt("Төлбөрийн төрлийг сонгоно уу:\n1 — Урьдчилгаа\n2 — Бүтэн төлбөр", "1");
+    if (paymentType === null) { await loadOrders(); return; }
+    const normalizedPaymentType = paymentType.trim() === "2" ? "full" : paymentType.trim() === "1" ? "deposit" : "";
+    if (!normalizedPaymentType) {
+      alert("1 (Урьдчилгаа) эсвэл 2 (Бүтэн төлбөр) гэж сонгоно уу.");
+      await loadOrders();
+      return;
+    }
+    const amountText = prompt(
+      (normalizedPaymentType === "deposit" ? "Хүлээн авсан УРЬДЧИЛГАА" : "Хүлээн авсан БҮТЭН ТӨЛБӨР") + " мөнгөн дүнг оруулна уу (₮):",
+      ""
+    );
     if (amountText === null) { await loadOrders(); return; }
     const amount = Number(String(amountText).replace(/,/g, "").trim());
     if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000) {
@@ -1379,44 +1399,53 @@ async function updateOrderStatus(orderId, newStatus) {
       await loadOrders();
       return;
     }
-    const description = prompt("Орлогын тайлбар (заавал биш, жишээ: Урьдчилгаа / бүрэн төлбөр):", "");
-    if (description === null) { await loadOrders(); return; }
     confirmationIncome = {
       amount,
-      description: description.trim(),
+      paymentType: normalizedPaymentType,
+      description: normalizedPaymentType === "deposit" ? "Урьдчилгаа төлбөр" : "Бүтэн төлбөр",
       entryDate: localDateString()
     };
   }
 
   let completionExpense = null;
+  let remainingIncome = null;
   if (newStatus === "Дууссан") {
-    const amountText = prompt("Энэ захиалгад гарсан нийт зарлагын дүнг оруулна уу (₮). Зарлага бүртгэхгүй бол 0 гэж бичнэ үү:", "0");
-    if (amountText === null) { await loadOrders(); return; }
-    const amount = Number(String(amountText).replace(/,/g, "").trim());
-    if (!Number.isFinite(amount) || amount < 0) {
-      alert("Зарлагын дүнг 0 эсвэл түүнээс их тоогоор оруулна уу.");
+    const expenseText = prompt("Энэ захиалгад гарсан НИЙТ ЗАРЛАГЫН дүнг оруулна уу (₮):", "0");
+    if (expenseText === null) { await loadOrders(); return; }
+    const expenseAmount = Number(String(expenseText).replace(/,/g, "").trim());
+    if (!Number.isFinite(expenseAmount) || expenseAmount < 0 || expenseAmount > 100000000000) {
+      alert("Нийт зарлагын дүнг 0 эсвэл түүнээс их тоогоор оруулна уу.");
       await loadOrders();
       return;
     }
-    if (amount > 0) {
-      const category = prompt("Зарлагын ангилал (жишээ: Материал, тээвэр, цалин):", "Захиалгын зардал");
+    if (expenseAmount > 0) {
+      const category = prompt("Зарлагын ангилал (жишээ: Материал, тээвэр, цалин):", "Захиалгын нийт зардал");
       if (category === null) { await loadOrders(); return; }
       if (!category.trim()) {
         alert("Зарлагын ангиллыг оруулна уу.");
         await loadOrders();
         return;
       }
-      const description = prompt("Зарлагын тайлбар (заавал биш):", "");
+      const description = prompt("Нийт зарлагын тайлбар (заавал биш):", "");
       if (description === null) { await loadOrders(); return; }
-      completionExpense = {
-        amount,
-        category: category.trim(),
-        description: description.trim(),
-        entryDate: localDateString()
-      };
+      completionExpense = { amount: expenseAmount, category: category.trim(), description: description.trim(), entryDate: localDateString() };
     } else {
       completionExpense = { amount: 0 };
     }
+
+    const remainingText = prompt("Захиалгын үлдэгдэл төлбөрөөс ОДОО бодитоор хүлээн авсан мөнгийг оруулна уу (₮). Бүрэн төлөгдсөн бол 0 гэж бичнэ үү:", "0");
+    if (remainingText === null) { await loadOrders(); return; }
+    const remainingAmount = Number(String(remainingText).replace(/,/g, "").trim());
+    if (!Number.isFinite(remainingAmount) || remainingAmount < 0 || remainingAmount > 100000000000) {
+      alert("Үлдэгдэл орлогын дүнг 0 эсвэл түүнээс их тоогоор оруулна уу.");
+      await loadOrders();
+      return;
+    }
+    remainingIncome = {
+      amount: remainingAmount,
+      description: "Захиалгын үлдэгдэл төлбөр",
+      entryDate: localDateString()
+    };
   }
 
   try {
@@ -1435,7 +1464,7 @@ async function updateOrderStatus(orderId, newStatus) {
     const response = await fetch("/api/update-order-status", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.access_token },
-      body: JSON.stringify({ orderId, newStatus, quotePdfBase64, confirmationIncome, completionExpense })
+      body: JSON.stringify({ orderId, newStatus, quotePdfBase64, confirmationIncome, completionExpense, remainingIncome })
     });
     const result = await response.json();
     if (!response.ok || !result.success) {
