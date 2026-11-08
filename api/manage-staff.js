@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     const auth = await requireAdmin(req);
     if (auth.error) return res.status(auth.status).json({ error: auth.error });
 
-    const ownerUserId = member.owner_user_id || auth.user.id;
+    const ownerUserId = auth.member.owner_user_id || auth.user.id;
     const { action, email, userId } = req.body || {};
 
     if (action === "list") {
