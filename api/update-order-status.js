@@ -81,19 +81,20 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: "Messenger-ийн Page тохиргоо олдсонгүй." });
       }
 
-      const quantity = Number(order.quantity || 1);
-      const storedArea = Number(order.area_per_unit || 0);
+      const quoteItems = Array.isArray(order.quote_items) ? order.quote_items : [];
+      const quantity = quoteItems.length
+        ? quoteItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
+        : Number(order.quantity || 1);
       const parsedArea = parseAreaFromSize(order.size);
-      // Өмнөх захиалгуудад area_per_unit=1 гэсэн default утга хадгалагдсан
-      // байж болох тул хэмжээсээс бодсон талбайг илүүд үзнэ.
-      const areaPerUnit = parsedArea || (storedArea > 0 ? storedArea : 1);
-      const totalArea = areaPerUnit * quantity;
+      const storedArea = Number(order.area_per_unit || 0);
+      const totalArea = quoteItems.length
+        ? quoteItems.reduce((sum, item) => sum + Number(item.area || 0) * Number(item.quantity || 1), 0)
+        : (parsedArea || (storedArea > 0 ? storedArea : 1)) * quantity;
       const totalPrice = Number(order.price || 0);
       const storedUnitPrice = order.unit_price == null ? 0 : Number(order.unit_price);
-      // unit_price хадгалагдаагүй хуучин захиалгад нийт үнэ / нийт талбайгаар бодно.
-      const unitPrice = storedUnitPrice > 0
-        ? storedUnitPrice
-        : (totalArea > 0 && totalPrice > 0 ? totalPrice / totalArea : null);
+      const unitPrice = quoteItems.length
+        ? Number(quoteItems[0].unit_price || 0)
+        : (storedUnitPrice > 0 ? storedUnitPrice : (totalArea > 0 && totalPrice > 0 ? totalPrice / totalArea : null));
       const orderNumber = order.messenger_order_number || order.id;
       const pdfBase64 = typeof req.body.quotePdfBase64 === "string" ? req.body.quotePdfBase64 : "";
       if (!pdfBase64 || pdfBase64.length > 7 * 1024 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(pdfBase64)) {
@@ -122,7 +123,15 @@ export default async function handler(req, res) {
         "Хэмжээ: " + (order.size || "—") + "\n" +
         "Тоо хэмжээ: " + quantity + " ш\n" +
         "Нийт талбай: " + totalArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\n" +
-        "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\n" +
+        (quoteItems.length
+          ? quoteItems.map((item, index) =>
+              (index + 1) + ". " + item.product_type + " — " +
+              (item.width != null && item.height != null
+                ? item.width + " × " + item.height + " м, " + item.quantity + " ш"
+                : Number(item.area || 0).toFixed(2) + " м²") +
+              "; " + money(item.unit_price) + "/м²; " + money(item.total_price)
+            ).join("\n") + "\n"
+          : "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\n") +
         "НИЙТ ҮНЭ: " + money(totalPrice) + "\n\n" +
         "Энэхүү үнийн саналтай танилцаад асуух зүйл байвал бидэнд хариу бичээрэй.\n" +
         "Баярлалаа. — Монгол металл хийц";
