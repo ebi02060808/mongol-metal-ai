@@ -68,7 +68,6 @@ export default async function handler(req, res) {
     }
 
     const pageToken = process.env.PAGE_ACCESS_TOKEN;
-    let quotePdfPathToSave = null;
 
     // Үнийн санал төлөв сонгоход хэмжээг эхлээд захиалгын хэмжээсээс шалгаж бодно.
     if (newStatus === "Үнийн санал") {
@@ -82,83 +81,74 @@ export default async function handler(req, res) {
       }
 
       const quoteItems = Array.isArray(order.quote_items) ? order.quote_items : [];
-      const quantity = quoteItems.length
-        ? quoteItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
-        : Number(order.quantity || 1);
-      const parsedArea = parseAreaFromSize(order.size);
-      const storedArea = Number(order.area_per_unit || 0);
-      const totalArea = quoteItems.length
-        ? quoteItems.reduce((sum, item) => sum + Number(item.area || 0) * Number(item.quantity || 1), 0)
-        : (parsedArea || (storedArea > 0 ? storedArea : 1)) * quantity;
-      const totalPrice = order.price == null ? null : Number(order.price);
-      const storedUnitPrice = order.unit_price == null ? 0 : Number(order.unit_price);
-      const unitPrice = quoteItems.length
-        ? Number(quoteItems[0].unit_price || 0)
-        : (storedUnitPrice > 0 ? storedUnitPrice : (totalArea > 0 && totalPrice > 0 ? totalPrice / totalArea : null));
       const orderNumber = order.messenger_order_number || order.id;
-      const pdfBase64 = typeof req.body.quotePdfBase64 === "string" ? req.body.quotePdfBase64 : "";
-      if (!pdfBase64 || pdfBase64.length > 4 * 1024 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(pdfBase64)) {
-        return res.status(400).json({ error: "Үнийн саналын PDF файл үүсээгүй байна. Дахин оролдоно уу." });
+      let totalArea = 0;
+      let fixedTotal = 0;
+      const hasNegotiableItems = quoteItems.some(item => item.pricing_mode === "labor_only");
+
+      const itemLines = quoteItems.length
+        ? quoteItems.map((item, index) => {
+            const quantity = Math.max(1, Number(item.quantity || 1));
+            const areaPerUnit = Number(item.area || 0);
+            const itemArea = areaPerUnit * quantity;
+            const negotiable = item.pricing_mode === "labor_only";
+            const lineTotal = negotiable ? 0 : Number(item.total_price || 0);
+            totalArea += itemArea;
+            fixedTotal += lineTotal;
+
+            const measurement = item.width != null && item.height != null
+              ? "Хэмжээ: " + item.width + " × " + item.height + " м × " + quantity + " ш"
+              : "Талбай: " + itemArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²";
+
+            return (index + 1) + ". " + (item.product_type || "Бүтээгдэхүүн") + "\n" +
+              measurement + "\n" +
+              (item.area != null ? "Нийт талбай: " + itemArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\n" : "") +
+              (negotiable
+                ? "Ажлын хөлс: Харилцан тохиролцоно"
+                : "Нэгж үнэ: " + money(item.unit_price) + "/м²\nДүн: " + money(lineTotal));
+          })
+        : [
+            (order.product || "Бүтээгдэхүүн") + "\n" +
+            "Хэмжээ: " + (order.size || "—") + "\n" +
+            "Дүн: " + (order.price == null ? "Тохиролцоно" : money(order.price))
+          ];
+
+      if (!quoteItems.length) {
+        totalArea = Number(order.area_per_unit || parseAreaFromSize(order.size) || 0) * Number(order.quantity || 1);
+        fixedTotal = order.price == null ? 0 : Number(order.price);
       }
-      const pdfBuffer = Buffer.from(pdfBase64, "base64");
-      if (!pdfBuffer.length || pdfBuffer.length > 3 * 1024 * 1024 || pdfBuffer.subarray(0, 5).toString() !== "%PDF-") {
-        return res.status(400).json({ error: "PDF файлын формат буруу эсвэл хэмжээ хэтэрсэн байна." });
-      }
-      const quotePdfPath = ownerUserId + "/" + order.id + "/" + Date.now() + ".pdf";
-      quotePdfPathToSave = quotePdfPath;
-      const { error: pdfUploadError } = await supabase.storage.from("quote-pdfs").upload(quotePdfPath, pdfBuffer, {
-        contentType: "application/pdf", cacheControl: "3600", upsert: false
-      });
-      if (pdfUploadError) {
-        console.error("Quote PDF upload error:", pdfUploadError);
-        return res.status(500).json({ error: "Үнийн саналын PDF хадгалагдсангүй. Дахин оролдоно уу." });
-      }
-      const { error: quotePathSaveError } = await supabase
-        .from("orders")
-        .update({ quote_pdf_path: quotePdfPath })
-        .eq("id", orderId)
-        .eq("user_id", ownerUserId);
-      if (quotePathSaveError) {
-        console.error("Quote PDF path save error:", quotePathSaveError);
-        return res.status(500).json({ error: "PDF файлын мэдээллийг захиалгад хадгалж чадсангүй." });
-      }
+
+      const totalLine = hasNegotiableItems
+        ? (fixedTotal > 0 ? money(fixedTotal) + " + ажлын хөлс тохиролцоно" : "Ажлын хөлсийг харилцан тохиролцоно")
+        : (order.price == null ? "Үнийг харилцан тохиролцоно" : money(quoteItems.length ? fixedTotal : order.price));
 
       const quoteText =
         "📋 МОНГОЛ МЕТАЛЛ ХИЙЦ — ҮНИЙН САНАЛ\n\n" +
         "Сайн байна уу, " + (order.customer_name || "хүндэт харилцагч") + " аа.\n" +
-        "Таны захиалгын мэдээлэлд үндэслэн үнийн саналыг хүргэж байна.\n\n" +
-        "Захиалгын дугаар: " + orderNumber + "\n" +
-        "Бүтээгдэхүүн: " + (order.product || "—") + "\n" +
-        "Хэмжээ: " + (order.size || "—") + "\n" +
-        (quoteItems.length ? "Дэлгэрэнгүй хэмжээ, тоо ширхэг, нэгж үнийн задаргаа PDF файлд бий.\n" : "Тоо хэмжээ: " + quantity + " ш\n") +
+        "Таны захиалгын үнийн саналыг хүргэж байна.\n\n" +
+        "Захиалгын дугаар: " + orderNumber + "\n\n" +
+        itemLines.join("\n\n") + "\n\n" +
+        "--------------------\n" +
         "Нийт талбай: " + totalArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\n" +
-        (quoteItems.length ? "" : "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\n") +
-        "НИЙТ ДҮН: " + (totalPrice == null ? "Ажлын хөлсийг харилцан тохиролцоно" : money(totalPrice)) + "\n\n" +
-        "Энэхүү үнийн саналтай танилцаад асуух зүйл байвал бидэнд хариу бичээрэй.\n" +
+        "НИЙТ ДҮН: " + totalLine + "\n\n" +
+        "Энэхүү үнийн саналтай танилцаад асуух зүйл байвал энэ чатанд хариу бичээрэй.\n" +
         "Баярлалаа. — Монгол металл хийц";
+
+      if (quoteText.length > 1900) {
+        return res.status(400).json({
+          error: "Үнийн саналын мэдээлэл хэт урт байна. Бүтээгдэхүүний мөрүүдийг цөөлөөд дахин илгээнэ үү."
+        });
+      }
 
       const messengerResponse = await fetch("https://graph.facebook.com/v26.0/me/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recipient: { id: order.messenger_sender_id },
-          message: {
-            attachment: {
-              type: "template",
-              payload: {
-                template_type: "button",
-                text: quoteText + "\n\nТанд үнийн саналын PDF файл хэрэгтэй юу?",
-                buttons: [
-                  { type: "postback", title: "📄 PDF авах", payload: "GET_QUOTE_PDF:" + order.id },
-                  { type: "postback", title: "Үгүй, баярлалаа", payload: "DECLINE_QUOTE_PDF:" + order.id }
-                ]
-              }
-            }
-          },
+          message: { text: quoteText },
           access_token: pageToken
         })
       });
-      const messengerResult = await messengerResponse.json();
 
       if (!messengerResponse.ok || messengerResult.error) {
         console.error("Messenger quote send error:", messengerResult);
@@ -171,7 +161,7 @@ export default async function handler(req, res) {
     const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
       .update(newStatus === "Үнийн санал"
-        ? { status: newStatus, quote_pdf_path: quotePdfPathToSave }
+        ? { status: newStatus }
         : { status: newStatus })
       .eq("id", orderId)
       .eq("user_id", ownerUserId)
