@@ -716,6 +716,9 @@ async function loadOrders() {
             const area = Number(order.area_per_unit || 1) * qty;
             const status = order.status || "Шинэ";
             const normalizedStatus = status.startsWith("Шинэ захиалга") ? "Шинэ" : status;
+            const unpaidAmount = order.unpaid_balance == null ? null : Number(order.unpaid_balance);
+            const hasUnpaidBalance = normalizedStatus === "Дууссан" && unpaidAmount > 0;
+            const missingUnpaidBalance = normalizedStatus === "Дууссан" && unpaidAmount == null;
             const statusColors = {
               "Шинэ": { background: "#dbeafe", color: "#1d4ed8", border: "#93c5fd" },
               "Холбогдсон": { background: "#fef3c7", color: "#92400e", border: "#fcd34d" },
@@ -725,7 +728,7 @@ async function loadOrders() {
             };
             const statusColor = statusColors[normalizedStatus] || statusColors["Шинэ"];
             return `
-              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" style="border-bottom:1px solid #e2e8f0;">
+              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" style="border-bottom:1px solid #e2e8f0;background:${hasUnpaidBalance ? '#fff1f2' : missingUnpaidBalance ? '#fffbeb' : '#ffffff'};border-left:${hasUnpaidBalance ? '5px solid #dc2626' : missingUnpaidBalance ? '5px solid #f59e0b' : '5px solid transparent'};">
                 <td style="padding:11px 10px;white-space:nowrap;"><strong>${escapeHTML(order.customer_name || "")}</strong><br><span style="color:#64748b;">${escapeHTML(order.phone || "")}</span></td>
                 <td style="padding:11px 10px;">${escapeHTML(order.product || "")}</td>
                 <td style="padding:11px 10px;text-align:center;white-space:nowrap;">${escapeHTML(order.size || "—")}</td>
@@ -745,6 +748,7 @@ async function loadOrders() {
                   </select>
                 </td>
                 <td style="padding:11px 10px;white-space:nowrap;">
+                  ${normalizedStatus === "Дууссан" ? '<button style="padding:6px 8px;margin:2px;background:#fff7ed;border:1px solid #fdba74;border-radius:6px;" onclick="editUnpaidBalance(\'' + order.id + '\', ' + (order.unpaid_balance == null ? 0 : Number(order.unpaid_balance)) + ')">Үлдэгдэл засах</button>' : ''}
                   <button style="padding:6px 8px;margin:2px;" onclick="viewOrderHistory('${order.id}')">Түүх</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="viewOrderPhotos('${order.id}')">Зураг</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="editOrder('${order.id}')">Засах</button>
@@ -798,6 +802,32 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
   }
 }
 
+
+window.editUnpaidBalance = async function(orderId, currentAmount) {
+  const value = prompt("Энэ захиалгын ОДОО ТӨЛӨГДӨӨГҮЙ үлдэгдлийг оруулна уу (₮). Бүрэн төлөгдсөн бол 0 гэж бичнэ үү:", String(currentAmount || 0));
+  if (value === null) return;
+  const amount = Number(String(value).replace(/,/g, "").trim());
+  if (!Number.isFinite(amount) || amount < 0 || amount > 100000000000) {
+    alert("Үлдэгдлийн дүнг 0 эсвэл түүнээс их тоогоор зөв оруулна уу.");
+    return;
+  }
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) throw new Error("Та эхлээд нэвтэрнэ үү.");
+    const response = await fetch("/api/update-order-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.access_token },
+      body: JSON.stringify({ orderId, newStatus: "Дууссан", unpaidBalance: amount, updateUnpaidBalanceOnly: true })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Үлдэгдэл шинэчилж чадсангүй.");
+    alert(amount > 0 ? "Үлдэгдэл шинэчлэгдлээ. Захиалга өнгөөр ялгаатай хэвээр байна." : "Төлбөр бүрэн төлөгдсөнөөр тэмдэглэлээ. Захиалга хэвийн өнгөтэй боллоо.");
+    await loadOrders();
+    if (currentUserRole === "admin") await loadFinance();
+  } catch (error) {
+    alert("Алдаа: " + error.message);
+  }
+};
 
 window.setOrderView = function(view) {
   currentOrderView = view === "completed" ? "completed" : "active";
