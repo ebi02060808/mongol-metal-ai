@@ -203,15 +203,15 @@
 
      <div class="section">
   <h2>📦 Шинэ захиалга</h2>
-
-  <input type="text" id="customerName" placeholder="Харилцагчийн нэр">
-  <input type="text" id="phone" placeholder="Утасны дугаар">
-  <input type="text" id="product" placeholder="Бүтээгдэхүүн">
-  <input type="text" id="size" placeholder="Хэмжээ (жишээ: 2м × 1.5м)">
-  <input type="number" id="price" placeholder="Үнэ">
-
-  <button onclick="addOrder()">Захиалга хадгалах</button>
-
+  <input type="text" id="customerName" placeholder="Харилцагчийн нэр" required>
+  <input type="text" id="phone" placeholder="Утасны дугаар" required>
+  <input type="text" id="product" placeholder="Бүтээгдэхүүн" required>
+  <input type="text" id="size" placeholder="Хэмжээ / тайлбар (жишээ: 2м × 1.5м)">
+  <input type="number" id="areaPerUnit" min="0.01" step="0.01" value="1" placeholder="Нэгж талбай (м²). Ширхэгээр бол 1">
+  <input type="number" id="quantity" min="1" step="1" value="1" placeholder="Тоо хэмжээ (ширхэг)">
+  <input type="number" id="unitPrice" min="0" step="1" placeholder="Нэгж үнэ (₮/м² эсвэл ширхэг)">
+  <p id="orderTotalPreview" style="font-weight:700;margin:10px 0;">Нийт үнэ: 0 ₮</p>
+  <button id="saveOrderButton" type="button" onclick="addOrder()">Захиалга хадгалах</button>
   <p id="orderMessage"></p>
 </div>
 <div class="section" id="quoteSection">
@@ -273,6 +273,14 @@
     );
 
 let currentQuote = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  ["areaPerUnit", "quantity", "unitPrice"].forEach(id => {
+    const field = document.getElementById(id);
+    if (field) field.addEventListener("input", updateOrderTotalPreview);
+  });
+  updateOrderTotalPreview();
+});
 
 function calculateQuote() {
   const customerName = document.getElementById("quoteCustomerName").value.trim();
@@ -374,60 +382,97 @@ function keepQuoteOnDashboard() {
     "Үнийн санал Dashboard-д хэвээр үлдлээ.";
 }
 
+function updateOrderTotalPreview() {
+  const area = Number(document.getElementById("areaPerUnit")?.value || 0);
+  const quantity = Number(document.getElementById("quantity")?.value || 0);
+  const unitPrice = Number(document.getElementById("unitPrice")?.value || 0);
+  const total = area * quantity * unitPrice;
+  const preview = document.getElementById("orderTotalPreview");
+  if (preview) {
+    preview.textContent = "Нийт үнэ: " +
+      (Number.isFinite(total) ? Math.round(total).toLocaleString("mn-MN") : 0) + " ₮";
+  }
+}
+
 async function addOrder() {
-  const { data: { session } } =
-    await supabaseClient.auth.getSession();
-
-  if (!session) {
-    alert("Та эхлээд нэвтэрнэ үү.");
-    return;
+  const button = document.getElementById("saveOrderButton");
+  const message = document.getElementById("orderMessage");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Хадгалж байна...";
   }
+  if (message) message.textContent = "";
 
-  const customerName =
-    document.getElementById("customerName").value;
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      alert("Та эхлээд нэвтэрнэ үү.");
+      return;
+    }
 
-  const phone =
-    document.getElementById("phone").value;
+    const customerName = document.getElementById("customerName").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const product = document.getElementById("product").value.trim();
+    const size = document.getElementById("size").value.trim();
+    const areaPerUnit = Number(document.getElementById("areaPerUnit").value);
+    const quantity = Number(document.getElementById("quantity").value);
+    const unitPrice = Number(document.getElementById("unitPrice").value);
 
-  const product =
-    document.getElementById("product").value;
+    if (!customerName || !phone || !product) {
+      throw new Error("Харилцагчийн нэр, утас, бүтээгдэхүүнийг заавал оруулна уу.");
+    }
+    if (!Number.isFinite(areaPerUnit) || areaPerUnit <= 0 ||
+        !Number.isInteger(quantity) || quantity <= 0 ||
+        document.getElementById("unitPrice").value === "" ||
+        !Number.isFinite(unitPrice) || unitPrice < 0) {
+      throw new Error("Нэгж талбай, тоо хэмжээ, нэгж үнийг зөв оруулна уу.");
+    }
 
-  const size =
-    document.getElementById("size").value;
+    const totalPrice = areaPerUnit * quantity * unitPrice;
+    const { error } = await supabaseClient
+      .from("orders")
+      .insert({
+        user_id: session.user.id,
+        customer_name: customerName,
+        phone,
+        product,
+        size,
+        area_per_unit: areaPerUnit,
+        quantity,
+        unit_price: unitPrice,
+        price: totalPrice,
+        status: "Шинэ"
+      });
 
-  const price =
-    document.getElementById("price").value;
+    if (error) throw error;
 
-  const { error } = await supabaseClient
-    .from("orders")
-    .insert({
-      user_id: session.user.id,
-      customer_name: customerName,
-      phone: phone,
-      product: product,
-      size: size,
-      price: price,
-      status: "Шинэ"
+    message.textContent = "✅ Захиалга амжилттай хадгалагдлаа! Нийт үнэ: " +
+      Math.round(totalPrice).toLocaleString("mn-MN") + " ₮";
+
+    ["customerName", "phone", "product", "size", "unitPrice"].forEach(id => {
+      document.getElementById(id).value = "";
     });
+    document.getElementById("areaPerUnit").value = "1";
+    document.getElementById("quantity").value = "1";
+    updateOrderTotalPreview();
 
-  if (error) {
-    document.getElementById("orderMessage").textContent =
-      "Алдаа: " + error.message;
-    return;
+    const refreshResults = await Promise.allSettled([
+      loadOrders(),
+      loadCustomers(),
+      loadDashboardStats()
+    ]);
+    if (refreshResults.some(result => result.status === "rejected")) {
+      console.warn("Захиалга хадгалагдсан боловч зарим Dashboard мэдээлэл шинэчлэгдсэнгүй.", refreshResults);
+    }
+  } catch (error) {
+    console.error("Захиалга хадгалах алдаа:", error);
+    if (message) message.textContent = "Алдаа: " + (error.message || "Тодорхойгүй алдаа");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Захиалга хадгалах";
+    }
   }
-
-  document.getElementById("orderMessage").textContent =
-    "✅ Захиалга амжилттай хадгалагдлаа!";
-
-  document.getElementById("customerName").value = "";
-  document.getElementById("phone").value = "";
-  document.getElementById("product").value = "";
-  document.getElementById("size").value = "";
-  document.getElementById("price").value = "";
-
-  await loadOrders();
-  await loadCustomers();
-  await loadDashboardStats();
 }
     
     async function loadDashboardStats() {
@@ -522,7 +567,10 @@ async function loadOrders() {
       📞 ${escapeHTML(order.phone || "")}<br>
       📦 ${escapeHTML(order.product || "")}<br>
       📐 ${escapeHTML(order.size || "")}<br>
-      💰 ${Number(order.price || 0).toLocaleString()} ₮<br>
+      📏 Нэгж талбай: ${Number(order.area_per_unit || 1).toLocaleString("mn-MN")} м²<br>
+      🔢 Тоо хэмжээ: ${Number(order.quantity || 1).toLocaleString("mn-MN")} ширхэг<br>
+      💵 Нэгж үнэ: ${order.unit_price == null ? "—" : Number(order.unit_price).toLocaleString("mn-MN") + " ₮"}<br>
+      💰 Нийт үнэ: ${Number(order.price || 0).toLocaleString("mn-MN")} ₮<br>
       📅 ${new Date(order.created_at).toLocaleString("mn-MN")}<br>
 
       <p>Төлөв:
