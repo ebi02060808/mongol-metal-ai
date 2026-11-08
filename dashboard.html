@@ -254,6 +254,10 @@
 
 <div class="section">
   <h2>📋 Захиалгын жагсаалт</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;">
+    <button id="activeOrdersTab" type="button" onclick="setOrderView('active')" style="padding:9px 14px;border:1px solid #2563eb;border-radius:8px;background:#2563eb;color:white;cursor:pointer;">📦 Идэвхтэй захиалга</button>
+    <button id="completedOrdersTab" type="button" onclick="setOrderView('completed')" style="padding:9px 14px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;cursor:pointer;">🗄️ Дууссан захиалгын архив</button>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0;">
     <input id="orderSearch" type="search" placeholder="Нэр, утас, захиалгын дугаараар хайх..." style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;">
     <select id="orderStatusFilter" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;background:white;">
@@ -329,6 +333,7 @@
 let currentQuote = null;
 let currentUserRole = null;
 let currentOwnerUserId = null;
+let currentOrderView = "active";
 
 document.addEventListener("DOMContentLoaded", () => {
   ["dimensions", "quantity", "unitPrice"].forEach(id => {
@@ -707,7 +712,7 @@ async function loadOrders() {
             };
             const statusColor = statusColors[normalizedStatus] || statusColors["Шинэ"];
             return `
-              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" style="border-bottom:1px solid #e2e8f0;">
+              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:11px 10px;white-space:nowrap;"><strong>${escapeHTML(order.customer_name || "")}</strong><br><span style="color:#64748b;">${escapeHTML(order.phone || "")}</span></td>
                 <td style="padding:11px 10px;">${escapeHTML(order.product || "")}</td>
                 <td style="padding:11px 10px;text-align:center;white-space:nowrap;">${escapeHTML(order.size || "—")}</td>
@@ -746,14 +751,31 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
     const selectedStatus = statusFilter?.value || "";
     const rows = Array.from(ordersList.querySelectorAll("tbody tr[data-order-search]"));
     let visible = 0;
+    let completedCount = 0;
     rows.forEach(row => {
+      const isCompleted = row.dataset.orderArchive === "yes";
+      if (isCompleted) completedCount++;
+      const matchesView = currentOrderView === "completed" ? isCompleted : !isCompleted;
       const matchesText = (row.dataset.orderSearch || "").toLocaleLowerCase("mn-MN").includes(query);
       const matchesStatus = !selectedStatus || row.dataset.orderStatus === selectedStatus;
-      const show = matchesText && matchesStatus;
+      const show = matchesView && matchesText && matchesStatus;
       row.style.display = show ? "" : "none";
       if (show) visible++;
     });
-    if (filterCount) filterCount.textContent = `Харагдаж буй ${visible} / Нийт ${rows.length} захиалга`;
+    const activeTab = document.getElementById("activeOrdersTab");
+    const completedTab = document.getElementById("completedOrdersTab");
+    if (activeTab && completedTab) {
+      activeTab.style.background = currentOrderView === "active" ? "#2563eb" : "white";
+      activeTab.style.color = currentOrderView === "active" ? "white" : "#334155";
+      activeTab.style.borderColor = currentOrderView === "active" ? "#2563eb" : "#cbd5e1";
+      completedTab.style.background = currentOrderView === "completed" ? "#2563eb" : "white";
+      completedTab.style.color = currentOrderView === "completed" ? "white" : "#334155";
+      completedTab.style.borderColor = currentOrderView === "completed" ? "#2563eb" : "#cbd5e1";
+      completedTab.textContent = "🗄️ Дууссан захиалгын архив (" + completedCount + ")";
+    }
+    if (filterCount) filterCount.textContent = currentOrderView === "completed"
+      ? `Архивт харагдаж буй ${visible} / Дууссан ${completedCount} захиалга`
+      : `Идэвхтэй харагдаж буй ${visible} / Нийт ${rows.length - completedCount} захиалга`;
   };
   if (searchInput && statusFilter) {
     searchInput.oninput = applyOrderFilters;
@@ -762,6 +784,11 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
   }
 }
 
+
+window.setOrderView = function(view) {
+  currentOrderView = view === "completed" ? "completed" : "active";
+  loadOrders();
+};
 
 window.viewOrderHistory = async function(orderId) {
   const { data: { session } } = await supabaseClient.auth.getSession();
