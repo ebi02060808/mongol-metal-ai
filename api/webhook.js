@@ -69,8 +69,40 @@ async function sendMessage(senderId, text) {
   return result;
 }
 
-async function sendFileAttachment(senderId, fileUrl, fileName) {
-  const response = await fetch(
+async function sendFileAttachment(senderId, fileBuffer, fileName) {
+  // Эхлээд PDF-ийн бодит файлыг Messenger Attachment Upload API-д байршуулна.
+  const form = new FormData();
+  form.append(
+    "message",
+    JSON.stringify({
+      attachment: {
+        type: "file",
+        payload: { is_reusable: true }
+      }
+    })
+  );
+  form.append(
+    "filedata",
+    new Blob([fileBuffer], { type: "application/pdf" }),
+    fileName
+  );
+
+  const uploadResponse = await fetch(
+    "https://graph.facebook.com/v26.0/me/message_attachments?access_token=" + process.env.PAGE_ACCESS_TOKEN,
+    {
+      method: "POST",
+      body: form
+    }
+  );
+
+  const uploadResult = await uploadResponse.json();
+  console.log("Messenger PDF upload result:", uploadResult);
+
+  if (!uploadResponse.ok || uploadResult.error || !uploadResult.attachment_id) {
+    throw new Error(uploadResult.error?.message || "PDF Messenger-т байршуулагдсангүй");
+  }
+
+  const sendResponse = await fetch(
     "https://graph.facebook.com/v26.0/me/messages?access_token=" + process.env.PAGE_ACCESS_TOKEN,
     {
       method: "POST",
@@ -80,16 +112,21 @@ async function sendFileAttachment(senderId, fileUrl, fileName) {
         message: {
           attachment: {
             type: "file",
-            payload: { url: fileUrl, is_reusable: true }
+            payload: { attachment_id: uploadResult.attachment_id }
           }
         }
       })
     }
   );
-  const result = await response.json();
-  console.log("Messenger PDF attachment result:", result);
-  if (!response.ok || result.error) throw new Error(result.error?.message || "PDF Messenger-т илгээгдсэнгүй");
-  return result;
+
+  const sendResult = await sendResponse.json();
+  console.log("Messenger PDF send result:", sendResult);
+
+  if (!sendResponse.ok || sendResult.error) {
+    throw new Error(sendResult.error?.message || "PDF Messenger-т илгээгдсэнгүй");
+  }
+
+  return sendResult;
 }
 
 async function saveMessengerPhoto(senderId, orderId, attachment) {
@@ -268,20 +305,35 @@ export default async function handler(req, res) {
             continue;
           }
 
-          const { data: signedFile, error: signedUrlError } = await supabase.storage
+          const { data: pdfFile, error: pdfDownloadError } = await supabase.storage
             .from("quote-pdfs")
-            .createSignedUrl(quoteOrder.quote_pdf_path, 60 * 60 * 24);
+            .download(quoteOrder.quote_pdf_path);
 
-          if (signedUrlError || !signedFile?.signedUrl) {
-            console.error("Quote PDF signed URL error:", signedUrlError);
-            await sendMessage(event.sender.id, "PDF файл бэлтгэхэд алдаа гарлаа. Та дахин оролдоно уу.");
+          if (pdfDownloadError || !pdfFile) {
+            console.error("Quote PDF download error:", pdfDownloadError);
+            await sendMessage(event.sender.id, "PDF файл хадгалагдсан сангаас уншигдсангүй. Манай ажилтантай холбогдоно уу.");
+            continue;
+          }
+
+          const pdfBuffer = Buffer.from(await pdfFile.arrayBuffer());
+
+          if (
+            pdfBuffer.length < 8 ||
+            pdfBuffer.subarray(0, 5).toString("ascii") !== "%PDF-" ||
+            pdfBuffer.length > 3 * 1024 * 1024
+          ) {
+            console.error("Quote PDF file validation failed:", {
+              size: pdfBuffer.length,
+              signature: pdfBuffer.subarray(0, 5).toString("ascii")
+            });
+            await sendMessage(event.sender.id, "PDF файлын формат эсвэл хэмжээ буруу байна. Манай ажилтантай холбогдоно уу.");
             continue;
           }
 
           try {
             await sendFileAttachment(
               event.sender.id,
-              signedFile.signedUrl,
+              pdfBuffer,
               "Mongol-Metal-Quote-" + (quoteOrder.messenger_order_number || quoteOrder.id) + ".pdf"
             );
           } catch (sendPdfError) {
