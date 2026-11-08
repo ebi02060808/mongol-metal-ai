@@ -230,6 +230,7 @@
     <strong>Үнийн санал бэлэн боллоо. PDF файл авах уу?</strong>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
       <button type="button" onclick="downloadQuotePDF()" style="background:#16a34a;color:white;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;">Тийм — PDF татах</button>
+      <button id="sendQuoteMessengerButton" type="button" onclick="sendQuotePDFMessenger()" style="background:#0084ff;color:white;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;">Messenger-ээр илгээх</button>
       <button id="convertQuoteButton" type="button" onclick="convertQuoteToOrder()" style="background:#2563eb;color:white;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;">Үнийн саналыг захиалга болгох</button>
       <button type="button" onclick="keepQuoteOnDashboard()" style="background:#64748b;color:white;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;">Үгүй — Dashboard-д үлдээх</button>
     </div>
@@ -476,7 +477,13 @@ function calculateQuote() {
     const total = items.reduce((sum, item) => sum + item.total, 0);
     currentQuote = {
       customerName, phone, items, total,
-      date: new Date()
+      date: new Date(),
+      requestId: window.crypto?.randomUUID
+        ? window.crypto.randomUUID()
+        : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === "x" ? r : (r & 3 | 8)).toString(16);
+          })
     };
     const money = value => Math.round(value).toLocaleString("mn-MN") + " ₮";
     const rows = items.map((item, index) =>
@@ -547,6 +554,88 @@ async function downloadQuotePDF() {
   }
 }
 
+async function sendQuotePDFMessenger() {
+  if (!currentQuote) return alert("Эхлээд үнийн санал тооцоолно уу.");
+  const button = document.getElementById("sendQuoteMessengerButton");
+  if (button) { button.disabled = true; button.textContent = "Илгээж байна..."; }
+  try {
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !session) throw new Error("Та эхлээд нэвтэрнэ үү.");
+
+    const items = currentQuote.items.map(item => ({
+      product: item.product,
+      width: item.width,
+      height: item.height,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice
+    }));
+    const totalArea = currentQuote.items.reduce((sum, item) => sum + item.area * item.quantity, 0);
+    const totalPieces = currentQuote.items.reduce((sum, item) => sum + item.quantity, 0);
+    const dateKey = currentQuote.date.toISOString().slice(0, 10).replace(/-/g, "");
+    const quoteNumber = "MM-" + dateKey + "-" + currentQuote.requestId.replace(/-/g, "").slice(0, 6).toUpperCase();
+    const pdf = await buildQuotePdfDocument({
+      orderNumber: quoteNumber,
+      date: currentQuote.date,
+      customerName: currentQuote.customerName,
+      phone: currentQuote.phone,
+      items: currentQuote.items.map(item => ({
+        product: item.product,
+        size: item.width + " × " + item.height + " м",
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.total,
+        negotiable: false
+      })),
+      totalPrice: currentQuote.total,
+      totalArea,
+      totalPieces
+    });
+    const blob = pdf.output("blob");
+    if (!blob || blob.size < 1000 || blob.size > 3 * 1024 * 1024) {
+      throw new Error("PDF файл хоосон эсвэл 3 MB-аас их байна.");
+    }
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    if (String.fromCharCode(...bytes.subarray(0, 5)) !== "%PDF-") {
+      throw new Error("PDF файлын бүтэц буруу байна.");
+    }
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 32768) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+    }
+    const pdfBase64 = btoa(binary);
+
+    const response = await fetch("/api/send-quote-pdf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + session.access_token
+      },
+      body: JSON.stringify({
+        requestId: currentQuote.requestId,
+        customerName: currentQuote.customerName,
+        phone: currentQuote.phone,
+        items,
+        pdfBase64
+      })
+    });
+    const result = await response.json();
+    if (result.orderId) currentQuote.savedOrderId = result.orderId;
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Messenger-ээр PDF илгээж чадсангүй.");
+    }
+
+    document.getElementById("quoteMessage").textContent =
+      "✅ PDF Messenger-ээр илгээгдэж, үнийн санал захиалгад хадгалагдлаа. Дараагийн үйлдэлд бэлэн.";
+    await Promise.all([loadOrders(), loadCustomers(), loadDashboardStats()]);
+  } catch (error) {
+    console.error("Messenger PDF илгээх алдаа:", error);
+    document.getElementById("quoteMessage").textContent = "Алдаа: " + error.message;
+    alert("Messenger-ээр PDF илгээхэд алдаа гарлаа: " + error.message);
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "Messenger-ээр илгээх"; }
+  }
+}
+
 async function convertQuoteToOrder() {
   if (!currentQuote) return alert("Эхлээд үнийн санал тооцоолно уу.");
   const button = document.getElementById("convertQuoteButton");
@@ -554,6 +643,22 @@ async function convertQuoteToOrder() {
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) throw new Error("Та эхлээд нэвтэрнэ үү.");
+    if (currentQuote.savedOrderId) {
+      currentQuote = null;
+      document.getElementById("quoteCustomerName").value = "";
+      document.getElementById("quotePhone").value = "";
+      document.getElementById("quoteItemsContainer").innerHTML = "";
+      addOrderItemRow("quoteItemsContainer");
+      const quotePreview = document.getElementById("quotePreview");
+      if (quotePreview) {
+        quotePreview.style.display = "none";
+        quotePreview.innerHTML = "";
+      }
+      document.getElementById("pdfQuestion").style.display = "none";
+      document.getElementById("quoteMessage").textContent = "✅ Messenger-ээр илгээсэн үнийн санал захиалгад хадгалагдсан. Дараагийн үнийн санал гаргахад бэлэн.";
+      await Promise.all([loadOrders(), loadCustomers(), loadDashboardStats()]);
+      return;
+    }
     const items = currentQuote.items;
     const totalArea = items.reduce((sum, item) => sum + item.area * item.quantity, 0);
     const total = currentQuote.total;
