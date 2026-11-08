@@ -427,7 +427,7 @@ function keepQuoteOnDashboard() {
 }
 
 function parseOrderDimensions(value) {
-  const parts = String(value || "").trim().replace(/,/g, ".").split(/\\s*[xX×*]\\s*/);
+  const parts = String(value || "").trim().replace(/,/g, ".").split(/\s*[xX×*]\s*/);
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   const width = Number(parts[0]);
   const height = Number(parts[1]);
