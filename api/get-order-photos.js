@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     const { data: admin, error: adminError } = await supabase
       .from("admin_users")
       .select("user_id, role, owner_user_id")
-      .eq("user_id", ownerUserId)
+      .eq("user_id", userId)
       .in("role", ["admin", "employee"])
       .maybeSingle();
 
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       .from("orders")
       .select("id, messenger_order_number")
       .eq("id", orderId)
-      .eq("user_id", userId)
+      .eq("user_id", ownerUserId)
       .maybeSingle();
 
     if (orderError) throw orderError;
