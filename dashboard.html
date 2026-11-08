@@ -1076,6 +1076,31 @@ function escapeHTML(value) {
 }
 
 
+async function ensureJsPdfLibrary() {
+  if (window.jspdf && typeof window.jspdf.jsPDF === "function") return;
+  const sources = [
+    "https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js",
+    "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"
+  ];
+  for (const src of sources) {
+    try {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("PDF сангийн эх үүсвэр холбогдсонгүй."));
+        document.head.appendChild(script);
+      });
+      if (window.jspdf && typeof window.jspdf.jsPDF === "function") return;
+    } catch (error) {
+      console.warn("jsPDF CDN fallback:", src, error);
+    }
+  }
+  throw new Error("PDF сан ачаалагдсангүй. Интернэт эсвэл CDN холболтыг шалгана уу.");
+}
+
 let quotePdfFontPromise = null;
 
 async function loadQuotePdfFont() {
@@ -1100,9 +1125,7 @@ async function loadQuotePdfFont() {
 }
 
 async function buildQuotePdfDocument(data) {
-  if (!window.jspdf || typeof window.jspdf.jsPDF !== "function") {
-    throw new Error("PDF сан ачаалагдсангүй. Хуудсыг дахин ачаална уу.");
-  }
+  await ensureJsPdfLibrary();
   const fontData = await loadQuotePdfFont();
   const doc = new window.jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   doc.addFileToVFS("NotoSans-Regular.ttf", fontData);
