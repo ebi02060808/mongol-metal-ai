@@ -130,9 +130,9 @@ export default async function handler(req, res) {
         "Захиалгын дугаар: " + orderNumber + "\n" +
         "Бүтээгдэхүүн: " + (order.product || "—") + "\n" +
         "Хэмжээ: " + (order.size || "—") + "\n" +
-        (quoteItems.length ? "Дэлгэрэнгүй хэмжээ, тоо ширхэг, нэгж үнийн задаргаа PDF файлд бий.\\n" : "Тоо хэмжээ: " + quantity + " ш\\n") +
-        "Нийт талбай: " + totalArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\\n" +
-        (quoteItems.length ? "" : "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\\n") +
+        (quoteItems.length ? "Дэлгэрэнгүй хэмжээ, тоо ширхэг, нэгж үнийн задаргаа PDF файлд бий.\n" : "Тоо хэмжээ: " + quantity + " ш\n") +
+        "Нийт талбай: " + totalArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\n" +
+        (quoteItems.length ? "" : "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\n") +
         "НИЙТ ҮНЭ: " + money(totalPrice) + "\n\n" +
         "Энэхүү үнийн саналтай танилцаад асуух зүйл байвал бидэнд хариу бичээрэй.\n" +
         "Баярлалаа. — Монгол металл хийц";
