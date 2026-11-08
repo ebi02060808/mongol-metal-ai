@@ -33,11 +33,12 @@ export default async function handler(req, res) {
     if (authError || !user) return res.status(401).json({ error: "Нэвтрэлт хүчингүй байна." });
 
     const { data: admin, error: adminError } = await supabase
-      .from("admin_users").select("role").eq("user_id", user.id).maybeSingle();
+      .from("admin_users").select("role, owner_user_id").eq("user_id", ownerUserId).maybeSingle();
     if (adminError || !admin || !["admin", "employee"].includes(admin.role)) {
       return res.status(403).json({ error: "Ажилтны эсвэл админы эрх шаардлагатай." });
     }
 
+    const ownerUserId = admin.owner_user_id || user.id;
     const { orderId, newStatus } = req.body || {};
     const allowedStatuses = ["Шинэ", "Холбогдсон", "Үнийн санал", "Баталгаажсан", "Дууссан"];
     if (!orderId || !allowedStatuses.includes(newStatus)) {
@@ -48,7 +49,7 @@ export default async function handler(req, res) {
       .from("orders")
       .select("*")
       .eq("id", orderId)
-      .eq("user_id", user.id)
+      .eq("user_id", ownerUserId)
       .maybeSingle();
 
     if (fetchError) return res.status(500).json({ error: fetchError.message });
@@ -131,7 +132,7 @@ export default async function handler(req, res) {
       .from("orders")
       .update({ status: newStatus })
       .eq("id", orderId)
-      .eq("user_id", user.id)
+      .eq("user_id", ownerUserId)
       .select("id, status, messenger_sender_id, messenger_order_number")
       .maybeSingle();
 
