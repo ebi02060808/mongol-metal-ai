@@ -156,14 +156,14 @@ export default async function handler(req, res) {
       item.width + "м × " + item.height + "м (" + item.quantity + "ш)"
     ).join("; ");
     const orderNumber = createOrderNumber(requestId);
-    const idempotencyNumber = "WEB-" + requestId;
+    const filePath = ownerUserId + "/quote-" + requestId + ".pdf";
 
     // Ижил хүсэлтийг дахин илгээхэд давхар захиалга үүсгэхгүй.
     let { data: order, error: existingError } = await supabase
       .from("orders")
       .select("id, messenger_sender_id, messenger_order_number, quote_pdf_path")
       .eq("user_id", ownerUserId)
-      .eq("messenger_order_number", idempotencyNumber)
+      .eq("quote_pdf_path", filePath)
       .maybeSingle();
     if (existingError) throw existingError;
 
@@ -208,7 +208,8 @@ export default async function handler(req, res) {
           price: totalPrice,
           status: "Үнийн санал",
           messenger_sender_id: senderId,
-          messenger_order_number: idempotencyNumber,
+          messenger_order_number: orderNumber,
+          quote_pdf_path: filePath,
           quote_items: items
         })
         .select("id, messenger_sender_id, messenger_order_number, quote_pdf_path")
@@ -218,8 +219,14 @@ export default async function handler(req, res) {
       createdOrderId = inserted.id;
     }
 
-    const filePath = order.quote_pdf_path || ownerUserId + "/quote-" + order.id + ".pdf";
-    if (!order.quote_pdf_path) {
+    // Өмнөх оролдлогоор файл байршуулсан эсэхийг шалгаад байхгүй бол байршуулна.
+    let pdfToSend = pdfBuffer;
+    const { data: storedPdf, error: storedPdfError } = await supabase.storage
+      .from("quote-pdfs")
+      .download(filePath);
+    if (storedPdf && !storedPdfError) {
+      pdfToSend = Buffer.from(await storedPdf.arrayBuffer());
+    } else {
       const { error: uploadError } = await supabase.storage
         .from("quote-pdfs")
         .upload(filePath, pdfBuffer, {
@@ -227,21 +234,12 @@ export default async function handler(req, res) {
           upsert: true
         });
       if (uploadError) throw uploadError;
-
-      const { error: pathError } = await supabase
-        .from("orders")
-        .update({ quote_pdf_path: filePath, messenger_order_number: orderNumber })
-        .eq("id", order.id)
-        .eq("user_id", ownerUserId);
-      if (pathError) throw pathError;
-      order.messenger_order_number = orderNumber;
-      order.quote_pdf_path = filePath;
     }
 
     try {
       await sendFileAttachment(
         senderId,
-        pdfBuffer,
+        pdfToSend,
         "Mongol-Metal-Quote-" + order.messenger_order_number + ".pdf"
       );
     } catch (sendError) {
