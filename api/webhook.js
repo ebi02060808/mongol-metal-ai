@@ -1269,7 +1269,9 @@ items.forEach((item, index) => {
     "--------------------\n" +
     "Нийт бүтээгдэхүүн: " + items.length + " мөр\n" +
     "Нийт талбай: " + totalArea.toFixed(2) + " м²\n" +
-    "НИЙТ ТӨЛБӨР: " + totalPrice.toLocaleString("en-US") + "₮\n\n" +
+    "НИЙТ ДҮН: " + (items.some(item => item.pricing_mode === "labor_only")
+      ? (totalPrice > 0 ? totalPrice.toLocaleString("mn-MN") + "₮ + ажлын хөлс тохиролцоно" : "Ажлын хөлсийг тохиролцоно")
+      : totalPrice.toLocaleString("mn-MN") + "₮") + "\n\n" +
     "Нэр: " + updatedSession.customer_name + "\n" +
     "Утас: " + updatedSession.phone + "\n" +
     "Байршил: " + updatedSession.address + "\n\n" +
@@ -1462,6 +1464,9 @@ if (!existingOrder) {
   product: orderProduct,
   size: orderSize,
   price: items.some(item => item.pricing_mode === "labor_only") ? null : totalPrice,
+  area_per_unit: totalArea || 1,
+  quantity: 1,
+  unit_price: items.some(item => item.pricing_mode === "labor_only") || !totalArea ? null : Math.round(totalPrice / totalArea),
   status: orderStatus,
   user_id: admin.user_id,
   messenger_sender_id: senderId,
