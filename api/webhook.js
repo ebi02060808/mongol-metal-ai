@@ -1649,6 +1649,7 @@ if (!existingOrder) {
 }
 
 // Үнийн саналын PDF-г үүсгэж хадгална. Давтан webhook-д ижил файл ашиглана.
+let quotePdfReady = false;
 const quoteOrderId = existingOrder?.id || savedOrder?.id;
 const quoteFilePath = admin.user_id + "/messenger-" + session.order_id + ".pdf";
 if (quoteOrderId) {
@@ -1673,6 +1674,7 @@ if (quoteOrderId) {
     }
   }
   if (pdfPath) {
+    quotePdfReady = true;
     try {
       await sendQuotePdfQuestion(senderId, quoteOrderId);
     } catch (questionError) {
@@ -1734,7 +1736,7 @@ if (!completedSession) {
     "Нийт үнэ: " + (items.some(item => item.pricing_mode === "labor_only")
       ? (totalPrice > 0 ? totalPrice.toLocaleString("mn-MN") + "₮ + ажлын хөлс тохиролцоно" : "Ажлын хөлсийг тохиролцоно")
       : totalPrice.toLocaleString("mn-MN") + "₮") + "\n\n" +
-    "Манай ажилтан удахгүй холбогдоно. Баярлалаа!\n\nPDF авах бол дээрх 📄 PDF авах товчийг дарна уу."
+    "Манай ажилтан удахгүй холбогдоно. Баярлалаа!" + (quotePdfReady ? "\n\n📄 PDF авах бол дээрх товчийг дарна уу." : "")
   );
 
   continue;
