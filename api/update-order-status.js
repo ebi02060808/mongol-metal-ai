@@ -60,6 +60,21 @@ export default async function handler(req, res) {
     const currentStatus = String(order.status || "Шинэ").startsWith("Шинэ захиалга")
       ? "Шинэ"
       : String(order.status || "Шинэ");
+    if (req.body?.updateUnpaidBalanceOnly === true) {
+      const amount = Number(unpaidBalance);
+      if (!isAdmin) return res.status(403).json({ error: "Үлдэгдэл засах эрх зөвхөн админд байна." });
+      if (newStatus !== "Дууссан" || currentStatus !== "Дууссан" ||
+          !Number.isFinite(amount) || amount < 0 || amount > 100000000000) {
+        return res.status(400).json({ error: "Дууссан захиалгын төлөгдөөгүй үлдэгдлийн дүн буруу байна." });
+      }
+      const { error: balanceUpdateError } = await supabase.from("orders")
+        .update({ unpaid_balance: amount })
+        .eq("id", orderId)
+        .eq("user_id", ownerUserId);
+      if (balanceUpdateError) return res.status(500).json({ error: "Үлдэгдэл хадгалж чадсангүй: " + balanceUpdateError.message });
+      return res.status(200).json({ success: true, message: "Төлөгдөөгүй үлдэгдэл шинэчлэгдлээ." });
+    }
+
     if (req.body?.markUnpaidBalancePaid === true) {
       if (!isAdmin) return res.status(403).json({ error: "Үлдэгдэл төлөгдсөнөөр тэмдэглэх эрх зөвхөн админд байна." });
       if (newStatus !== "Дууссан" || currentStatus !== "Дууссан") {
