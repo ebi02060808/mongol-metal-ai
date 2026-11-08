@@ -366,6 +366,63 @@ if (!messageText && !hasImage) {
   continue;
 }
 
+// Messenger зарим орчинд postback биш товчны гарчгийг энгийн текстээр дамжуулж болзошгүй.
+// Ийм үед захиалгын дугаарыг payload-аас авахгүйгээр тухайн хэрэглэгчийн хамгийн сүүлийн PDF-ийг илгээнэ.
+if (messageText === "📄 PDF авах") {
+  const { data: latestQuote, error: latestQuoteError } = await supabase
+    .from("orders")
+    .select("id, quote_pdf_path, messenger_order_number")
+    .eq("messenger_sender_id", senderId)
+    .not("quote_pdf_path", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestQuoteError || !latestQuote?.quote_pdf_path) {
+    console.error("Latest quote PDF lookup error:", latestQuoteError);
+    await sendMessage(senderId, "Уучлаарай, таны үнийн саналын PDF файл олдсонгүй. Манай ажилтантай холбогдоно уу.");
+    continue;
+  }
+
+  const { data: pdfFile, error: pdfDownloadError } = await supabase.storage
+    .from("quote-pdfs")
+    .download(latestQuote.quote_pdf_path);
+
+  if (pdfDownloadError || !pdfFile) {
+    console.error("Quote PDF download error:", pdfDownloadError);
+    await sendMessage(senderId, "PDF файлыг хадгалсан сангаас уншиж чадсангүй. Манай ажилтан шалгаж өгнө.");
+    continue;
+  }
+
+  const pdfBuffer = Buffer.from(await pdfFile.arrayBuffer());
+  if (
+    pdfBuffer.length < 8 ||
+    pdfBuffer.subarray(0, 5).toString("ascii") !== "%PDF-" ||
+    pdfBuffer.length > 3 * 1024 * 1024
+  ) {
+    console.error("Quote PDF validation failed:", { size: pdfBuffer.length });
+    await sendMessage(senderId, "PDF файлын формат эсвэл хэмжээ буруу байна. Манай ажилтан шалгаж өгнө.");
+    continue;
+  }
+
+  try {
+    await sendFileAttachment(
+      senderId,
+      pdfBuffer,
+      "Mongol-Metal-Quote-" + (latestQuote.messenger_order_number || latestQuote.id) + ".pdf"
+    );
+  } catch (sendPdfError) {
+    console.error("Quote PDF Messenger send error:", sendPdfError);
+    await sendMessage(senderId, "PDF файлыг Messenger-ээр илгээж чадсангүй. Манай ажилтан шалгаж өгнө.");
+  }
+  continue;
+}
+
+if (messageText === "Үгүй, баярлалаа") {
+  await sendMessage(senderId, "Баярлалаа. PDF илгээхгүй. Нэмэлт зүйл асуух бол энд бичээрэй. 😊");
+  continue;
+}
+
       console.log("Customer:", senderId);
       console.log("Message:", messageText);
 
