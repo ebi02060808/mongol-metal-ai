@@ -41,8 +41,8 @@ export default async function handler(req, res) {
     // Админ эрх шалгах
     const { data: admin, error: adminError } = await supabase
       .from("admin_users")
-      .select("user_id, role")
-      .eq("user_id", userId)
+      .select("user_id, role, owner_user_id")
+      .eq("user_id", ownerUserId)
       .in("role", ["admin", "employee"])
       .maybeSingle();
 
@@ -53,6 +53,7 @@ export default async function handler(req, res) {
       });
     }
 
+    const ownerUserId = admin.owner_user_id || userId;
     const orderId = req.query.orderId;
 
     if (!orderId || !/^\d+$/.test(String(orderId))) {
