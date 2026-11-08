@@ -1130,16 +1130,61 @@ async function createOrderQuotePdf(order) {
     '<p><strong>Баталгаат хугацаа:</strong> 2 жил</p>' +
     '<p>Үнийн саналтай холбоотой нэмэлт нөхцөлийг захиалга баталгаажуулах үед тохиролцоно.</p>' +
     '<p style="margin-top:28px;">Хүндэтгэсэн, Монгол металл хийц</p></div>';
-  const blob = await html2pdf().set({
-    margin: 10,
-    image: { type: "jpeg", quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-  }).from(paper).outputPdf("blob");
-  if (!blob || blob.size > 3 * 1024 * 1024) throw new Error("PDF файл хоосон эсвэл 3 MB-аас их байна.");
+  // quotePaper нь dashboard дээр дэлгэцнээс гадуур байрладаг тул html2canvas
+  // түүнийг хоосон зураг болгон унших эрсдэлтэй. PDF-д зориулж харагдах viewport-д
+  // түр clone үүсгээд, PDF бэлэн болмогц DOM-оос устгана.
+  const renderNode = paper.cloneNode(true);
+  renderNode.id = "quotePaperPdfRender";
+  renderNode.style.position = "fixed";
+  renderNode.style.left = "0";
+  renderNode.style.top = "0";
+  renderNode.style.width = "794px";
+  renderNode.style.maxWidth = "794px";
+  renderNode.style.height = "auto";
+  renderNode.style.minHeight = "auto";
+  renderNode.style.display = "block";
+  renderNode.style.visibility = "visible";
+  renderNode.style.opacity = "1";
+  renderNode.style.zIndex = "2147483647";
+  renderNode.style.background = "#ffffff";
+  renderNode.style.pointerEvents = "none";
+  document.body.appendChild(renderNode);
+
+  let blob;
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+    blob = await html2pdf().set({
+      margin: 10,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: Math.max(document.documentElement.clientWidth, 900)
+      },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    }).from(renderNode).outputPdf("blob");
+  } finally {
+    renderNode.remove();
+  }
+
+  if (!blob || blob.size < 1000) {
+    throw new Error("PDF үүссэн боловч агуулга хоосон байна. Дахин оролдоно уу.");
+  }
+  if (blob.size > 3 * 1024 * 1024) {
+    throw new Error("PDF файл 3 MB-аас их байна.");
+  }
+
   const bytes = new Uint8Array(await blob.arrayBuffer());
+  const signature = String.fromCharCode(...bytes.subarray(0, 5));
+  if (signature !== "%PDF-") {
+    throw new Error("PDF файлын бүтэц буруу үүссэн байна.");
+  }
+
   let binary = "";
-  for (let i = 0; i < bytes.length; i += 32768) binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+  for (let i = 0; i < bytes.length; i += 32768) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+  }
   return btoa(binary);
 }
 
