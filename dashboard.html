@@ -287,12 +287,12 @@
       <div class="section" id="financeSection" style="display:none;">
         <h2>💰 Орлого, зарлагын тайлан</h2>
         <div id="financeSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:15px 0;">
-          <div style="padding:16px;background:#ecfdf5;border-radius:10px;"><small>Бодитоор бүртгэсэн орлого</small><h3 id="financeIncome">0 ₮</h3></div>
+          <div style="padding:16px;background:#ecfdf5;border-radius:10px;"><small>Нийт орлого (бодитоор хүлээн авсан)</small><h3 id="financeIncome">0 ₮</h3></div>
           <div style="padding:16px;background:#fff7ed;border-radius:10px;"><small>Нийт зарлага</small><h3 id="financeExpense">0 ₮</h3></div>
           <div style="padding:16px;background:#eff6ff;border-radius:10px;"><small>Мөнгөн үлдэгдэл</small><h3 id="financeBalance">0 ₮</h3></div>
           <div style="padding:16px;background:#f5f3ff;border-radius:10px;"><small>Дууссан захиалгын борлуулалт</small><h3 id="financeCompletedSales">0 ₮</h3><small id="financeCompletedCount">0 захиалга</small></div>
         </div>
-        <p style="font-size:12px;color:#64748b;margin:4px 0 12px;">Дууссан захиалгын борлуулалт нь тусдаа мэдээлэл бөгөөд бодитоор орж ирсэн мөнгөний орлогод давхар нэмэгдэхгүй.</p>
+        <p style="font-size:12px;color:#64748b;margin:4px 0 12px;">“Баталгаажсан” төлөв сонгоход админ эсвэл ажилтан бодитоор хүлээн авсан мөнгөний дүнг оруулна. Тэр дүн энэ нийт орлогод нэмэгдэнэ. Үнийн саналын нийт үнэ биш, зөвхөн бодитоор авсан мөнгийг бүртгэнэ. Дууссан захиалгын борлуулалт тусдаа харагдана.</p>
         <div id="financeCompletedOrders" style="margin:18px 0;"></div>
         <div id="financeOrderProfit" style="margin:18px 0;"></div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:15px 0;">
@@ -1371,7 +1371,7 @@ async function createOrderQuotePdf(order) {
 async function updateOrderStatus(orderId, newStatus) {
   let confirmationIncome = null;
   if (newStatus === "Баталгаажсан") {
-    const amountText = prompt("Энэ захиалгаар бодитоор хүлээн авсан орлогын дүнг оруулна уу (₮):", "");
+    const amountText = prompt("Үнийн саналтай энэ захиалгаар ОДОО бодитоор хүлээн авсан мөнгөний дүнг оруулна уу (₮). Бүтэн төлбөр аваагүй бол зөвхөн авсан дүнг бичнэ үү:", "");
     if (amountText === null) { await loadOrders(); return; }
     const amount = Number(String(amountText).replace(/,/g, "").trim());
     if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000) {
