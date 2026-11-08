@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     }
 
     const ownerUserId = admin.owner_user_id || user.id;
-    const { orderId, newStatus, confirmationIncome, completionExpense } = req.body || {};
+    const { orderId, newStatus, confirmationIncome, completionExpense, remainingIncome } = req.body || {};
     const allowedStatuses = ["Шинэ", "Холбогдсон", "Үнийн санал", "Баталгаажсан", "Дууссан"];
     if (!orderId || !allowedStatuses.includes(newStatus)) {
       return res.status(400).json({ error: "Захиалга эсвэл төлөв буруу байна." });
@@ -322,7 +322,7 @@ export default async function handler(req, res) {
             ? "Захиалга баталгаажлаа. Энэ захиалгын орлого өмнө бүртгэгдсэн тул давхар нэмсэнгүй."
             : "Захиалга баталгаажлаа.")
       : newStatus === "Дууссан"
-        ? "Захиалга дууслаа. Нийт зарлага болон бодитоор авсан үлдэгдэл орлогыг санхүүгийн тайланд бүртгэлээ."
+        ? "Захиалга дууслаа. Нийт зарлага болон үлдэгдэл төлбөрийн мэдээллийг санхүүгийн тайланд шинэчиллээ."
         : "Захиалгын төлөв шинэчлэгдлээ.";
 
     return res.status(200).json({
