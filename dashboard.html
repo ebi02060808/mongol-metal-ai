@@ -774,8 +774,27 @@ async function loadOrders() {
         </thead>
         <tbody>
           ${orders.map(order => {
-            const qty = Number(order.quantity || 1);
-            const area = Number(order.area_per_unit || 1) * qty;
+            const orderItems = Array.isArray(order.quote_items) ? order.quote_items : [];
+            const qty = orderItems.length
+              ? orderItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
+              : Number(order.quantity || 1);
+            const area = orderItems.length
+              ? orderItems.reduce((sum, item) => sum + Number(item.area || 0) * Number(item.quantity || 1), 0)
+              : Number(order.area_per_unit || 1) * qty;
+            const productDisplay = orderItems.length
+              ? orderItems.map((item, index) => (index + 1) + ". " + escapeHTML(item.product_type || "Бүтээгдэхүүн")).join("<br>")
+              : escapeHTML(order.product || "");
+            const sizeDisplay = orderItems.length
+              ? orderItems.map(item => {
+                  const size = item.width != null && item.height != null
+                    ? Number(item.width) + " × " + Number(item.height) + " м"
+                    : Number(item.area || 0).toFixed(2) + " м²";
+                  return escapeHTML(size + " · " + Number(item.quantity || 1) + " ш");
+                }).join("<br>")
+              : escapeHTML(order.size || "—");
+            const unitPriceDisplay = orderItems.length > 1
+              ? "Олон үнэ"
+              : (order.unit_price == null ? "—" : Number(order.unit_price).toLocaleString("mn-MN") + " ₮");
             const status = order.status || "Шинэ";
             const normalizedStatus = status.startsWith("Шинэ захиалга") ? "Шинэ" : status;
             const unpaidAmount = order.unpaid_balance == null ? null : Number(order.unpaid_balance);
@@ -792,11 +811,11 @@ async function loadOrders() {
             return `
               <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" style="border-bottom:1px solid #e2e8f0;background:${hasUnpaidBalance ? '#fff1f2' : missingUnpaidBalance ? '#fffbeb' : '#ffffff'};border-left:${hasUnpaidBalance ? '5px solid #dc2626' : missingUnpaidBalance ? '5px solid #f59e0b' : '5px solid transparent'};">
                 <td style="padding:11px 10px;white-space:nowrap;"><strong>${escapeHTML(order.customer_name || "")}</strong><br><span style="color:#64748b;">${escapeHTML(order.phone || "")}</span></td>
-                <td style="padding:11px 10px;">${escapeHTML(order.product || "")}</td>
-                <td style="padding:11px 10px;text-align:center;white-space:nowrap;">${escapeHTML(order.size || "—")}</td>
+                <td style="padding:11px 10px;">${productDisplay}</td>
+                <td style="padding:11px 10px;text-align:center;white-space:nowrap;">${sizeDisplay}</td>
                 <td style="padding:11px 10px;text-align:right;">${qty.toLocaleString("mn-MN")}</td>
                 <td style="padding:11px 10px;text-align:right;white-space:nowrap;">${area.toLocaleString("mn-MN")} м²</td>
-                <td style="padding:11px 10px;text-align:right;white-space:nowrap;">${order.unit_price == null ? "—" : Number(order.unit_price).toLocaleString("mn-MN") + " ₮"}</td>
+                <td style="padding:11px 10px;text-align:right;white-space:nowrap;">${unitPriceDisplay}</td>
                 <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;">${order.price == null ? "Тохиролцоно" : Number(order.price).toLocaleString("mn-MN") + " ₮"}</td>
                  <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;color:${normalizedStatus === "Дууссан" && Number(order.unpaid_balance || 0) > 0 ? "#b91c1c" : "#64748b"};">
                    ${normalizedStatus !== "Дууссан" ? "—" : (order.unpaid_balance == null ? "Оруулаагүй" : Number(order.unpaid_balance).toLocaleString("mn-MN") + " ₮")}
