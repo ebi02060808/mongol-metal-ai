@@ -90,7 +90,7 @@ export default async function handler(req, res) {
       const totalArea = quoteItems.length
         ? quoteItems.reduce((sum, item) => sum + Number(item.area || 0) * Number(item.quantity || 1), 0)
         : (parsedArea || (storedArea > 0 ? storedArea : 1)) * quantity;
-      const totalPrice = Number(order.price || 0);
+      const totalPrice = order.price == null ? null : Number(order.price);
       const storedUnitPrice = order.unit_price == null ? 0 : Number(order.unit_price);
       const unitPrice = quoteItems.length
         ? Number(quoteItems[0].unit_price || 0)
@@ -133,7 +133,7 @@ export default async function handler(req, res) {
         (quoteItems.length ? "Дэлгэрэнгүй хэмжээ, тоо ширхэг, нэгж үнийн задаргаа PDF файлд бий.\n" : "Тоо хэмжээ: " + quantity + " ш\n") +
         "Нийт талбай: " + totalArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\n" +
         (quoteItems.length ? "" : "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\n") +
-        "НИЙТ ҮНЭ: " + money(totalPrice) + "\n\n" +
+        "НИЙТ ДҮН: " + (totalPrice == null ? "Ажлын хөлсийг харилцан тохиролцоно" : money(totalPrice)) + "\n\n" +
         "Энэхүү үнийн саналтай танилцаад асуух зүйл байвал бидэнд хариу бичээрэй.\n" +
         "Баярлалаа. — Монгол металл хийц";
 
