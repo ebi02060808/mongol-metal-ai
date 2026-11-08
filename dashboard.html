@@ -205,7 +205,17 @@
   <h2>📦 Шинэ захиалга</h2>
   <input type="text" id="customerName" placeholder="Харилцагчийн нэр" required>
   <input type="text" id="phone" placeholder="Утасны дугаар" required>
-  <input type="text" id="product" placeholder="Бүтээгдэхүүн" required>
+  <label for="product">Бүтээгдэхүүн сонгох</label>
+  <select id="product" required>
+    <option value="">-- Бүтээгдэхүүн сонгоно уу --</option>
+    <option value="Металл цонх">Металл цонх</option>
+    <option value="Металл хаалга">Металл хаалга</option>
+    <option value="Шилэн фасад">Шилэн фасад</option>
+    <option value="Металл фасад">Металл фасад</option>
+    <option value="Хуванцар хаалт">Хуванцар хаалт</option>
+    <option value="Бусад">Бусад / тусгай захиалга</option>
+  </select>
+  <input type="text" id="customProduct" placeholder="Бусад бүтээгдэхүүний нэрийг бичнэ үү" style="display:none;">
   <label for="width">Өргөн (метр)</label>
   <input type="number" id="width" min="0.01" step="0.01" placeholder="Жишээ: 2" required>
   <label for="height">Өндөр (метр)</label>
@@ -284,6 +294,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const field = document.getElementById(id);
     if (field) field.addEventListener("input", updateOrderTotalPreview);
   });
+  const productSelect = document.getElementById("product");
+  const customProductInput = document.getElementById("customProduct");
+  if (productSelect && customProductInput) {
+    productSelect.addEventListener("change", () => {
+      const isOther = productSelect.value === "Бусад";
+      customProductInput.style.display = isOther ? "block" : "none";
+      customProductInput.required = isOther;
+      if (!isOther) customProductInput.value = "";
+    });
+  }
   updateOrderTotalPreview();
 });
 
@@ -428,7 +448,9 @@ async function addOrder() {
 
     const customerName = document.getElementById("customerName").value.trim();
     const phone = document.getElementById("phone").value.trim();
-    const product = document.getElementById("product").value.trim();
+    const selectedProduct = document.getElementById("product").value;
+    const customProduct = document.getElementById("customProduct").value.trim();
+    const product = selectedProduct === "Бусад" ? customProduct : selectedProduct;
     const width = Number(document.getElementById("width").value);
     const height = Number(document.getElementById("height").value);
     const size = width + "м × " + height + "м";
@@ -436,8 +458,8 @@ async function addOrder() {
     const quantity = Number(document.getElementById("quantity").value);
     const unitPrice = Number(document.getElementById("unitPrice").value);
 
-    if (!customerName || !phone || !product) {
-      throw new Error("Харилцагчийн нэр, утас, бүтээгдэхүүнийг заавал оруулна уу.");
+    if (!customerName || !phone || !selectedProduct || !product) {
+      throw new Error("Харилцагчийн нэр, утас, бүтээгдэхүүнийг заавал сонгож/оруулна уу.");
     }
     if (!Number.isFinite(width) || width <= 0 ||
         !Number.isFinite(height) || height <= 0 ||
@@ -469,9 +491,10 @@ async function addOrder() {
     message.textContent = "✅ Захиалга амжилттай хадгалагдлаа! Нийт үнэ: " +
       Math.round(totalPrice).toLocaleString("mn-MN") + " ₮";
 
-    ["customerName", "phone", "product", "width", "height", "unitPrice"].forEach(id => {
+    ["customerName", "phone", "product", "customProduct", "width", "height", "unitPrice"].forEach(id => {
       document.getElementById(id).value = "";
     });
+    document.getElementById("customProduct").style.display = "none";
     document.getElementById("quantity").value = "1";
     updateOrderTotalPreview();
 
