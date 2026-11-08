@@ -64,16 +64,11 @@ export default async function handler(req, res) {
       if (!normalizedEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail)) {
         return res.status(400).json({ error: "Имэйл хаягаа зөв оруулна уу." });
       }
-      let target = await findAuthUserByEmail(normalizedEmail);
+      const target = await findAuthUserByEmail(normalizedEmail);
       if (!target) {
-        const { data: invited, error: inviteError } =
-          await supabase.auth.admin.inviteUserByEmail(normalizedEmail);
-        if (inviteError || !invited?.user) {
-          return res.status(400).json({
-            error: "Ажилтны урилга илгээж чадсангүй. Имэйл тохиргоо болон хаягийг шалгана уу."
-          });
-        }
-        target = invited.user;
+        return res.status(404).json({
+          error: "Энэ имэйлээр бүртгэл олдсонгүй. Ажилтан эхлээд register.html хуудсаар бүртгүүлнэ үү."
+        });
       }
       const { data: existing, error: existingError } = await supabase
         .from("admin_users").select("role").eq("user_id", target.id).maybeSingle();
