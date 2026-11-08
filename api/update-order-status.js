@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     }
 
     const ownerUserId = admin.owner_user_id || user.id;
-    const { orderId, newStatus } = req.body || {};
+    const { orderId, newStatus, completionExpense } = req.body || {};
     const allowedStatuses = ["Шинэ", "Холбогдсон", "Үнийн санал", "Баталгаажсан", "Дууссан"];
     if (!orderId || !allowedStatuses.includes(newStatus)) {
       return res.status(400).json({ error: "Захиалга эсвэл төлөв буруу байна." });
@@ -159,6 +159,55 @@ export default async function handler(req, res) {
       }
     }
 
+    // Захиалга дуусгах үеийн зарлагыг админ эсвэл ажилтны нэр дээр компанийн санхүүтэй холбоно.
+    let completionExpenseEntryId = null;
+    let completionExpenseAlreadyRecorded = false;
+    if (newStatus === "Дууссан" && completionExpense && Number(completionExpense.amount) > 0) {
+      const amount = Number(completionExpense.amount);
+      const category = String(completionExpense.category || "").trim();
+      const description = String(completionExpense.description || "").trim();
+      const entryDate = String(completionExpense.entryDate || "").trim();
+      if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000 ||
+          !category || category.length > 120 ||
+          description.length > 500 ||
+          !/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)) {
+        return res.status(400).json({ error: "Зарлагын дүн, ангилал эсвэл огноо буруу байна." });
+      }
+
+      const { data: priorExpense, error: priorExpenseError } = await supabase
+        .from("finance_entries")
+        .select("id")
+        .eq("user_id", ownerUserId)
+        .eq("order_id", orderId)
+        .eq("entry_type", "expense")
+        .ilike("description", "Дуусгах үеийн зарлага:%")
+        .limit(1)
+        .maybeSingle();
+      if (priorExpenseError) return res.status(500).json({ error: "Өмнөх зарлагыг шалгаж чадсангүй: " + priorExpenseError.message });
+
+      if (priorExpense) {
+        completionExpenseAlreadyRecorded = true;
+      } else {
+        const expenseDescription = "Дуусгах үеийн зарлага: " + (description || "Нийт зардал");
+        const { data: insertedExpense, error: expenseInsertError } = await supabase
+          .from("finance_entries")
+          .insert({
+            user_id: ownerUserId,
+            created_by: user.id,
+            order_id: orderId,
+            entry_type: "expense",
+            amount,
+            category,
+            description: expenseDescription,
+            entry_date: entryDate
+          })
+          .select("id")
+          .single();
+        if (expenseInsertError) return res.status(500).json({ error: "Зарлага бүртгэж чадсангүй. Захиалгын төлөв өөрчлөгдөөгүй: " + expenseInsertError.message });
+        completionExpenseEntryId = insertedExpense.id;
+      }
+    }
+
     const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
       .update({ status: newStatus })
@@ -167,8 +216,13 @@ export default async function handler(req, res) {
       .select("id, status, messenger_sender_id, messenger_order_number")
       .maybeSingle();
 
-    if (updateError) return res.status(500).json({ error: updateError.message });
-    if (!updatedOrder) return res.status(404).json({ error: "Захиалга олдсонгүй." });
+    if (updateError || !updatedOrder) {
+      if (completionExpenseEntryId) {
+        await supabase.from("finance_entries").delete().eq("id", completionExpenseEntryId).eq("user_id", ownerUserId);
+      }
+      if (updateError) return res.status(500).json({ error: updateError.message });
+      return res.status(404).json({ error: "Захиалга олдсонгүй." });
+    }
 
     if (newStatus !== "Үнийн санал" && updatedOrder.messenger_sender_id && pageToken) {
       const orderNumber = updatedOrder.messenger_order_number || "";
@@ -195,12 +249,21 @@ export default async function handler(req, res) {
       }
     }
 
+    const completionMessage = newStatus === "Дууссан"
+      ? (completionExpenseEntryId
+          ? "Захиалга дууслаа. Зарлага санхүүгийн тайланд бүртгэгдлээ."
+          : completionExpenseAlreadyRecorded
+            ? "Захиалга дууслаа. Энэ захиалгын дуусгах үеийн зарлага өмнө бүртгэгдсэн тул давхар нэмсэнгүй."
+            : "Захиалга дууслаа. Зарлага бүртгээгүй.")
+      : "Захиалгын төлөв шинэчлэгдлээ.";
+
     return res.status(200).json({
       success: true,
       notificationSent: newStatus === "Үнийн санал" || Boolean(updatedOrder.messenger_sender_id && pageToken),
+      expenseRecorded: Boolean(completionExpenseEntryId),
       message: newStatus === "Үнийн санал"
         ? "Үнийн санал харилцагчийн Messenger рүү илгээгдэж, төлөв шинэчлэгдлээ."
-        : "Захиалгын төлөв шинэчлэгдлээ."
+        : completionMessage
     });
   } catch (error) {
     console.error("Update order status error:", error);
