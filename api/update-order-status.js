@@ -68,6 +68,7 @@ export default async function handler(req, res) {
     }
 
     const pageToken = process.env.PAGE_ACCESS_TOKEN;
+    let quotePdfPathToSave = null;
 
     // Үнийн санал төлөв сонгоход хэмжээг эхлээд захиалгын хэмжээсээс шалгаж бодно.
     if (newStatus === "Үнийн санал") {
@@ -94,6 +95,23 @@ export default async function handler(req, res) {
         ? storedUnitPrice
         : (totalArea > 0 && totalPrice > 0 ? totalPrice / totalArea : null);
       const orderNumber = order.messenger_order_number || order.id;
+      const pdfBase64 = typeof req.body.quotePdfBase64 === "string" ? req.body.quotePdfBase64 : "";
+      if (!pdfBase64 || pdfBase64.length > 7 * 1024 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(pdfBase64)) {
+        return res.status(400).json({ error: "Үнийн саналын PDF файл үүсээгүй байна. Дахин оролдоно уу." });
+      }
+      const pdfBuffer = Buffer.from(pdfBase64, "base64");
+      if (!pdfBuffer.length || pdfBuffer.length > 5 * 1024 * 1024 || pdfBuffer.subarray(0, 5).toString() !== "%PDF-") {
+        return res.status(400).json({ error: "PDF файлын формат буруу эсвэл хэмжээ хэтэрсэн байна." });
+      }
+      const quotePdfPath = ownerUserId + "/" + order.id + "/" + Date.now() + ".pdf";
+      quotePdfPathToSave = quotePdfPath;
+      const { error: pdfUploadError } = await supabase.storage.from("quote-pdfs").upload(quotePdfPath, pdfBuffer, {
+        contentType: "application/pdf", cacheControl: "3600", upsert: false
+      });
+      if (pdfUploadError) {
+        console.error("Quote PDF upload error:", pdfUploadError);
+        return res.status(500).json({ error: "Үнийн саналын PDF хадгалагдсангүй. Дахин оролдоно уу." });
+      }
 
       const quoteText =
         "📋 МОНГОЛ МЕТАЛЛ ХИЙЦ — ҮНИЙН САНАЛ\n\n" +
@@ -114,7 +132,19 @@ export default async function handler(req, res) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recipient: { id: order.messenger_sender_id },
-          message: { text: quoteText },
+          message: {
+            attachment: {
+              type: "template",
+              payload: {
+                template_type: "button",
+                text: quoteText + "\n\nТанд үнийн саналын PDF файл хэрэгтэй юу?",
+                buttons: [
+                  { type: "postback", title: "📄 PDF авах", payload: "GET_QUOTE_PDF:" + order.id },
+                  { type: "postback", title: "Үгүй, баярлалаа", payload: "DECLINE_QUOTE_PDF:" + order.id }
+                ]
+              }
+            }
+          },
           access_token: pageToken
         })
       });
@@ -130,7 +160,9 @@ export default async function handler(req, res) {
 
     const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
-      .update({ status: newStatus })
+      .update(newStatus === "Үнийн санал"
+        ? { status: newStatus, quote_pdf_path: quotePdfPathToSave }
+        : { status: newStatus })
       .eq("id", orderId)
       .eq("user_id", ownerUserId)
       .select("id, status, messenger_sender_id, messenger_order_number")
