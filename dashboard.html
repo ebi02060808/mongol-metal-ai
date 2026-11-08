@@ -966,27 +966,32 @@ async function loadFinance() {
         : "<p style='padding:14px;background:#f8fafc;border-radius:8px;color:#64748b;'>Одоогоор дууссан төлөвтэй захиалга алга.</p>");
   }
 
-  // Захиалга тус бүрийн бодит бүртгэлтэй орлого - холбосон зардлыг харуулна.
+  // Захиалга бүрийн борлуулалт, бодит орлого, төлөгдөөгүй үлдэгдэл, зардлыг тусад нь харуулна.
   const profitRows = orders.map(order => {
     const linked = entries.filter(entry => String(entry.order_id || "") === String(order.id));
     const orderIncome = linked.filter(entry => entry.entry_type === "income").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
     const orderExpense = linked.filter(entry => entry.entry_type === "expense").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    return { order, orderIncome, orderExpense, profit: orderIncome - orderExpense, hasEntries: linked.length > 0 };
-  }).filter(row => row.hasEntries);
+    const orderPrice = order.price == null ? null : Number(order.price);
+    const outstanding = orderPrice == null ? null : Math.max(0, orderPrice - orderIncome);
+    const cashDifference = orderIncome - orderExpense;
+    return { order, orderIncome, orderExpense, orderPrice, outstanding, cashDifference, hasEntries: linked.length > 0 };
+  }).filter(row => row.hasEntries || row.orderPrice !== null);
 
   const profitContainer = document.getElementById("financeOrderProfit");
   if (profitContainer) {
-    profitContainer.innerHTML = "<h3 style='margin:12px 0;'>📈 Захиалга тус бүрийн ашиг</h3>" +
-      "<p style='font-size:13px;color:#64748b;margin-bottom:10px;'>Ашиг = тухайн захиалгад холбосон орлого − тухайн захиалгад холбосон зардал. Бүртгэлгүй зардал энэ тооцоонд орохгүй.</p>" +
+    profitContainer.innerHTML = "<h3 style='margin:12px 0;'>📊 Захиалга тус бүрийн мөнгөн тооцоо</h3>" +
+      "<p style='font-size:13px;color:#64748b;margin-bottom:10px;'>Төлөгдөөгүй үлдэгдэл = захиалгын үнэ − бодитоор бүртгэсэн орлого. Орлого − зардлын зөрүү нь бүртгэгдсэн мөнгөн урсгал бөгөөд цэвэр ашиг биш.</p>" +
       (profitRows.length
-        ? "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;'><table style='width:100%;min-width:620px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;text-align:right;'>Орлого</th><th style='padding:10px;text-align:right;'>Зардал</th><th style='padding:10px;text-align:right;'>Зөрүү</th></tr></thead><tbody>" +
+        ? "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;'><table style='width:100%;min-width:850px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;text-align:right;'>Захиалгын үнэ</th><th style='padding:10px;text-align:right;'>Бодит орлого</th><th style='padding:10px;text-align:right;'>Төлөгдөөгүй үлдэгдэл</th><th style='padding:10px;text-align:right;'>Зардал</th><th style='padding:10px;text-align:right;'>Орлого − зардал</th></tr></thead><tbody>" +
           profitRows.map(row => "<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;'>" +
             escapeHTML(row.order.messenger_order_number || ("Захиалга #" + row.order.id)) + "<br><span style='color:#64748b;'>" + escapeHTML(row.order.customer_name || "") + "</span></td>" +
+            "<td style='padding:10px;text-align:right;white-space:nowrap;'>" + (row.orderPrice == null ? "Тохиролцоно" : money(row.orderPrice)) + "</td>" +
             "<td style='padding:10px;text-align:right;white-space:nowrap;color:#15803d;'>" + money(row.orderIncome) + "</td>" +
+            "<td style='padding:10px;text-align:right;white-space:nowrap;color:" + (row.outstanding > 0 ? "#b91c1c" : "#15803d") + ";font-weight:700;'>" + (row.outstanding == null ? "—" : money(row.outstanding)) + "</td>" +
             "<td style='padding:10px;text-align:right;white-space:nowrap;color:#c2410c;'>" + money(row.orderExpense) + "</td>" +
-            "<td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;color:" + (row.profit >= 0 ? "#15803d" : "#b91c1c") + ";'>" + money(row.profit) + "</td></tr>").join("") +
+            "<td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;color:" + (row.cashDifference >= 0 ? "#15803d" : "#b91c1c") + ";'>" + money(row.cashDifference) + "</td></tr>").join("") +
           "</tbody></table></div>"
-        : "<p style='padding:14px;background:#f8fafc;border-radius:8px;color:#64748b;'>Одоогоор орлого эсвэл зардалтай холбосон захиалга алга. Бүртгэл хийхдээ захиалгаа сонгоорой.</p>");
+        : "<p style='padding:14px;background:#f8fafc;border-radius:8px;color:#64748b;'>Одоогоор захиалга бүртгэгдээгүй байна.</p>");
   }
 
   if (!entries.length) { list.textContent = "Одоогоор орлого, зарлагын бүртгэл байхгүй байна."; return; }
