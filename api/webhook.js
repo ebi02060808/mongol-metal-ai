@@ -1605,8 +1605,9 @@ if (checkError) {
 }
 
 // Өмнө бүртгэгдээгүй бол orders хүснэгтэд хадгалах
+let savedOrder = null;
 if (!existingOrder) {
-  const { data: savedOrder, error: saveOrderError } = await supabase
+  const { data: insertedOrder, error: saveOrderError } = await supabase
     .from("orders")
   .insert({
   customer_name: session.customer_name,
@@ -1644,6 +1645,7 @@ if (!existingOrder) {
     );
     continue;
   }
+  savedOrder = insertedOrder;
 }
 
 // Үнийн саналын PDF-г үүсгэж хадгална. Давтан webhook-д ижил файл ашиглана.
