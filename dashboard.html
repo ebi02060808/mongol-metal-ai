@@ -1085,22 +1085,24 @@ async function createOrderQuotePdf(order) {
     fallback_size: order.size || "—"
   }];
   const totalPrice = Number(order.price || items.reduce((sum, item) => sum + Number(item.total_price || 0), 0));
-  const totalQuantity = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
+  const totalPieces = items.reduce((sum, item) => sum + (item.width != null && item.height != null ? Number(item.quantity || 1) : 0), 0);
   const totalArea = items.reduce((sum, item) => sum + Number(item.area || 0) * Number(item.quantity || 1), 0);
   const money = value => Math.round(Number(value || 0)).toLocaleString("mn-MN") + " ₮";
   const orderNumber = order.messenger_order_number || ("MP-" + order.id);
   const rows = items.map((item, index) => {
     const qty = Number(item.quantity || 1);
     const area = Number(item.area || 0) * qty;
-    const size = item.width != null && item.height != null
+    const isFacade = item.width == null || item.height == null;
+    const size = !isFacade
       ? Number(item.width) + " × " + Number(item.height) + " м"
       : (item.fallback_size || (Number(item.area || 0).toFixed(2) + " м²"));
+    const quantityLabel = isFacade ? Number(item.area || 0).toFixed(2) + " м²" : qty.toLocaleString("mn-MN") + " ш";
     const unitPrice = Number(item.unit_price || 0);
     const lineTotal = Number(item.total_price || (area * unitPrice));
     return '<tr>' +
       '<td style="border:1px solid #cbd5e1;padding:9px;">' + (index + 1) + '. ' + escapeHTML(item.product_type || order.product || "—") + '</td>' +
       '<td style="border:1px solid #cbd5e1;padding:9px;">' + escapeHTML(size) + '</td>' +
-      '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + qty.toLocaleString("mn-MN") + ' ш</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + quantityLabel + '</td>' +
       '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + money(unitPrice) + '/м²</td>' +
       '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + money(lineTotal) + '</td>' +
     '</tr>';
@@ -1121,7 +1123,7 @@ async function createOrderQuotePdf(order) {
     '<th style="border:1px solid #cbd5e1;padding:9px;text-align:right;">Тоо</th>' +
     '<th style="border:1px solid #cbd5e1;padding:9px;text-align:right;">Нэгж үнэ</th>' +
     '<th style="border:1px solid #cbd5e1;padding:9px;text-align:right;">Дүн</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-    '<p style="margin-top:12px;">Нийт тоо хэмжээ: ' + totalQuantity.toLocaleString("mn-MN") + ' ш</p>' +
+    (totalPieces ? '<p style="margin-top:12px;">Нийт ширхэг: ' + totalPieces.toLocaleString("mn-MN") + ' ш</p>' : '') +
     '<p>Нийт талбай: ' + totalArea.toLocaleString("mn-MN", {maximumFractionDigits:2}) + ' м²</p>' +
     '<p style="text-align:right;margin-top:24px;font-size:21px;font-weight:700;">НИЙТ ДҮН: ' + money(totalPrice) + '</p>' +
     '<div style="margin-top:42px;padding-top:18px;border-top:1px solid #cbd5e1;font-size:13px;color:#334155;">' +
