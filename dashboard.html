@@ -676,6 +676,7 @@ async function loadOrders() {
                   </select>
                 </td>
                 <td style="padding:11px 10px;white-space:nowrap;">
+                  <button style="padding:6px 8px;margin:2px;background:#2563eb;color:white;border:0;border-radius:6px;cursor:pointer;" onclick="sendOrderQuote('${order.id}')">Үнийн санал илгээх</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="viewOrderPhotos('${order.id}')">Зураг</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="editOrder('${order.id}')">Засах</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="deleteOrder('${order.id}')">Устгах</button>
@@ -781,7 +782,48 @@ function escapeHTML(value) {
 }
 
 
+async function sendOrderQuote(orderId) {
+  if (!confirm("Энэ захиалгын мэдээлэл, үнийн саналыг Messenger-ээр харилцагчид илгээх үү?")) return;
+
+  try {
+    const { data: { session }, error: sessionError } =
+      await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      alert("Та эхлээд нэвтэрнэ үү.");
+      return;
+    }
+
+    const response = await fetch("/api/send-order-quote", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ orderId })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      alert("Алдаа: " + (result.error || "Үнийн санал илгээж чадсангүй."));
+      return;
+    }
+
+    alert(result.message || "Үнийн санал Messenger-ээр илгээгдлээ.");
+    await loadOrders();
+  } catch (err) {
+    alert("Алдаа: " + err.message);
+  }
+}
+
 async function updateOrderStatus(orderId, newStatus) {
+  if (newStatus === "Баталгаажсан" &&
+      !confirm("Харилцагчийн төлбөр дансанд орсныг шалгасан уу? Төлбөр баталгаажсан тохиолдолд л үргэлжлүүлнэ үү.")) {
+    await loadOrders();
+    return;
+  }
+
   try {
     const {
       data: { session },
