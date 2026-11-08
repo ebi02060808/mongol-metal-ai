@@ -719,7 +719,7 @@ async function loadOrders() {
                 <td style="padding:11px 10px;text-align:right;">${qty.toLocaleString("mn-MN")}</td>
                 <td style="padding:11px 10px;text-align:right;white-space:nowrap;">${area.toLocaleString("mn-MN")} м²</td>
                 <td style="padding:11px 10px;text-align:right;white-space:nowrap;">${order.unit_price == null ? "—" : Number(order.unit_price).toLocaleString("mn-MN") + " ₮"}</td>
-                <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;">${Number(order.price || 0).toLocaleString("mn-MN")} ₮</td>
+                <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;">${order.price == null ? "Тохиролцоно" : Number(order.price).toLocaleString("mn-MN") + " ₮"}</td>
                 <td style="padding:11px 10px;white-space:nowrap;">${new Date(order.created_at).toLocaleDateString("mn-MN")}</td>
                 <td style="padding:11px 10px;">
                   <select style="min-width:125px;padding:7px 9px;border:1px solid ${statusColor.border};border-radius:7px;background:${statusColor.background};color:${statusColor.color};font-weight:700;" onchange="updateOrderStatus('${order.id}', this.value)">
@@ -1084,7 +1084,10 @@ async function createOrderQuotePdf(order) {
     total_price: Number(order.price || 0),
     fallback_size: order.size || "—"
   }];
-  const totalPrice = Number(order.price || items.reduce((sum, item) => sum + Number(item.total_price || 0), 0));
+  const hasNegotiableItems = savedItems.some(item => item.pricing_mode === "labor_only");
+  const totalPrice = order.price == null && hasNegotiableItems
+    ? null
+    : Number(order.price ?? items.reduce((sum, item) => sum + Number(item.total_price || 0), 0));
   const totalPieces = items.reduce((sum, item) => sum + (item.width != null && item.height != null ? Number(item.quantity || 1) : 0), 0);
   const totalArea = items.reduce((sum, item) => sum + Number(item.area || 0) * Number(item.quantity || 1), 0);
   const money = value => Math.round(Number(value || 0)).toLocaleString("mn-MN") + " ₮";
@@ -1097,14 +1100,15 @@ async function createOrderQuotePdf(order) {
       ? Number(item.width) + " × " + Number(item.height) + " м"
       : (item.fallback_size || (Number(item.area || 0).toFixed(2) + " м²"));
     const quantityLabel = isFacade ? Number(item.area || 0).toFixed(2) + " м²" : qty.toLocaleString("mn-MN") + " ш";
+    const isNegotiable = item.pricing_mode === "labor_only";
     const unitPrice = Number(item.unit_price || 0);
     const lineTotal = Number(item.total_price || (area * unitPrice));
     return '<tr>' +
       '<td style="border:1px solid #cbd5e1;padding:9px;">' + (index + 1) + '. ' + escapeHTML(item.product_type || order.product || "—") + '</td>' +
       '<td style="border:1px solid #cbd5e1;padding:9px;">' + escapeHTML(size) + '</td>' +
       '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + quantityLabel + '</td>' +
-      '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + money(unitPrice) + '/м²</td>' +
-      '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + money(lineTotal) + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + (isNegotiable ? 'Тохиролцоно' : money(unitPrice) + '/м²') + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + (isNegotiable ? 'Тохиролцоно' : money(lineTotal)) + '</td>' +
     '</tr>';
   }).join("");
   const paper = document.getElementById("quotePaper");
@@ -1125,7 +1129,7 @@ async function createOrderQuotePdf(order) {
     '<th style="border:1px solid #cbd5e1;padding:9px;text-align:right;">Дүн</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     (totalPieces ? '<p style="margin-top:12px;">Нийт ширхэг: ' + totalPieces.toLocaleString("mn-MN") + ' ш</p>' : '') +
     '<p>Нийт талбай: ' + totalArea.toLocaleString("mn-MN", {maximumFractionDigits:2}) + ' м²</p>' +
-    '<p style="text-align:right;margin-top:24px;font-size:21px;font-weight:700;">НИЙТ ДҮН: ' + money(totalPrice) + '</p>' +
+    '<p style="text-align:right;margin-top:24px;font-size:21px;font-weight:700;">НИЙТ ДҮН: ' + (totalPrice == null ? 'Ажлын хөлсийг тохиролцоно' : money(totalPrice)) + '</p>' +
     '<div style="margin-top:42px;padding-top:18px;border-top:1px solid #cbd5e1;font-size:13px;color:#334155;">' +
     '<p><strong>Баталгаат хугацаа:</strong> 2 жил</p>' +
     '<p>Үнийн саналтай холбоотой нэмэлт нөхцөлийг захиалга баталгаажуулах үед тохиролцоно.</p>' +
