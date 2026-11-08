@@ -571,7 +571,7 @@ async function sendQuotePDFMessenger() {
     }));
     const totalArea = currentQuote.items.reduce((sum, item) => sum + item.area * item.quantity, 0);
     const totalPieces = currentQuote.items.reduce((sum, item) => sum + item.quantity, 0);
-    const dateKey = currentQuote.date.toISOString().slice(0, 10).replace(/-/g, "");
+    const dateKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ulaanbaatar", year: "numeric", month: "2-digit", day: "2-digit" }).format(currentQuote.date).replace(/-/g, "");
     const quoteNumber = "MM-" + dateKey + "-" + currentQuote.requestId.replace(/-/g, "").slice(0, 6).toUpperCase();
     const pdf = await buildQuotePdfDocument({
       orderNumber: quoteNumber,
