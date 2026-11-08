@@ -521,8 +521,9 @@ async function addOrder() {
     message.textContent = "✅ Захиалга амжилттай хадгалагдлаа! Нийт үнэ: " +
       Math.round(totalPrice).toLocaleString("mn-MN") + " ₮";
 
-    ["customerName", "phone", "product", "customProduct", "width", "height", "unitPrice"].forEach(id => {
-      document.getElementById(id).value = "";
+    ["customerName", "phone", "product", "customProduct", "dimensions", "unitPrice"].forEach(id => {
+      const field = document.getElementById(id);
+      if (field) field.value = "";
     });
     document.getElementById("customProduct").style.display = "none";
     document.getElementById("quantity").value = "1";
