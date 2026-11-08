@@ -1321,7 +1321,16 @@ if (!existingOrder) {
   status: orderStatus,
   user_id: admin.user_id,
   messenger_sender_id: senderId,
-  messenger_order_number: session.order_number
+  messenger_order_number: session.order_number,
+  quote_items: items.map(item => ({
+    product_type: item.product_type,
+    width: item.width,
+    height: item.height,
+    quantity: item.quantity,
+    area: item.area,
+    unit_price: item.unit_price,
+    total_price: item.total_price
+  }))
 });
   
   if (saveOrderError) {
