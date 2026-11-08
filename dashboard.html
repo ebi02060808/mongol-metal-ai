@@ -287,10 +287,13 @@
       <div class="section" id="financeSection" style="display:none;">
         <h2>💰 Орлого, зарлагын тайлан</h2>
         <div id="financeSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:15px 0;">
-          <div style="padding:16px;background:#ecfdf5;border-radius:10px;"><small>Нийт орлого</small><h3 id="financeIncome">0 ₮</h3></div>
+          <div style="padding:16px;background:#ecfdf5;border-radius:10px;"><small>Бодитоор бүртгэсэн орлого</small><h3 id="financeIncome">0 ₮</h3></div>
           <div style="padding:16px;background:#fff7ed;border-radius:10px;"><small>Нийт зарлага</small><h3 id="financeExpense">0 ₮</h3></div>
-          <div style="padding:16px;background:#eff6ff;border-radius:10px;"><small>Үлдэгдэл</small><h3 id="financeBalance">0 ₮</h3></div>
+          <div style="padding:16px;background:#eff6ff;border-radius:10px;"><small>Мөнгөн үлдэгдэл</small><h3 id="financeBalance">0 ₮</h3></div>
+          <div style="padding:16px;background:#f5f3ff;border-radius:10px;"><small>Дууссан захиалгын борлуулалт</small><h3 id="financeCompletedSales">0 ₮</h3><small id="financeCompletedCount">0 захиалга</small></div>
         </div>
+        <p style="font-size:12px;color:#64748b;margin:4px 0 12px;">Дууссан захиалгын борлуулалт нь тусдаа мэдээлэл бөгөөд бодитоор орж ирсэн мөнгөний орлогод давхар нэмэгдэхгүй.</p>
+        <div id="financeCompletedOrders" style="margin:18px 0;"></div>
         <div id="financeOrderProfit" style="margin:18px 0;"></div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:15px 0;">
           <select id="financeType" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
@@ -912,7 +915,7 @@ async function loadFinance() {
   if (!session) return;
   const [entriesResult, ordersResult] = await Promise.all([
     supabaseClient.from("finance_entries").select("*").eq("user_id", session.user.id).order("entry_date", {ascending:false}).order("created_at", {ascending:false}),
-    supabaseClient.from("orders").select("id,customer_name,price,messenger_order_number").eq("user_id", currentOwnerUserId).order("created_at", {ascending:false})
+    supabaseClient.from("orders").select("id,customer_name,price,messenger_order_number,status,created_at").eq("user_id", currentOwnerUserId).order("created_at", {ascending:false})
   ]);
   const list = document.getElementById("financeEntries");
   const message = document.getElementById("financeMessage");
@@ -932,10 +935,27 @@ async function loadFinance() {
   const orders = ordersResult.data || [];
   const income = entries.filter(x => x.entry_type === "income").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const expense = entries.filter(x => x.entry_type === "expense").reduce((sum,x) => sum + Number(x.amount || 0), 0);
+  const completedOrders = orders.filter(order => order.status === "Дууссан");
+  const completedSales = completedOrders.reduce((sum, order) => sum + Number(order.price || 0), 0);
   const money = value => Math.round(value).toLocaleString("mn-MN") + " ₮";
   document.getElementById("financeIncome").textContent = money(income);
   document.getElementById("financeExpense").textContent = money(expense);
   document.getElementById("financeBalance").textContent = money(income-expense);
+  const completedSalesEl = document.getElementById("financeCompletedSales");
+  const completedCountEl = document.getElementById("financeCompletedCount");
+  if (completedSalesEl) completedSalesEl.textContent = money(completedSales);
+  if (completedCountEl) completedCountEl.textContent = completedOrders.length.toLocaleString("mn-MN") + " захиалга";
+
+  const completedContainer = document.getElementById("financeCompletedOrders");
+  if (completedContainer) {
+    completedContainer.innerHTML = "<h3 style='margin:12px 0;'>✅ Дууссан захиалгын борлуулалтын тайлан</h3>" +
+      "<p style='font-size:12px;color:#64748b;margin-bottom:10px;'>Зөвхөн төлөв нь “Дууссан” захиалгууд автоматаар харагдана. Огноо нь захиалга үүссэн өдөр. Энэ дүнг бодит орлоготой давхар тооцохгүй.</p>" +
+      (completedOrders.length
+        ? "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;'><table style='width:100%;min-width:560px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Захиалгын огноо</th><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;text-align:left;'>Харилцагч</th><th style='padding:10px;text-align:right;'>Борлуулалтын дүн</th></tr></thead><tbody>" +
+          completedOrders.map(order => "<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;white-space:nowrap;'>" + escapeHTML(order.created_at ? new Date(order.created_at).toLocaleDateString("mn-MN") : "—") + "</td><td style='padding:10px;'>" + escapeHTML(order.messenger_order_number || ("Захиалга #" + order.id)) + "</td><td style='padding:10px;'>" + escapeHTML(order.customer_name || "—") + "</td><td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;'>" + money(order.price || 0) + "</td></tr>").join("") +
+          "</tbody></table></div>"
+        : "<p style='padding:14px;background:#f8fafc;border-radius:8px;color:#64748b;'>Одоогоор дууссан төлөвтэй захиалга алга.</p>");
+  }
 
   // Захиалга тус бүрийн бодит бүртгэлтэй орлого - холбосон зардлыг харуулна.
   const profitRows = orders.map(order => {
