@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 async function requireAdmin(req) {
-  const token = (req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+  const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   if (!token) return { error: "Нэвтрэх эрх шаардлагатай.", status: 401 };
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
   if (authError || !user) return { error: "Нэвтрэлт хүчингүй байна.", status: 401 };
@@ -21,7 +21,7 @@ async function requireAdmin(req) {
 
 async function findAuthUserByEmail(email) {
   const normalized = String(email || "").trim().toLowerCase();
-  if (!normalized || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)) return null;
+  if (!normalized || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
   for (let page = 1; page <= 20; page++) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw error;
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
 
     if (action === "add") {
       const normalizedEmail = String(email || "").trim().toLowerCase();
-      if (!normalizedEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail)) {
+      if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
         return res.status(400).json({ error: "Имэйл хаягаа зөв оруулна уу." });
       }
       const target = await findAuthUserByEmail(normalizedEmail);
