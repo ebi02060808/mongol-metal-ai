@@ -167,7 +167,7 @@
       <button>📦 Захиалга</button>
       <button>👥 Харилцагч</button>
       <button>💬 Messenger</button>
-      <button>⚙️ Тохиргоо</button>
+      <button id="adminSettingsNav">⚙️ Тохиргоо</button>
     </aside>
 
     <main class="main">
@@ -571,7 +571,6 @@ async function addOrder() {
         quantity,
         unit_price: unitPrice,
         price: totalPrice,
-        status: "Шинэ"
       });
 
     if (error) throw error;
@@ -738,17 +737,18 @@ async function loadOrders() {
                 <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;">${order.price == null ? "Тохиролцоно" : Number(order.price).toLocaleString("mn-MN") + " ₮"}</td>
                  <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;color:${normalizedStatus === "Дууссан" && Number(order.unpaid_balance || 0) > 0 ? "#b91c1c" : "#64748b"};">
                    ${normalizedStatus !== "Дууссан" ? "—" : (order.unpaid_balance == null ? "Оруулаагүй" : Number(order.unpaid_balance).toLocaleString("mn-MN") + " ₮")}
-                   ${normalizedStatus === "Дууссан" ? "<div style='display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:7px;'><button type='button' style='padding:7px 9px;background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;' onclick='editUnpaidBalance(" + JSON.stringify(order.id) + ", " + (order.unpaid_balance == null ? 0 : Number(order.unpaid_balance)) + ")'>✏️ Үлдэгдэл засах</button>" + (order.unpaid_balance == null ? "<span style='display:inline-block;padding:6px 8px;background:#fef3c7;color:#92400e;border-radius:6px;font-size:12px;'>⚠️ Дүн оруулаагүй</span>" : (Number(order.unpaid_balance) > 0 ? "<button type='button' style='padding:7px 9px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;' onclick='markUnpaidBalancePaid(" + JSON.stringify(order.id) + ", " + Number(order.unpaid_balance) + ")'>✓ Үлдэгдэл төлөгдсөн</button>" : "<span style='display:inline-block;padding:6px 8px;background:#dcfce7;color:#166534;border-radius:6px;font-size:12px;'>✓ Төлөгдсөн</span>")) + "</div>" : ""}
+                   ${currentUserRole === "admin" && normalizedStatus === "Дууссан" ? "<div style='display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:7px;'><button type='button' style='padding:7px 9px;background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;' onclick='editUnpaidBalance(" + JSON.stringify(order.id) + ", " + (order.unpaid_balance == null ? 0 : Number(order.unpaid_balance)) + ")'>✏️ Үлдэгдэл засах</button>" + (order.unpaid_balance == null ? "<span style='display:inline-block;padding:6px 8px;background:#fef3c7;color:#92400e;border-radius:6px;font-size:12px;'>⚠️ Дүн оруулаагүй</span>" : (Number(order.unpaid_balance) > 0 ? "<button type='button' style='padding:7px 9px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;' onclick='markUnpaidBalancePaid(" + JSON.stringify(order.id) + ", " + Number(order.unpaid_balance) + ")'>✓ Үлдэгдэл төлөгдсөн</button>" : "<span style='display:inline-block;padding:6px 8px;background:#dcfce7;color:#166534;border-radius:6px;font-size:12px;'>✓ Төлөгдсөн</span>")) + "</div>" : ""}
                  </td>
                 <td style="padding:11px 10px;white-space:nowrap;">${new Date(order.created_at).toLocaleDateString("mn-MN")}</td>
                 <td style="padding:11px 10px;">
-                  <select style="min-width:125px;padding:7px 9px;border:1px solid ${statusColor.border};border-radius:7px;background:${statusColor.background};color:${statusColor.color};font-weight:700;" onchange="updateOrderStatus('${order.id}', this.value)">
+                  ${currentUserRole !== "admin" && ["Баталгаажсан", "Дууссан"].includes(normalizedStatus)
+                    ? "<span style='display:inline-block;padding:7px 10px;border-radius:7px;background:" + statusColor.background + ";color:" + statusColor.color + ";font-weight:700;'>" + escapeHTML(normalizedStatus) + "</span>"
+                    : `<select style="min-width:125px;padding:7px 9px;border:1px solid ${statusColor.border};border-radius:7px;background:${statusColor.background};color:${statusColor.color};font-weight:700;" onchange="updateOrderStatus('${order.id}', this.value)">
                     <option value="Шинэ" ${(status === "Шинэ" || status.startsWith("Шинэ захиалга")) ? "selected" : ""}>Шинэ</option>
                     <option value="Холбогдсон" ${status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
                     <option value="Үнийн санал" ${status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
-                    <option value="Баталгаажсан" ${status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option>
-                    <option value="Дууссан" ${status === "Дууссан" ? "selected" : ""}>Дууссан</option>
-                  </select>
+                    ${currentUserRole === "admin" ? `<option value="Баталгаажсан" ${status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option><option value="Дууссан" ${status === "Дууссан" ? "selected" : ""}>Дууссан</option>` : ""}
+                  </select>`}
                 </td>
                 <td style="padding:11px 10px;white-space:nowrap;">
                   <button style="padding:6px 8px;margin:2px;" onclick="viewOrderHistory('${order.id}')">Түүх</button>
@@ -1451,6 +1451,11 @@ async function createOrderQuotePdf(order) {
 }
 
 async function updateOrderStatus(orderId, newStatus) {
+  if (currentUserRole !== "admin" && ["Баталгаажсан", "Дууссан"].includes(newStatus)) {
+    alert("Энэ төлөвийг зөвхөн админ өөрчлөх боломжтой.");
+    await loadOrders();
+    return;
+  }
   let confirmationIncome = null;
   if (newStatus === "Баталгаажсан") {
     const paymentType = prompt("Төлбөрийн төрлийг сонгоно уу:\n1 — Урьдчилгаа\n2 — Бүтэн төлбөр", "1");
@@ -1753,6 +1758,10 @@ window.deleteOrder = async function(orderId) {
   currentOwnerUserId = admin.owner_user_id || session.user.id;
   document.getElementById("userEmail").textContent =
     session.user.email + (admin.role === "admin" ? " · Админ" : " · Ажилтан");
+  if (admin.role !== "admin") {
+    const settingsNav = document.getElementById("adminSettingsNav");
+    if (settingsNav) settingsNav.style.display = "none";
+  }
 
   return true;
 }
