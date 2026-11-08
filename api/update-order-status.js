@@ -54,6 +54,18 @@ export default async function handler(req, res) {
     if (fetchError) return res.status(500).json({ error: fetchError.message });
     if (!order) return res.status(404).json({ error: "Захиалга олдсонгүй." });
 
+    // Ижил төлөвийг дахин сонгоход Messenger-т давхар мэдэгдэл/үнийн санал илгээхгүй.
+    const currentStatus = String(order.status || "Шинэ").startsWith("Шинэ захиалга")
+      ? "Шинэ"
+      : String(order.status || "Шинэ");
+    if (currentStatus === newStatus) {
+      return res.status(409).json({
+        error: newStatus === "Үнийн санал"
+          ? "Энэ захиалгад үнийн санал өмнө нь илгээгдсэн байна. Давхар илгээхээс хамгааллаа."
+          : "Захиалга аль хэдийн энэ төлөвтэй байна."
+      });
+    }
+
     const pageToken = process.env.PAGE_ACCESS_TOKEN;
 
     // Үнийн санал төлөв сонгоход хэмжээг эхлээд захиалгын хэмжээсээс шалгаж бодно.
