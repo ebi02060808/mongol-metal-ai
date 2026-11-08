@@ -168,7 +168,7 @@ export default async function handler(req, res) {
       const entryDate = String(confirmationIncome?.entryDate || "").trim();
       if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000 ||
           description.length > 500 ||
-          !/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)) {
+          !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
         return res.status(400).json({ error: "Бодитоор авсан орлогын дүн эсвэл огноо буруу байна." });
       }
 
