@@ -292,6 +292,7 @@
           <div style="padding:16px;background:#f0fdf4;border-radius:10px;"><small>Урьдчилгаа орлого</small><h3 id="financeDeposit">0 ₮</h3></div>
           <div style="padding:16px;background:#eff6ff;border-radius:10px;"><small>Бүтэн төлбөрийн орлого</small><h3 id="financeFullPayment">0 ₮</h3></div>
           <div style="padding:16px;background:#fefce8;border-radius:10px;"><small>Үлдэгдэл орлого</small><h3 id="financeRemaining">0 ₮</h3></div>
+          <div style="padding:16px;background:#fff7ed;border-radius:10px;"><small>Дараа төлөгдсөн үлдэгдэл</small><h3 id="financePaidLater">0 ₮</h3></div>
           <div style="padding:16px;background:#eff6ff;border-radius:10px;"><small>Мөнгөн үлдэгдэл</small><h3 id="financeBalance">0 ₮</h3></div>
           <div style="padding:16px;background:#f5f3ff;border-radius:10px;"><small>Дууссан захиалгын борлуулалт</small><h3 id="financeCompletedSales">0 ₮</h3><small id="financeCompletedCount">0 захиалга</small></div>
         </div>
@@ -1014,7 +1015,8 @@ async function loadFinance() {
   const income = entries.filter(x => x.entry_type === "income").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const depositIncome = entries.filter(x => x.entry_type === "income" && x.category === "Урьдчилгаа орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const fullPaymentIncome = entries.filter(x => x.entry_type === "income" && x.category === "Бүтэн төлбөрийн орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
-  const remainingPaymentIncome = entries.filter(x => x.entry_type === "income" && ["Үлдэгдэл орлого", "Үлдэгдэл төлбөрийн орлого"].includes(x.category)).reduce((sum,x) => sum + Number(x.amount || 0), 0);
+  const remainingPaymentIncome = entries.filter(x => x.entry_type === "income" && x.category === "Үлдэгдэл орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
+  const paidLaterIncome = entries.filter(x => x.entry_type === "income" && x.category === "Үлдэгдэл төлбөрийн орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const expense = entries.filter(x => x.entry_type === "expense").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const completedOrders = orders.filter(order => order.status === "Дууссан");
   const completedSales = completedOrders.reduce((sum, order) => sum + Number(order.price || 0), 0);
@@ -1024,6 +1026,7 @@ async function loadFinance() {
   document.getElementById("financeDeposit").textContent = money(depositIncome);
   document.getElementById("financeFullPayment").textContent = money(fullPaymentIncome);
   document.getElementById("financeRemaining").textContent = money(remainingPaymentIncome);
+  document.getElementById("financePaidLater").textContent = money(paidLaterIncome);
   document.getElementById("financeBalance").textContent = money(income-expense);
   const completedSalesEl = document.getElementById("financeCompletedSales");
   const completedCountEl = document.getElementById("financeCompletedCount");
