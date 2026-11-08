@@ -50,7 +50,7 @@
         const { data, error } = await supabaseClient.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin + "/index.html" }
+          options: {}
         });
         if (error) throw error;
         message.textContent = data.session
