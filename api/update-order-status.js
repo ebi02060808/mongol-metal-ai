@@ -97,11 +97,11 @@ export default async function handler(req, res) {
         : (storedUnitPrice > 0 ? storedUnitPrice : (totalArea > 0 && totalPrice > 0 ? totalPrice / totalArea : null));
       const orderNumber = order.messenger_order_number || order.id;
       const pdfBase64 = typeof req.body.quotePdfBase64 === "string" ? req.body.quotePdfBase64 : "";
-      if (!pdfBase64 || pdfBase64.length > 7 * 1024 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(pdfBase64)) {
+      if (!pdfBase64 || pdfBase64.length > 4 * 1024 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(pdfBase64)) {
         return res.status(400).json({ error: "Үнийн саналын PDF файл үүсээгүй байна. Дахин оролдоно уу." });
       }
       const pdfBuffer = Buffer.from(pdfBase64, "base64");
-      if (!pdfBuffer.length || pdfBuffer.length > 5 * 1024 * 1024 || pdfBuffer.subarray(0, 5).toString() !== "%PDF-") {
+      if (!pdfBuffer.length || pdfBuffer.length > 3 * 1024 * 1024 || pdfBuffer.subarray(0, 5).toString() !== "%PDF-") {
         return res.status(400).json({ error: "PDF файлын формат буруу эсвэл хэмжээ хэтэрсэн байна." });
       }
       const quotePdfPath = ownerUserId + "/" + order.id + "/" + Date.now() + ".pdf";
