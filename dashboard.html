@@ -667,8 +667,17 @@ async function loadOrders() {
             const qty = Number(order.quantity || 1);
             const area = Number(order.area_per_unit || 1) * qty;
             const status = order.status || "Шинэ";
+            const normalizedStatus = status.startsWith("Шинэ захиалга") ? "Шинэ" : status;
+            const statusColors = {
+              "Шинэ": { background: "#dbeafe", color: "#1d4ed8", border: "#93c5fd" },
+              "Холбогдсон": { background: "#fef3c7", color: "#92400e", border: "#fcd34d" },
+              "Үнийн санал": { background: "#ede9fe", color: "#6d28d9", border: "#c4b5fd" },
+              "Баталгаажсан": { background: "#dcfce7", color: "#166534", border: "#86efac" },
+              "Дууссан": { background: "#e2e8f0", color: "#334155", border: "#cbd5e1" }
+            };
+            const statusColor = statusColors[normalizedStatus] || statusColors["Шинэ"];
             return `
-              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${status.startsWith("Шинэ захиалга") ? "Шинэ" : escapeHTML(status)}" style="border-bottom:1px solid #e2e8f0;">
+              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:11px 10px;white-space:nowrap;"><strong>${escapeHTML(order.customer_name || "")}</strong><br><span style="color:#64748b;">${escapeHTML(order.phone || "")}</span></td>
                 <td style="padding:11px 10px;">${escapeHTML(order.product || "")}</td>
                 <td style="padding:11px 10px;text-align:center;white-space:nowrap;">${escapeHTML(order.size || "—")}</td>
@@ -678,7 +687,7 @@ async function loadOrders() {
                 <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;">${Number(order.price || 0).toLocaleString("mn-MN")} ₮</td>
                 <td style="padding:11px 10px;white-space:nowrap;">${new Date(order.created_at).toLocaleDateString("mn-MN")}</td>
                 <td style="padding:11px 10px;">
-                  <select style="min-width:125px;padding:7px;border:1px solid #cbd5e1;border-radius:6px;" onchange="updateOrderStatus('${order.id}', this.value)">
+                  <select style="min-width:125px;padding:7px 9px;border:1px solid ${statusColor.border};border-radius:7px;background:${statusColor.background};color:${statusColor.color};font-weight:700;" onchange="updateOrderStatus('${order.id}', this.value)">
                     <option value="Шинэ" ${(status === "Шинэ" || status.startsWith("Шинэ захиалга")) ? "selected" : ""}>Шинэ</option>
                     <option value="Холбогдсон" ${status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
                     <option value="Үнийн санал" ${status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
