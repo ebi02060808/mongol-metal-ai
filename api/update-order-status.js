@@ -34,8 +34,8 @@ export default async function handler(req, res) {
 
     const { data: admin, error: adminError } = await supabase
       .from("admin_users").select("role").eq("user_id", user.id).maybeSingle();
-    if (adminError || !admin || admin.role !== "admin") {
-      return res.status(403).json({ error: "Админы эрх шаардлагатай." });
+    if (adminError || !admin || !["admin", "employee"].includes(admin.role)) {
+      return res.status(403).json({ error: "Ажилтны эсвэл админы эрх шаардлагатай." });
     }
 
     const { orderId, newStatus } = req.body || {};
