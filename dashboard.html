@@ -573,8 +573,19 @@ async function convertQuoteToOrder() {
       quote_items: normalizeOrderItems(items)
     });
     if (error) throw error;
-    document.getElementById("quoteMessage").textContent = "✅ Үнийн санал захиалгын жагсаалтад амжилттай нэмэгдлээ.";
+    // Захиалга амжилттай хадгалагдсан тул дараагийн үнийн саналд бэлдэж маягтыг цэвэрлэнэ.
+    currentQuote = null;
+    document.getElementById("quoteCustomerName").value = "";
+    document.getElementById("quotePhone").value = "";
+    document.getElementById("quoteItemsContainer").innerHTML = "";
+    addOrderItemRow("quoteItemsContainer");
+    const quotePreview = document.getElementById("quotePreview");
+    if (quotePreview) {
+      quotePreview.style.display = "none";
+      quotePreview.innerHTML = "";
+    }
     document.getElementById("pdfQuestion").style.display = "none";
+    document.getElementById("quoteMessage").textContent = "✅ Үнийн санал захиалгад амжилттай хадгалагдлаа. Дараагийн үнийн санал гаргахад бэлэн.";
     await Promise.all([loadOrders(), loadCustomers(), loadDashboardStats()]);
   } catch (error) {
     console.error("Үнийн саналыг захиалга болгох алдаа:", error);
