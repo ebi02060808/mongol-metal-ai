@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const accessToken = (req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+    const accessToken = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     if (!accessToken) return res.status(401).json({ error: "Нэвтрэх эрх олдсонгүй." });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
@@ -66,17 +66,17 @@ export default async function handler(req, res) {
       const orderNumber = order.messenger_order_number || order.id;
 
       const quoteText =
-        "📋 МОНГОЛ МЕТАЛЛ ХИЙЦ — ҮНИЙН САНАЛ\\n\\n" +
-        "Сайн байна уу, " + (order.customer_name || "хүндэт харилцагч") + " аа.\\n" +
-        "Таны захиалгын мэдээлэлд үндэслэн үнийн саналыг хүргэж байна.\\n\\n" +
-        "Захиалгын дугаар: " + orderNumber + "\\n" +
-        "Бүтээгдэхүүн: " + (order.product || "—") + "\\n" +
-        "Хэмжээ: " + (order.size || "—") + "\\n" +
-        "Тоо хэмжээ: " + quantity + " ш\\n" +
-        "Нийт талбай: " + totalArea.toLocaleString("mn-MN") + " м²\\n" +
-        "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\\n" +
-        "НИЙТ ҮНЭ: " + money(totalPrice) + "\\n\\n" +
-        "Энэхүү үнийн саналтай танилцаад асуух зүйл байвал бидэнд хариу бичээрэй.\\n" +
+        "📋 МОНГОЛ МЕТАЛЛ ХИЙЦ — ҮНИЙН САНАЛ\n\n" +
+        "Сайн байна уу, " + (order.customer_name || "хүндэт харилцагч") + " аа.\n" +
+        "Таны захиалгын мэдээлэлд үндэслэн үнийн саналыг хүргэж байна.\n\n" +
+        "Захиалгын дугаар: " + orderNumber + "\n" +
+        "Бүтээгдэхүүн: " + (order.product || "—") + "\n" +
+        "Хэмжээ: " + (order.size || "—") + "\n" +
+        "Тоо хэмжээ: " + quantity + " ш\n" +
+        "Нийт талбай: " + totalArea.toLocaleString("mn-MN") + " м²\n" +
+        "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\n" +
+        "НИЙТ ҮНЭ: " + money(totalPrice) + "\n\n" +
+        "Энэхүү үнийн саналтай танилцаад асуух зүйл байвал бидэнд хариу бичээрэй.\n" +
         "Баярлалаа. — Монгол металл хийц";
 
       const messengerResponse = await fetch("https://graph.facebook.com/v26.0/me/messages", {
