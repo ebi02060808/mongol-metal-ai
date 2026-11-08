@@ -254,7 +254,18 @@
 
 <div class="section">
   <h2>📋 Захиалгын жагсаалт</h2>
-
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0;">
+    <input id="orderSearch" type="search" placeholder="Нэр, утас, захиалгын дугаараар хайх..." style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;">
+    <select id="orderStatusFilter" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;background:white;">
+      <option value="">Бүх төлөв</option>
+      <option value="Шинэ">Шинэ</option>
+      <option value="Холбогдсон">Холбогдсон</option>
+      <option value="Үнийн санал">Үнийн санал</option>
+      <option value="Баталгаажсан">Баталгаажсан</option>
+      <option value="Дууссан">Дууссан</option>
+    </select>
+  </div>
+  <p id="ordersFilterCount" style="font-size:13px;color:#64748b;margin:0 0 10px;">Бүх захиалга</p>
   <div id="ordersList">
     Захиалгуудыг ачаалж байна...
   </div>
@@ -657,7 +668,7 @@ async function loadOrders() {
             const area = Number(order.area_per_unit || 1) * qty;
             const status = order.status || "Шинэ";
             return `
-              <tr style="border-bottom:1px solid #e2e8f0;">
+              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${status.startsWith("Шинэ захиалга") ? "Шинэ" : escapeHTML(status)}" style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:11px 10px;white-space:nowrap;"><strong>${escapeHTML(order.customer_name || "")}</strong><br><span style="color:#64748b;">${escapeHTML(order.phone || "")}</span></td>
                 <td style="padding:11px 10px;">${escapeHTML(order.product || "")}</td>
                 <td style="padding:11px 10px;text-align:center;white-space:nowrap;">${escapeHTML(order.size || "—")}</td>
@@ -686,6 +697,29 @@ async function loadOrders() {
       </table>
     </div>
   `;
+
+  const searchInput = document.getElementById("orderSearch");
+  const statusFilter = document.getElementById("orderStatusFilter");
+  const filterCount = document.getElementById("ordersFilterCount");
+  const applyOrderFilters = () => {
+    const query = (searchInput?.value || "").trim().toLocaleLowerCase("mn-MN");
+    const selectedStatus = statusFilter?.value || "";
+    const rows = Array.from(ordersList.querySelectorAll("tbody tr[data-order-search]"));
+    let visible = 0;
+    rows.forEach(row => {
+      const matchesText = (row.dataset.orderSearch || "").toLocaleLowerCase("mn-MN").includes(query);
+      const matchesStatus = !selectedStatus || row.dataset.orderStatus === selectedStatus;
+      const show = matchesText && matchesStatus;
+      row.style.display = show ? "" : "none";
+      if (show) visible++;
+    });
+    if (filterCount) filterCount.textContent = `Харагдаж буй ${visible} / Нийт ${rows.length} захиалга`;
+  };
+  if (searchInput && statusFilter) {
+    searchInput.oninput = applyOrderFilters;
+    statusFilter.onchange = applyOrderFilters;
+    applyOrderFilters();
+  }
 }
 
 // Зураг харах функц
