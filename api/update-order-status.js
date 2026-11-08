@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     if (authError || !user) return res.status(401).json({ error: "Нэвтрэлт хүчингүй байна." });
 
     const { data: admin, error: adminError } = await supabase
-      .from("admin_users").select("role, owner_user_id").eq("user_id", ownerUserId).maybeSingle();
+      .from("admin_users").select("role, owner_user_id").eq("user_id", user.id).maybeSingle();
     if (adminError || !admin || !["admin", "employee"].includes(admin.role)) {
       return res.status(403).json({ error: "Ажилтны эсвэл админы эрх шаардлагатай." });
     }
