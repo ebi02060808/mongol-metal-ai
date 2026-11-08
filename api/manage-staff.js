@@ -12,7 +12,7 @@ async function requireAdmin(req) {
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
   if (authError || !user) return { error: "Нэвтрэлт хүчингүй байна.", status: 401 };
   const { data: member, error } = await supabase
-    .from("admin_users").select("role").eq("user_id", user.id).maybeSingle();
+    .from("admin_users").select("role, owner_user_id").eq("user_id", user.id).maybeSingle();
   if (error || !member || member.role !== "admin") {
     return { error: "Зөвхөн админ ажилтны эрх удирдах боломжтой.", status: 403 };
   }
@@ -39,12 +39,13 @@ export default async function handler(req, res) {
     const auth = await requireAdmin(req);
     if (auth.error) return res.status(auth.status).json({ error: auth.error });
 
+    const ownerUserId = member.owner_user_id || auth.user.id;
     const { action, email, userId } = req.body || {};
 
     if (action === "list") {
       const { data: employees, error } = await supabase
         .from("admin_users").select("user_id, created_at")
-        .eq("role", "employee").order("created_at", { ascending: false });
+        .eq("role", "employee").eq("owner_user_id", ownerUserId).order("created_at", { ascending: false });
       if (error) throw error;
       const result = [];
       for (const employee of employees || []) {
@@ -81,7 +82,7 @@ export default async function handler(req, res) {
         return res.status(409).json({ error: "Энэ хэрэглэгч аль хэдийн админ эрхтэй байна." });
       }
       const { error } = await supabase.from("admin_users").upsert(
-        { user_id: target.id, role: "employee" },
+        { user_id: target.id, role: "employee", owner_user_id: ownerUserId },
         { onConflict: "user_id" }
       );
       if (error) throw error;
@@ -94,7 +95,7 @@ export default async function handler(req, res) {
       }
       const { data: removed, error } = await supabase
         .from("admin_users").delete()
-        .eq("user_id", userId).eq("role", "employee")
+        .eq("user_id", userId).eq("role", "employee").eq("owner_user_id", ownerUserId)
         .select("user_id").maybeSingle();
       if (error) throw error;
       if (!removed) return res.status(404).json({ error: "Ажилтан олдсонгүй эсвэл админ эрхтэй хэрэглэгч байна." });
