@@ -69,6 +69,29 @@ async function sendMessage(senderId, text) {
   return result;
 }
 
+async function sendFileAttachment(senderId, fileUrl, fileName) {
+  const response = await fetch(
+    "https://graph.facebook.com/v26.0/me/messages?access_token=" + process.env.PAGE_ACCESS_TOKEN,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: senderId },
+        message: {
+          attachment: {
+            type: "file",
+            payload: { url: fileUrl, is_reusable: true }
+          }
+        }
+      })
+    }
+  );
+  const result = await response.json();
+  console.log("Messenger PDF attachment result:", result);
+  if (!response.ok || result.error) throw new Error(result.error?.message || "PDF Messenger-т илгээгдсэнгүй");
+  return result;
+}
+
 async function saveMessengerPhoto(senderId, orderId, attachment) {
   const imageUrl = attachment.payload?.url;
 
@@ -215,7 +238,63 @@ export default async function handler(req, res) {
   for (const entry of body.entry || []) {
     for (const event of entry.messaging || []) {
 
-      if (!event.message || !event.sender) {
+      if (!event.sender) {
+        continue;
+      }
+
+      // Үнийн саналын PDF авах/татгалзах Messenger postback
+      if (event.postback?.payload) {
+        const payload = String(event.postback.payload);
+        const pdfMatch = payload.match(/^GET_QUOTE_PDF:(\d+)$/);
+        const declineMatch = payload.match(/^DECLINE_QUOTE_PDF:(\d+)$/);
+
+        if (declineMatch) {
+          await sendMessage(event.sender.id, "Баярлалаа. Үнийн саналын PDF илгээхгүй. Нэмэлт зүйл асуух бол энд бичээрэй. 😊");
+          continue;
+        }
+
+        if (pdfMatch) {
+          const requestedOrderId = Number(pdfMatch[1]);
+          const { data: quoteOrder, error: quoteOrderError } = await supabase
+            .from("orders")
+            .select("id, quote_pdf_path, messenger_order_number")
+            .eq("id", requestedOrderId)
+            .eq("messenger_sender_id", event.sender.id)
+            .maybeSingle();
+
+          if (quoteOrderError || !quoteOrder?.quote_pdf_path) {
+            console.error("Quote PDF lookup error:", quoteOrderError);
+            await sendMessage(event.sender.id, "Уучлаарай, энэ захиалгын PDF файл олдсонгүй. Манай ажилтантай холбогдоно уу.");
+            continue;
+          }
+
+          const { data: signedFile, error: signedUrlError } = await supabase.storage
+            .from("quote-pdfs")
+            .createSignedUrl(quoteOrder.quote_pdf_path, 60 * 60 * 24);
+
+          if (signedUrlError || !signedFile?.signedUrl) {
+            console.error("Quote PDF signed URL error:", signedUrlError);
+            await sendMessage(event.sender.id, "PDF файл бэлтгэхэд алдаа гарлаа. Та дахин оролдоно уу.");
+            continue;
+          }
+
+          try {
+            await sendFileAttachment(
+              event.sender.id,
+              signedFile.signedUrl,
+              "Mongol-Metal-Quote-" + (quoteOrder.messenger_order_number || quoteOrder.id) + ".pdf"
+            );
+          } catch (sendPdfError) {
+            console.error("Quote PDF Messenger send error:", sendPdfError);
+            await sendMessage(event.sender.id, "PDF файлыг Messenger-ээр илгээж чадсангүй. Манай ажилтан тантай холбогдоно.");
+          }
+          continue;
+        }
+
+        continue;
+      }
+
+      if (!event.message) {
         continue;
       }
 
