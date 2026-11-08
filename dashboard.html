@@ -333,10 +333,7 @@ const PRODUCT_PRICE_DEFAULTS = {
   "Металл цонх": 420000,
   "Металл хаалга": 840000,
   "Шилэн фасад": 550000,
-  "Металл фасад": 330000,
   "Хуванцар хаалт": 160000,
-  "Хуванцар цонх": 180000,
-  "Хуванцар хаалга": 220000
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -350,7 +347,7 @@ function addOrderItemRow(containerId, initial = {}) {
   const row = document.createElement("div");
   row.className = "multi-order-item";
   row.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;";
-  const productOptions = ["Металл цонх","Металл хаалга","Шилэн фасад","Металл фасад","Хуванцар хаалт","Хуванцар цонх","Хуванцар хаалга","Бусад"];
+  const productOptions = ["Металл цонх","Металл хаалга","Шилэн фасад","Металл фасад","Хуванцар хаалт","Бусад"];
   const options = productOptions.map(name => '<option value="' + escapeHTML(name) + '"' + (initial.product === name ? " selected" : "") + '>' + escapeHTML(name) + '</option>').join("");
   row.innerHTML =
     '<div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;"><strong class="item-row-title">Бүтээгдэхүүн</strong><button type="button" class="remove-item-row" style="border:0;background:#fee2e2;color:#991b1b;padding:6px 10px;border-radius:6px;cursor:pointer;">Устгах</button></div>' +
