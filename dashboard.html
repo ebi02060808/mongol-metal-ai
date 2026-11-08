@@ -328,6 +328,7 @@
 
 let currentQuote = null;
 let currentUserRole = null;
+let currentOwnerUserId = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   ["dimensions", "quantity", "unitPrice"].forEach(id => {
@@ -544,7 +545,7 @@ async function addOrder() {
     const { error } = await supabaseClient
       .from("orders")
       .insert({
-        user_id: session.user.id,
+        user_id: currentOwnerUserId,
         customer_name: customerName,
         phone,
         product,
@@ -597,7 +598,7 @@ async function addOrder() {
   const { data: orders, error } = await supabaseClient
     .from("orders")
     .select("id, phone, price, status, created_at")
-    .eq("user_id", session.user.id);
+    .eq("user_id", currentOwnerUserId);
 
   if (error) {
     console.error("Статистик ачаалах алдаа:", error.message);
@@ -659,7 +660,7 @@ async function loadOrders() {
   const { data: orders, error } = await supabaseClient
     .from("orders")
     .select("*")
-    .eq("user_id", session.user.id)
+    .eq("user_id", currentOwnerUserId)
     .order("created_at", { ascending: false });
 
   const ordersList = document.getElementById("ordersList");
@@ -767,7 +768,7 @@ window.viewOrderHistory = async function(orderId) {
   if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
   const { data, error } = await supabaseClient.from("order_history")
     .select("event_type, old_values, new_values, actor_user_id, created_at")
-    .eq("order_id", orderId).eq("user_id", session.user.id)
+    .eq("order_id", orderId).eq("user_id", currentOwnerUserId)
     .order("created_at", { ascending: false });
   if (error) return alert("Түүх авахад алдаа гарлаа: " + error.message);
 
@@ -878,7 +879,7 @@ async function loadFinance() {
   if (!session) return;
   const [entriesResult, ordersResult] = await Promise.all([
     supabaseClient.from("finance_entries").select("*").eq("user_id", session.user.id).order("entry_date", {ascending:false}).order("created_at", {ascending:false}),
-    supabaseClient.from("orders").select("id,customer_name,price,messenger_order_number").eq("user_id", session.user.id).order("created_at", {ascending:false})
+    supabaseClient.from("orders").select("id,customer_name,price,messenger_order_number").eq("user_id", currentOwnerUserId).order("created_at", {ascending:false})
   ]);
   const list = document.getElementById("financeEntries");
   const message = document.getElementById("financeMessage");
@@ -1102,7 +1103,7 @@ window.editOrder = async function(orderId) {
     .from("orders")
     .select("*")
     .eq("id", orderId)
-    .eq("user_id", session.user.id)
+    .eq("user_id", currentOwnerUserId)
     .single();
 
   if (fetchError || !order) {
@@ -1144,7 +1145,7 @@ window.editOrder = async function(orderId) {
       price: Number(price)
     })
     .eq("id", orderId)
-    .eq("user_id", session.user.id);
+    .eq("user_id", currentOwnerUserId);
 
   if (error) {
     alert("Засахад алдаа гарлаа: " + error.message);
@@ -1177,7 +1178,7 @@ window.deleteOrder = async function(orderId) {
     .from("orders")
     .delete()
     .eq("id", orderId)
-    .eq("user_id", session.user.id)
+    .eq("user_id", currentOwnerUserId)
     .select("id");
 
   if (error) {
@@ -1207,7 +1208,7 @@ window.deleteOrder = async function(orderId) {
   const { data: orders, error } = await supabaseClient
     .from("orders")
     .select("customer_name, phone, price")
-    .eq("user_id", session.user.id)
+    .eq("user_id", currentOwnerUserId)
     .order("created_at", { ascending: false });
 
   const customersList =
@@ -1265,7 +1266,7 @@ window.deleteOrder = async function(orderId) {
   const { data: admin, error } = await supabaseClient
     .from("admin_users")
     .select("role")
-    .eq("user_id", session.user.id)
+    .eq("user_id", currentOwnerUserId)
     .maybeSingle();
 
   if (error || !admin || !["admin", "employee"].includes(admin.role)) {
@@ -1275,6 +1276,7 @@ window.deleteOrder = async function(orderId) {
   }
 
   currentUserRole = admin.role;
+  currentOwnerUserId = admin.owner_user_id || session.user.id;
   document.getElementById("userEmail").textContent =
     session.user.email + (admin.role === "admin" ? " · Админ" : " · Ажилтан");
 
