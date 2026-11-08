@@ -858,6 +858,7 @@ async function updateOrderStatus(orderId, newStatus) {
 
     if (!response.ok || !result.success) {
       alert("Алдаа: " + (result.error || "Төлөв шинэчилж чадсангүй."));
+      await loadOrders();
       return;
     }
 
