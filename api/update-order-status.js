@@ -113,6 +113,15 @@ export default async function handler(req, res) {
         console.error("Quote PDF upload error:", pdfUploadError);
         return res.status(500).json({ error: "Үнийн саналын PDF хадгалагдсангүй. Дахин оролдоно уу." });
       }
+      const { error: quotePathSaveError } = await supabase
+        .from("orders")
+        .update({ quote_pdf_path: quotePdfPath })
+        .eq("id", orderId)
+        .eq("user_id", ownerUserId);
+      if (quotePathSaveError) {
+        console.error("Quote PDF path save error:", quotePathSaveError);
+        return res.status(500).json({ error: "PDF файлын мэдээллийг захиалгад хадгалж чадсангүй." });
+      }
 
       const quoteText =
         "📋 МОНГОЛ МЕТАЛЛ ХИЙЦ — ҮНИЙН САНАЛ\n\n" +
