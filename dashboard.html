@@ -270,12 +270,30 @@
     Захиалгуудыг ачаалж байна...
   </div>
 </div>
+      <div class="section" id="financeSection">
+        <h2>💰 Орлого, зарлагын тайлан</h2>
+        <div id="financeSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:15px 0;">
+          <div style="padding:16px;background:#ecfdf5;border-radius:10px;"><small>Нийт орлого</small><h3 id="financeIncome">0 ₮</h3></div>
+          <div style="padding:16px;background:#fff7ed;border-radius:10px;"><small>Нийт зарлага</small><h3 id="financeExpense">0 ₮</h3></div>
+          <div style="padding:16px;background:#eff6ff;border-radius:10px;"><small>Үлдэгдэл</small><h3 id="financeBalance">0 ₮</h3></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:15px 0;">
+          <select id="financeType" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+            <option value="income">Орлого</option><option value="expense">Зарлага</option>
+          </select>
+          <input id="financeAmount" type="number" min="1" step="0.01" placeholder="Дүн (₮)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <input id="financeCategory" type="text" placeholder="Ангилал (материал, цалин...)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <input id="financeDate" type="date" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <select id="financeOrderId" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Захиалгатай холбох (заавал биш)</option></select>
+          <input id="financeDescription" type="text" placeholder="Тайлбар (заавал биш)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+        </div>
+        <button type="button" onclick="saveFinanceEntry()" style="background:#2563eb;color:white;border:0;padding:11px 18px;border-radius:8px;cursor:pointer;">Бүртгэх</button>
+        <p id="financeMessage" style="margin:10px 0;color:#475569;"></p>
+        <div id="financeEntries">Санхүүгийн мэдээлэл ачаалж байна...</div>
+      </div>
       <div class="section">
   <h2>👥 Харилцагчид</h2>
-
-  <div id="customersList">
-    Харилцагчдыг ачаалж байна...
-  </div>
+  <div id="customersList">Харилцагчдыг ачаалж байна...</div>
 </div>
       <div class="section">
         <h2>💬 Messenger</h2>
@@ -696,6 +714,7 @@ async function loadOrders() {
                   </select>
                 </td>
                 <td style="padding:11px 10px;white-space:nowrap;">
+                  <button style="padding:6px 8px;margin:2px;" onclick="viewOrderHistory('${order.id}')">Түүх</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="viewOrderPhotos('${order.id}')">Зураг</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="editOrder('${order.id}')">Засах</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="deleteOrder('${order.id}')">Устгах</button>
@@ -730,6 +749,131 @@ async function loadOrders() {
     applyOrderFilters();
   }
 }
+
+
+window.viewOrderHistory = async function(orderId) {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
+  const { data, error } = await supabaseClient.from("order_history")
+    .select("event_type, old_values, new_values, actor_user_id, created_at")
+    .eq("order_id", orderId).eq("user_id", session.user.id)
+    .order("created_at", { ascending: false });
+  if (error) return alert("Түүх авахад алдаа гарлаа: " + error.message);
+
+  const labels = { created:"Захиалга үүсгэсэн", updated:"Мэдээлэл өөрчилсөн", deleted:"Захиалга устгасан", baseline:"Өмнөх захиалгын эхний бүртгэл" };
+  const fields = { customer_name:"Харилцагч", phone:"Утас", product:"Бүтээгдэхүүн", size:"Хэмжээ", quantity:"Тоо ширхэг", area_per_unit:"Нэгж талбай", unit_price:"1 м² үнэ", price:"Нийт үнэ", status:"Төлөв" };
+  const moneyFields = ["unit_price","price"];
+  const renderValues = values => {
+    if (!values) return "<span style='color:#64748b;'>—</span>";
+    return Object.keys(fields).map(key => {
+      if (!(key in values)) return "";
+      const raw = values[key] == null ? "—" : values[key];
+      const value = moneyFields.includes(key) && raw !== "—" ? Number(raw).toLocaleString("mn-MN") + " ₮" : escapeHTML(raw);
+      return "<div style='padding:3px 0;'><strong>" + fields[key] + ":</strong> " + value + "</div>";
+    }).join("");
+  };
+  let modal = document.getElementById("orderHistoryModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "orderHistoryModal";
+    modal.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:99998;overflow:auto;padding:20px;";
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = "<div style='max-width:760px;margin:30px auto;background:white;padding:22px;border-radius:12px;'>" +
+    "<div style='display:flex;justify-content:space-between;align-items:center;gap:12px;'><h2>🕘 Захиалгын түүх #" + escapeHTML(orderId) + "</h2>" +
+    "<button onclick=\"document.getElementById('orderHistoryModal').remove()\">Хаах ✕</button></div>" +
+    "<div id='orderHistoryContent' style='margin-top:18px;'>Ачаалж байна...</div></div>";
+  const content = document.getElementById("orderHistoryContent");
+  if (!data || !data.length) { content.textContent = "Энэ захиалгын түүх одоогоор байхгүй байна."; return; }
+  content.innerHTML = data.map(item =>
+    "<div style='border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:12px;'>" +
+    "<strong>" + (labels[item.event_type] || escapeHTML(item.event_type)) + "</strong>" +
+    "<div style='color:#64748b;font-size:12px;margin:5px 0 10px;'>" + new Date(item.created_at).toLocaleString("mn-MN") +
+    " · " + (item.actor_user_id ? "Ажилтан/админ" : "Систем эсвэл өмнөх бүртгэл") + "</div>" +
+    (item.old_values ? "<div style='background:#fff7ed;padding:10px;border-radius:8px;margin-bottom:8px;'><strong>Өмнөх мэдээлэл</strong>" + renderValues(item.old_values) + "</div>" : "") +
+    (item.new_values ? "<div style='background:#f0fdf4;padding:10px;border-radius:8px;'><strong>Шинэ мэдээлэл</strong>" + renderValues(item.new_values) + "</div>" : "") +
+    "</div>"
+  ).join("");
+};
+
+function localDateString(date = new Date()) {
+  return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
+}
+
+async function loadFinance() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) return;
+  const [entriesResult, ordersResult] = await Promise.all([
+    supabaseClient.from("finance_entries").select("*").eq("user_id", session.user.id).order("entry_date", {ascending:false}).order("created_at", {ascending:false}),
+    supabaseClient.from("orders").select("id,customer_name,price,messenger_order_number").eq("user_id", session.user.id).order("created_at", {ascending:false})
+  ]);
+  const list = document.getElementById("financeEntries");
+  const message = document.getElementById("financeMessage");
+  if (entriesResult.error) { list.textContent = "Санхүүгийн мэдээлэл авахад алдаа гарлаа: " + entriesResult.error.message; return; }
+  if (ordersResult.error) {
+    if (message) message.textContent = "Захиалгын жагсаалт авахад алдаа гарлаа: " + ordersResult.error.message;
+  } else {
+    const select = document.getElementById("financeOrderId");
+    const selected = select.value;
+    select.innerHTML = "<option value=''>Захиалгатай холбох (заавал биш)</option>" +
+      (ordersResult.data || []).map(order => "<option value='" + order.id + "'>" +
+      escapeHTML(order.messenger_order_number || ("Захиалга #" + order.id)) + " — " +
+      escapeHTML(order.customer_name || "") + " — " + Number(order.price || 0).toLocaleString("mn-MN") + " ₮</option>").join("");
+    if (selected) select.value = selected;
+  }
+  const entries = entriesResult.data || [];
+  const income = entries.filter(x => x.entry_type === "income").reduce((sum,x) => sum + Number(x.amount || 0), 0);
+  const expense = entries.filter(x => x.entry_type === "expense").reduce((sum,x) => sum + Number(x.amount || 0), 0);
+  const money = value => Math.round(value).toLocaleString("mn-MN") + " ₮";
+  document.getElementById("financeIncome").textContent = money(income);
+  document.getElementById("financeExpense").textContent = money(expense);
+  document.getElementById("financeBalance").textContent = money(income-expense);
+  if (!entries.length) { list.textContent = "Одоогоор орлого, зарлагын бүртгэл байхгүй байна."; return; }
+  list.innerHTML = "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;margin-top:14px;'><table style='width:100%;min-width:720px;border-collapse:collapse;font-size:13px;'>" +
+    "<thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Огноо</th><th style='padding:10px;text-align:left;'>Төрөл</th><th style='padding:10px;text-align:left;'>Ангилал / тайлбар</th><th style='padding:10px;text-align:right;'>Дүн</th><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;'>Үйлдэл</th></tr></thead><tbody>" +
+    entries.map(entry => "<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;white-space:nowrap;'>" + escapeHTML(entry.entry_date) + "</td>" +
+    "<td style='padding:10px;'>" + (entry.entry_type === "income" ? "Орлого" : "Зарлага") + "</td>" +
+    "<td style='padding:10px;'>" + escapeHTML(entry.category) + "<br><span style='color:#64748b;'>" + escapeHTML(entry.description || "") + "</span></td>" +
+    "<td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;color:" + (entry.entry_type === "income" ? "#15803d" : "#c2410c") + ";'>" + (entry.entry_type === "income" ? "+" : "−") + money(entry.amount) + "</td>" +
+    "<td style='padding:10px;'>" + (entry.order_id ? "#" + escapeHTML(entry.order_id) : "—") + "</td>" +
+    "<td style='padding:10px;text-align:center;'><button onclick='deleteFinanceEntry(" + entry.id + ")' style='padding:6px 8px;'>Устгах</button></td></tr>").join("") +
+    "</tbody></table></div>";
+}
+
+window.saveFinanceEntry = async function() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
+  const type = document.getElementById("financeType").value;
+  const amount = Number(document.getElementById("financeAmount").value);
+  const category = document.getElementById("financeCategory").value.trim();
+  const entryDate = document.getElementById("financeDate").value;
+  const orderIdValue = document.getElementById("financeOrderId").value;
+  const description = document.getElementById("financeDescription").value.trim();
+  const message = document.getElementById("financeMessage");
+  if (!Number.isFinite(amount) || amount <= 0 || !category || !entryDate) { message.textContent = "Дүн, ангилал, огноог зөв бөглөнө үү."; return; }
+  const { error } = await supabaseClient.from("finance_entries").insert({
+    user_id:session.user.id, created_by:session.user.id, entry_type:type, amount, category,
+    description:description || null, entry_date:entryDate,
+    order_id:type === "income" && orderIdValue ? Number(orderIdValue) : null
+  });
+  if (error) {
+    message.textContent = error.code === "23505" ? "Энэ захиалгын орлогыг өмнө нь бүртгэсэн байна." : "Хадгалахад алдаа гарлаа: " + error.message;
+    return;
+  }
+  message.textContent = "✅ Санхүүгийн бүртгэл хадгалагдлаа.";
+  ["financeAmount","financeCategory","financeDescription"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("financeOrderId").value = "";
+  await loadFinance();
+};
+
+window.deleteFinanceEntry = async function(id) {
+  if (!confirm("Энэ санхүүгийн бүртгэлийг устгах уу?")) return;
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
+  const { error } = await supabaseClient.from("finance_entries").delete().eq("id",id).eq("user_id",session.user.id);
+  if (error) return alert("Устгахад алдаа гарлаа: " + error.message);
+  await loadFinance();
+};
 
 // Зураг харах функц
 async function viewOrderPhotos(orderId) {
@@ -1070,6 +1214,9 @@ checkLogin().then(isAdmin => {
     loadOrders();
     loadCustomers();
     loadDashboardStats();
+    const financeDate = document.getElementById("financeDate");
+    if (financeDate) financeDate.value = localDateString();
+    loadFinance();
   }
 });
   </script>
