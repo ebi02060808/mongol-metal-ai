@@ -243,6 +243,27 @@ async function saveMessengerPhoto(senderId, orderId, attachment) {
   return fileName;
 }
 
+
+async function repeatCurrentQuestion(senderId, session) {
+  const prompts = {
+    product: "Та ямар бүтээгдэхүүн захиалах вэ?\n1. Металл цонх\n2. Металл хаалга\n3. Хуванцар хаалт\n4. Хуванцар цонх\n5. Хуванцар хаалга\n6. Металл фасад\n7. Шилэн фасад",
+    facade_mode: "Фасадын ажлын төрлөө сонгоно уу:\n1 — Материалтай\n2 — Зөвхөн ажлын хөлс (үнийг тохиролцоно)",
+    area: "Фасадын нийт талбай хэдэн м² вэ? Жишээ: 25 эсвэл 25.5",
+    size: "Өргөн × өндрийг метрээр оруулна уу. Жишээ: 1.5 × 1.2",
+    quantity: "Хэдэн ширхэг захиалах вэ? Жишээ: 2",
+    add_more: "Өөр бүтээгдэхүүн нэмэх үү?\n1 — Тийм\n2 — Үгүй, дуусгах",
+    name: "Захиалга авахын тулд нэрээ оруулна уу.",
+    phone: "Утасны дугаараа оруулна уу.",
+    location_type: "Та хаана байрлаж байна вэ?\n1. Улаанбаатар\n2. Орон нутаг",
+    district: "Улаанбаатарын аль дүүрэг вэ?",
+    province: "Та аль аймагт байрлаж байна вэ?",
+    soum: "Та аль суманд байрлаж байна вэ?",
+    confirm: "Захиалгаа баталгаажуулах уу?\n1 — Баталгаажуулах\n2 — Буцах",
+    completed: "Таны захиалга бүртгэгдсэн байна. Манай ажилтан удахгүй холбогдоно."
+  };
+  if (prompts[session?.step]) await sendMessage(senderId, prompts[session.step]);
+}
+
 export default async function handler(req, res) {
 
   if (req.method === "GET") {
@@ -532,48 +553,31 @@ await sendMessage(
 continue;
       }
 
-// Зураг хадгалах
+// Зураг аль ч алхамд ирсэн тухайн захиалгад хадгална.
 if (hasImage) {
+  let savedCount = 0;
   for (const attachment of attachments) {
     if (attachment.type !== "image") continue;
-
     try {
-      const fileName = await saveMessengerPhoto(
-        senderId,
-        session.order_id,
-        attachment
-      );
-
-      console.log("Saved customer photo:", fileName);
-
+      const fileName = await saveMessengerPhoto(senderId, session.order_id, attachment);
       const { error: photoDbError } = await supabase
         .from("messenger_order_photos")
-        .insert({
-          order_id: session.order_id,
-          sender_id: senderId,
-          file_path: fileName
-        });
-
-      if (photoDbError) {
-        throw photoDbError;
-      }
-
-      await sendMessage(
-        senderId,
-        "📷 Зураг амжилттай хадгалагдлаа.\n" +
-        "Захиалгын дугаар: " + session.order_number
-      );
+        .insert({ order_id: session.order_id, sender_id: senderId, file_path: fileName });
+      if (photoDbError) throw photoDbError;
+      savedCount++;
+      console.log("Saved customer photo:", fileName);
     } catch (photoError) {
       console.error("Photo save error:", photoError);
-
-      await sendMessage(
-        senderId,
-        "Зургийг хадгалахад алдаа гарлаа. JPG, PNG эсвэл WEBP форматаар 10 MB-аас бага зураг дахин илгээнэ үү."
-      );
+      await sendMessage(senderId, "Зургийг хадгалахад алдаа гарлаа. JPG, PNG эсвэл WEBP форматаар 10 MB-аас бага зураг дахин илгээнэ үү.");
     }
   }
-
-  continue;
+  if (savedCount) {
+    await sendMessage(senderId, "📷 Зураг амжилттай хадгалагдлаа. Захиалгын дугаар: " + session.order_number);
+  }
+  if (!messageText) {
+    await repeatCurrentQuestion(senderId, session);
+    continue;
+  }
 }
     
       // Шинэ захиалга эхлүүлэх команд
@@ -666,7 +670,7 @@ const { error: productUpdateError } = await supabase
     height: null,
     quantity: null,
     area: null,
-    step: isFacade ? "area" : "size",
+    step: isFacade ? "facade_mode" : "size",
     updated_at: new Date().toISOString()
   })
   .eq("sender_id", senderId);
@@ -678,12 +682,11 @@ if (productUpdateError) {
 }
 
 if (isFacade) {
-  await sendMessage(
-    senderId,
-    productType +
-    " сонголоо.\n\n" +
-    "Нийт хэдэн м² талбай вэ?\n\n" +
-    "Жишээ: 25"
+  await sendMessage(senderId,
+    productType + " сонголоо.\n\n" +
+    "Ажлын төрлөө сонгоно уу:\n\n" +
+    "1 — Материалтай (материал + үйлдвэрлэл + угсралт)\n" +
+    "2 — Зөвхөн ажлын хөлс (үнийг харилцан тохиролцоно)"
   );
 } else {
   await sendMessage(
@@ -697,6 +700,31 @@ if (isFacade) {
 
 continue;
 }
+if (session.step === "facade_mode") {
+  const choice = messageText.trim();
+  if (choice !== "1" && choice !== "2") {
+    await sendMessage(senderId, "1 — Материалтай\n2 — Зөвхөн ажлын хөлс (үнийг тохиролцоно)\n\n1 эсвэл 2 гэж сонгоно уу.");
+    continue;
+  }
+  const pricingMode = choice === "1" ? "materials_included" : "labor_only";
+  const { error: modeError } = await supabase
+    .from("messenger_sessions")
+    .update({ pricing_mode: pricingMode, step: "area", updated_at: new Date().toISOString() })
+    .eq("sender_id", senderId);
+  if (modeError) {
+    console.error("Facade pricing mode update error:", modeError);
+    await sendMessage(senderId, "Үнийн төрлийг хадгалахад алдаа гарлаа. Дахин сонгоно уу.");
+    continue;
+  }
+  await sendMessage(senderId,
+    (pricingMode === "materials_included"
+      ? "✅ Материалтай ажлыг сонголоо. Жишиг үнэ: " + priceList[session.product_type].toLocaleString("mn-MN") + "₮/м²."
+      : "✅ Зөвхөн ажлын хөлсийг сонголоо. Үнийг объектын нөхцөл, хэмжилтийн дараа харилцан тохиролцоно.") +
+    "\n\nФасадын нийт талбай хэдэн м² вэ?\nЖишээ: 25 эсвэл 25.5"
+  );
+  continue;
+}
+
 if (session.step === "area") {
   const enteredArea = Number(messageText.trim().replace(",", "."));
 
@@ -708,14 +736,13 @@ if (session.step === "area") {
     continue;
   }
 
-  const unitPrice = priceList[session.product_type];
-
-  if (!unitPrice) {
+  const pricingMode = session.pricing_mode || "materials_included";
+  const unitPrice = pricingMode === "labor_only" ? null : priceList[session.product_type];
+  if (pricingMode !== "labor_only" && !unitPrice) {
     await sendMessage(senderId, "Бүтээгдэхүүний үнэ олдсонгүй. Дахин эхлүүлнэ үү.");
     continue;
   }
-
-  const totalPrice = Math.round(enteredArea * unitPrice);
+  const totalPrice = unitPrice == null ? null : Math.round(enteredArea * unitPrice);
 
   const { error: itemError } = await supabase
     .from("messenger_order_items")
@@ -728,7 +755,8 @@ if (session.step === "area") {
       quantity: 1,
       unit_price: unitPrice,
       area: enteredArea,
-      total_price: totalPrice
+      total_price: totalPrice,
+      pricing_mode: pricingMode
     });
 
   if (itemError) {
@@ -756,8 +784,10 @@ if (session.step === "area") {
   await sendMessage(
     senderId,
     "📐 Нийт талбай: " + enteredArea.toFixed(2) + " м²\n" +
-    "💰 Нэгж үнэ: " + unitPrice.toLocaleString("en-US") + "₮/м²\n" +
-    "💵 Урьдчилсан үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n\n" +
+    (pricingMode === "labor_only"
+      ? "💰 Ажлын хөлс: Объектын нөхцөлтэй танилцсаны дараа харилцан тохиролцоно.\n\n"
+      : "💰 Материалтай үнэ: " + unitPrice.toLocaleString("mn-MN") + "₮/м²\n" +
+        "💵 Урьдчилсан үнэ: " + totalPrice.toLocaleString("mn-MN") + "₮\n\n") +
     "📷 Боломжтой бол фасад хийх объектын зураг илгээнэ үү.\n\n" +
     "Манай мэргэжилтэн объект дээр очиж бодит хэмжилт, нөхцөл байдлыг шалгасны дараа материал, хийц, угсралтын ажлыг тооцож, эцсийн үнийг харилцан тохиролцоно.\n\n" +
     "Анхаарна уу: Эцсийн үнэ нь бодит хэмжилт, объектын нөхцөлөөс хамаарч өөрчлөгдөж болно.\n\n" +
@@ -930,6 +960,7 @@ if (session.step === "add_more") {
   height: null,
   quantity: null,
   area: null,
+  pricing_mode: null,
   step: "product",
   updated_at: new Date().toISOString()
 })
@@ -1209,8 +1240,8 @@ let itemDetails = "";
 
 items.forEach((item, index) => {
   const itemArea = Number(item.area) * Number(item.quantity);
-  const itemTotal = Number(item.total_price);
-
+  const isNegotiable = item.pricing_mode === "labor_only";
+  const itemTotal = isNegotiable ? 0 : Number(item.total_price || 0);
   totalArea += itemArea;
   totalPrice += itemTotal;
 
@@ -1225,8 +1256,10 @@ items.forEach((item, index) => {
   itemDetails +=
     (index + 1) + ". " + item.product_type + "\n" +
     measurementDetails +
-    "Нэгж үнэ: " + Number(item.unit_price).toLocaleString("en-US") + "₮/м²\n" +
-    "Дүн: " + itemTotal.toLocaleString("en-US") + "₮\n\n";
+    (isNegotiable
+      ? "Ажлын хөлс: Харилцан тохиролцоно\n"
+      : "Нэгж үнэ: " + Number(item.unit_price).toLocaleString("mn-MN") + "₮/м²\n" +
+        "Дүн: " + itemTotal.toLocaleString("mn-MN") + "₮\n") + "\n";
 });
   await sendMessage(
     senderId,
@@ -1343,8 +1376,8 @@ if (session.step === "confirm") {
 
  items.forEach((item, index) => {
   const itemArea = Number(item.area) * Number(item.quantity);
-  const itemTotal = Number(item.total_price);
-
+  const isNegotiable = item.pricing_mode === "labor_only";
+  const itemTotal = isNegotiable ? 0 : Number(item.total_price || 0);
   totalArea += itemArea;
   totalPrice += itemTotal;
 
@@ -1359,8 +1392,10 @@ if (session.step === "confirm") {
   itemDetails +=
     (index + 1) + ". " + item.product_type + "\n" +
     measurementDetails +
-    "Нэгж үнэ: " + Number(item.unit_price).toLocaleString("en-US") + "₮/м²\n" +
-    "Дүн: " + itemTotal.toLocaleString("en-US") + "₮\n\n";
+    (isNegotiable
+      ? "Ажлын хөлс: Харилцан тохиролцоно\n"
+      : "Нэгж үнэ: " + Number(item.unit_price).toLocaleString("mn-MN") + "₮/м²\n" +
+        "Дүн: " + itemTotal.toLocaleString("mn-MN") + "₮\n") + "\n";
 });
 
 // Админ хэрэглэгчийн ID-г авах
@@ -1426,7 +1461,7 @@ if (!existingOrder) {
   phone: session.phone,
   product: orderProduct,
   size: orderSize,
-  price: totalPrice,
+  price: items.some(item => item.pricing_mode === "labor_only") ? null : totalPrice,
   status: orderStatus,
   user_id: admin.user_id,
   messenger_sender_id: senderId,
@@ -1438,7 +1473,8 @@ if (!existingOrder) {
     quantity: item.quantity,
     area: item.area,
     unit_price: item.unit_price,
-    total_price: item.total_price
+    total_price: item.total_price,
+    pricing_mode: item.pricing_mode || "materials_included"
   }))
 });
   
@@ -1489,7 +1525,9 @@ if (!completedSession) {
     "--------------------\n" +
     "Нийт мөр: " + items.length + "\n" +
     "Нийт талбай: " + totalArea.toFixed(2) + " м²\n" +
-    "НИЙТ ҮНЭ: " + totalPrice.toLocaleString("en-US") + "₮\n\n" +
+    "НИЙТ ДҮН: " + (items.some(item => item.pricing_mode === "labor_only")
+      ? (totalPrice > 0 ? totalPrice.toLocaleString("mn-MN") + "₮ + ажлын хөлс тохиролцоно" : "Ажлын хөлсийг тохиролцоно")
+      : totalPrice.toLocaleString("mn-MN") + "₮") + "\n\n" +
     "Нэр: " + session.customer_name + "\n" +
     "Утас: " + session.phone + "\n" +
     "Байршил: " + session.address
@@ -1500,7 +1538,9 @@ if (!completedSession) {
     "✅ Таны захиалга амжилттай баталгаажлаа.\n\n" +
     "Захиалгын дугаар: " + session.order_number + "\n\n" +
     "Нийт бүтээгдэхүүн: " + items.length + " мөр\n" +
-    "Нийт үнэ: " + totalPrice.toLocaleString("en-US") + "₮\n\n" +
+    "Нийт үнэ: " + (items.some(item => item.pricing_mode === "labor_only")
+      ? (totalPrice > 0 ? totalPrice.toLocaleString("mn-MN") + "₮ + ажлын хөлс тохиролцоно" : "Ажлын хөлсийг тохиролцоно")
+      : totalPrice.toLocaleString("mn-MN") + "₮") + "\n\n" +
     "Манай ажилтан удахгүй холбогдоно. Баярлалаа!"
   );
 
