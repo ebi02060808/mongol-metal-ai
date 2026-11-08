@@ -302,6 +302,25 @@ document.addEventListener("DOMContentLoaded", () => {
       customProductInput.style.display = isOther ? "block" : "none";
       customProductInput.required = isOther;
       if (!isOther) customProductInput.value = "";
+
+      // Баталгаажсан/өмнө ашигласан үнийн жагсаалт (₮/м²)
+      const productPrices = {
+        "Металл цонх": 420000,
+        "Металл хаалга": 840000,
+        "Шилэн фасад": 550000,
+        "Хуванцар хаалт": 160000
+      };
+      const priceInput = document.getElementById("unitPrice");
+      if (priceInput) {
+        if (Object.prototype.hasOwnProperty.call(productPrices, productSelect.value)) {
+          priceInput.value = productPrices[productSelect.value];
+          priceInput.dataset.autoPrice = "true";
+        } else {
+          priceInput.value = "";
+          priceInput.dataset.autoPrice = "false";
+        }
+        updateOrderTotalPreview();
+      }
     });
   }
   updateOrderTotalPreview();
