@@ -634,33 +634,58 @@ async function loadOrders() {
     return;
   }
 
-  ordersList.innerHTML = orders.map(order => `
-    <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; border-radius:10px;">
-      <strong>👤 ${escapeHTML(order.customer_name || "")}</strong><br>
-      📞 ${escapeHTML(order.phone || "")}<br>
-      📦 ${escapeHTML(order.product || "")}<br>
-      📐 ${escapeHTML(order.size || "")}<br>
-      📏 Нэгж талбай: ${Number(order.area_per_unit || 1).toLocaleString("mn-MN")} м²<br>
-      🔢 Тоо хэмжээ: ${Number(order.quantity || 1).toLocaleString("mn-MN")} ширхэг<br>
-      💵 Нэгж үнэ: ${order.unit_price == null ? "—" : Number(order.unit_price).toLocaleString("mn-MN") + " ₮"}<br>
-      💰 Нийт үнэ: ${Number(order.price || 0).toLocaleString("mn-MN")} ₮<br>
-      📅 ${new Date(order.created_at).toLocaleString("mn-MN")}<br>
-
-      <p>Төлөв:
-        <select onchange="updateOrderStatus('${order.id}', this.value)">
-          <option value="Шинэ" ${(order.status === "Шинэ" || (order.status || "").startsWith("Шинэ захиалга")) ? "selected" : ""}>Шинэ</option>
-          <option value="Холбогдсон" ${order.status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
-          <option value="Үнийн санал" ${order.status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
-          <option value="Баталгаажсан" ${order.status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option>
-          <option value="Дууссан" ${order.status === "Дууссан" ? "selected" : ""}>Дууссан</option>
-        </select>
-      </p>
-
-      <button onclick="viewOrderPhotos('${order.id}')">🖼️ Зураг харах</button>
-      <button onclick="editOrder('${order.id}')">✏️ Засах</button>
-      <button onclick="deleteOrder('${order.id}')">🗑️ Устгах</button>
+  ordersList.innerHTML = `
+    <div style="width:100%;overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;">
+      <table style="width:100%;min-width:1050px;border-collapse:collapse;background:#fff;font-size:13px;">
+        <thead>
+          <tr style="background:#f1f5f9;color:#334155;">
+            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Харилцагч / утас</th>
+            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Бүтээгдэхүүн</th>
+            <th style="padding:12px 10px;text-align:center;border-bottom:1px solid #cbd5e1;">Хэмжээ (м)</th>
+            <th style="padding:12px 10px;text-align:right;border-bottom:1px solid #cbd5e1;">Тоо</th>
+            <th style="padding:12px 10px;text-align:right;border-bottom:1px solid #cbd5e1;">Нийт талбай</th>
+            <th style="padding:12px 10px;text-align:right;border-bottom:1px solid #cbd5e1;">1 м² үнэ</th>
+            <th style="padding:12px 10px;text-align:right;border-bottom:1px solid #cbd5e1;">Нийт үнэ</th>
+            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Огноо</th>
+            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Төлөв</th>
+            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Үйлдэл</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${orders.map(order => {
+            const qty = Number(order.quantity || 1);
+            const area = Number(order.area_per_unit || 1) * qty;
+            const status = order.status || "Шинэ";
+            return `
+              <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:11px 10px;white-space:nowrap;"><strong>${escapeHTML(order.customer_name || "")}</strong><br><span style="color:#64748b;">${escapeHTML(order.phone || "")}</span></td>
+                <td style="padding:11px 10px;">${escapeHTML(order.product || "")}</td>
+                <td style="padding:11px 10px;text-align:center;white-space:nowrap;">${escapeHTML(order.size || "—")}</td>
+                <td style="padding:11px 10px;text-align:right;">${qty.toLocaleString("mn-MN")}</td>
+                <td style="padding:11px 10px;text-align:right;white-space:nowrap;">${area.toLocaleString("mn-MN")} м²</td>
+                <td style="padding:11px 10px;text-align:right;white-space:nowrap;">${order.unit_price == null ? "—" : Number(order.unit_price).toLocaleString("mn-MN") + " ₮"}</td>
+                <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;">${Number(order.price || 0).toLocaleString("mn-MN")} ₮</td>
+                <td style="padding:11px 10px;white-space:nowrap;">${new Date(order.created_at).toLocaleDateString("mn-MN")}</td>
+                <td style="padding:11px 10px;">
+                  <select style="min-width:125px;padding:7px;border:1px solid #cbd5e1;border-radius:6px;" onchange="updateOrderStatus('${order.id}', this.value)">
+                    <option value="Шинэ" ${(status === "Шинэ" || status.startsWith("Шинэ захиалга")) ? "selected" : ""}>Шинэ</option>
+                    <option value="Холбогдсон" ${status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
+                    <option value="Үнийн санал" ${status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
+                    <option value="Баталгаажсан" ${status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option>
+                    <option value="Дууссан" ${status === "Дууссан" ? "selected" : ""}>Дууссан</option>
+                  </select>
+                </td>
+                <td style="padding:11px 10px;white-space:nowrap;">
+                  <button style="padding:6px 8px;margin:2px;" onclick="viewOrderPhotos('${order.id}')">Зураг</button>
+                  <button style="padding:6px 8px;margin:2px;" onclick="editOrder('${order.id}')">Засах</button>
+                  <button style="padding:6px 8px;margin:2px;" onclick="deleteOrder('${order.id}')">Устгах</button>
+                </td>
+              </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
     </div>
-   `).join("");
+  `;
 }
 
 // Зураг харах функц
