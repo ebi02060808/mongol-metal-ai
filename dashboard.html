@@ -214,6 +214,29 @@
 
   <p id="orderMessage"></p>
 </div>
+<div class="section" id="quoteSection">
+  <h2>🧾 Үнийн санал тооцоолох</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:15px 0;">
+    <input type="text" id="quoteCustomerName" placeholder="Харилцагчийн нэр">
+    <input type="text" id="quotePhone" placeholder="Утасны дугаар">
+    <input type="text" id="quoteProduct" placeholder="Бүтээгдэхүүн / ажил">
+    <input type="text" id="quoteSize" placeholder="Хэмжээ (жишээ: 2м × 1.5м)">
+    <input type="number" id="quoteQuantity" min="0.01" step="0.01" placeholder="Тоо хэмжээ (м² / ширхэг)">
+    <input type="number" id="quoteUnitPrice" min="0" step="1" placeholder="Нэгж үнэ (₮)">
+  </div>
+  <button type="button" onclick="calculateQuote()" style="background:#2563eb;color:white;border:0;padding:11px 18px;border-radius:8px;cursor:pointer;">Үнийн санал тооцоолох</button>
+  <p id="quoteMessage" style="margin-top:12px;"></p>
+  <div id="quotePreview" style="display:none;margin-top:18px;"></div>
+  <div id="pdfQuestion" style="display:none;margin-top:15px;padding:15px;background:#f3f4f6;border-radius:10px;">
+    <strong>Үнийн санал бэлэн боллоо. PDF файл авах уу?</strong>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+      <button type="button" onclick="downloadQuotePDF()" style="background:#16a34a;color:white;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;">Тийм — PDF татах</button>
+      <button type="button" onclick="keepQuoteOnDashboard()" style="background:#64748b;color:white;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;">Үгүй — Dashboard-д үлдээх</button>
+    </div>
+  </div>
+  <div id="quotePaper" style="position:absolute;left:-10000px;top:0;width:794px;background:white;color:#111827;padding:48px;font-family:Arial,sans-serif;"></div>
+</div>
+
 <div class="section">
   <h2>📋 Захиалгын жагсаалт</h2>
 
@@ -237,6 +260,7 @@
 
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script>
 
     const SUPABASE_URL = "https://sqywsxbaknjznvohnsim.supabase.co";
@@ -247,6 +271,109 @@
       SUPABASE_URL,
       SUPABASE_PUBLISHABLE_KEY
     );
+
+let currentQuote = null;
+
+function calculateQuote() {
+  const customerName = document.getElementById("quoteCustomerName").value.trim();
+  const phone = document.getElementById("quotePhone").value.trim();
+  const product = document.getElementById("quoteProduct").value.trim();
+  const size = document.getElementById("quoteSize").value.trim();
+  const quantity = Number(document.getElementById("quoteQuantity").value);
+  const unitPrice = Number(document.getElementById("quoteUnitPrice").value);
+
+  if (!customerName || !phone || !product || !Number.isFinite(quantity) ||
+      quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0) {
+    alert("Харилцагчийн нэр, утас, бүтээгдэхүүн, тоо хэмжээ болон нэгж үнийг зөв оруулна уу.");
+    return;
+  }
+
+  const total = quantity * unitPrice;
+  currentQuote = {
+    customerName,
+    phone,
+    product,
+    size,
+    quantity,
+    unitPrice,
+    total,
+    date: new Date()
+  };
+
+  const money = value => Math.round(value).toLocaleString("mn-MN") + " ₮";
+  document.getElementById("quotePaper").innerHTML =
+    '<div style="border-bottom:3px solid #111827;padding-bottom:18px;margin-bottom:25px;">' +
+      '<h1 style="font-size:27px;margin:0 0 6px;">МОНГОЛ МЕТАЛЛ ХИЙЦ</h1>' +
+      '<p style="font-size:13px;color:#475569;">Чанартай хийц, бат бөх суурилуулалт</p>' +
+      '<h2 style="margin-top:28px;font-size:22px;">ҮНИЙН САНАЛ</h2>' +
+    '</div>' +
+    '<p><strong>Огноо:</strong> ' + escapeHTML(currentQuote.date.toLocaleDateString("mn-MN")) + '</p>' +
+    '<p style="margin-top:8px;"><strong>Харилцагч:</strong> ' + escapeHTML(customerName) + '</p>' +
+    '<p><strong>Утас:</strong> ' + escapeHTML(phone) + '</p>' +
+    '<table style="width:100%;border-collapse:collapse;margin-top:24px;font-size:14px;">' +
+      '<thead><tr style="background:#f1f5f9;">' +
+        '<th style="border:1px solid #cbd5e1;padding:10px;text-align:left;">Бүтээгдэхүүн / ажил</th>' +
+        '<th style="border:1px solid #cbd5e1;padding:10px;text-align:left;">Хэмжээ</th>' +
+        '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Тоо хэмжээ</th>' +
+        '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Нэгж үнэ</th>' +
+        '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Дүн</th>' +
+      '</tr></thead><tbody><tr>' +
+        '<td style="border:1px solid #cbd5e1;padding:10px;">' + escapeHTML(product) + '</td>' +
+        '<td style="border:1px solid #cbd5e1;padding:10px;">' + escapeHTML(size || "—") + '</td>' +
+        '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + escapeHTML(quantity.toLocaleString("mn-MN")) + '</td>' +
+        '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + money(unitPrice) + '</td>' +
+        '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + money(total) + '</td>' +
+      '</tr></tbody></table>' +
+    '<h2 style="text-align:right;margin-top:24px;font-size:21px;">Нийт дүн: ' + money(total) + '</h2>' +
+    '<div style="margin-top:42px;padding-top:18px;border-top:1px solid #cbd5e1;font-size:13px;color:#334155;">' +
+      '<p><strong>Баталгаат хугацаа:</strong> 2 жил</p>' +
+      '<p style="margin-top:8px;">Үнийн саналтай холбоотой нэмэлт нөхцөлийг захиалга баталгаажуулах үед тохиролцоно.</p>' +
+      '<p style="margin-top:28px;">Хүндэтгэсэн, Монгол металл хийц</p>' +
+    '</div>';
+
+  document.getElementById("quotePreview").innerHTML =
+    '<div style="border:1px solid #d1d5db;border-radius:10px;padding:16px;background:white;">' +
+      '<strong>Үнийн саналын дүн: ' + money(total) + '</strong><br>' +
+      escapeHTML(product) + ' — ' + escapeHTML(quantity.toLocaleString("mn-MN")) +
+      ' × ' + money(unitPrice) +
+    '</div>';
+  document.getElementById("quotePreview").style.display = "block";
+  document.getElementById("pdfQuestion").style.display = "block";
+  document.getElementById("quoteMessage").textContent = "Үнийн санал амжилттай тооцоологдлоо.";
+}
+
+async function downloadQuotePDF() {
+  if (!currentQuote) {
+    alert("Эхлээд үнийн санал тооцоолно уу.");
+    return;
+  }
+  if (typeof html2pdf !== "function") {
+    alert("PDF сан ачаалагдсангүй. Интернэт холболтоо шалгаад дахин оролдоно уу.");
+    return;
+  }
+  const filename = "Mongol-Metal-Quote-" +
+    currentQuote.date.toISOString().slice(0, 10) + ".pdf";
+  try {
+    await html2pdf().set({
+      margin: 10,
+      filename,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    }).from(document.getElementById("quotePaper")).save();
+    document.getElementById("quoteMessage").textContent = "PDF файл татагдлаа. Үнийн санал Dashboard-д хэвээр байна.";
+  } catch (error) {
+    console.error("PDF үүсгэх алдаа:", error);
+    alert("PDF үүсгэхэд алдаа гарлаа. Дахин оролдоно уу.");
+  }
+}
+
+function keepQuoteOnDashboard() {
+  document.getElementById("pdfQuestion").style.display = "none";
+  document.getElementById("quoteMessage").textContent =
+    "Үнийн санал Dashboard-д хэвээр үлдлээ.";
+}
+
 async function addOrder() {
   const { data: { session } } =
     await supabaseClient.auth.getSession();
