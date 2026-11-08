@@ -66,7 +66,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Зөвхөн дууссан захиалгын үлдэгдлийг төлөгдсөнөөр тэмдэглэнэ." });
       }
       const entryDate = String(req.body?.entryDate || "").trim();
-      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
         return res.status(400).json({ error: "Төлбөрийн огноо буруу байна." });
       }
       const { data: paymentResult, error: paymentError } = await supabase.rpc("mark_order_unpaid_balance_paid", {
