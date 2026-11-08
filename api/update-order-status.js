@@ -149,6 +149,7 @@ export default async function handler(req, res) {
           access_token: pageToken
         })
       });
+      const messengerResult = await messengerResponse.json();
 
       if (!messengerResponse.ok || messengerResult.error) {
         console.error("Messenger quote send error:", messengerResult);
@@ -160,9 +161,7 @@ export default async function handler(req, res) {
 
     const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
-      .update(newStatus === "Үнийн санал"
-        ? { status: newStatus }
-        : { status: newStatus })
+      .update({ status: newStatus })
       .eq("id", orderId)
       .eq("user_id", ownerUserId)
       .select("id, status, messenger_sender_id, messenger_order_number")
