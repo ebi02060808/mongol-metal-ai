@@ -918,7 +918,7 @@ async function loadFinance() {
   if (!session) return;
   const [entriesResult, ordersResult] = await Promise.all([
     supabaseClient.from("finance_entries").select("*").eq("user_id", session.user.id).order("entry_date", {ascending:false}).order("created_at", {ascending:false}),
-    supabaseClient.from("orders").select("id,customer_name,price,messenger_order_number,status,created_at").eq("user_id", currentOwnerUserId).order("created_at", {ascending:false})
+    supabaseClient.from("orders").select("id,customer_name,price,unpaid_balance,messenger_order_number,status,created_at").eq("user_id", currentOwnerUserId).order("created_at", {ascending:false})
   ]);
   const list = document.getElementById("financeEntries");
   const message = document.getElementById("financeMessage");
@@ -972,7 +972,7 @@ async function loadFinance() {
     const orderIncome = linked.filter(entry => entry.entry_type === "income").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
     const orderExpense = linked.filter(entry => entry.entry_type === "expense").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
     const orderPrice = order.price == null ? null : Number(order.price);
-    const outstanding = orderPrice == null ? null : Math.max(0, orderPrice - orderIncome);
+    const outstanding = order.unpaid_balance == null ? null : Number(order.unpaid_balance);
     const cashDifference = orderIncome - orderExpense;
     return { order, orderIncome, orderExpense, orderPrice, outstanding, cashDifference, hasEntries: linked.length > 0 };
   }).filter(row => row.hasEntries || row.orderPrice !== null);
@@ -980,14 +980,14 @@ async function loadFinance() {
   const profitContainer = document.getElementById("financeOrderProfit");
   if (profitContainer) {
     profitContainer.innerHTML = "<h3 style='margin:12px 0;'>📊 Захиалга тус бүрийн мөнгөн тооцоо</h3>" +
-      "<p style='font-size:13px;color:#64748b;margin-bottom:10px;'>Төлөгдөөгүй үлдэгдэл = захиалгын үнэ − бодитоор бүртгэсэн орлого. Орлого − зардлын зөрүү нь бүртгэгдсэн мөнгөн урсгал бөгөөд цэвэр ашиг биш.</p>" +
+      "<p style='font-size:13px;color:#64748b;margin-bottom:10px;'>Төлөгдөөгүй үлдэгдлийг захиалга дуусгах үед админ/ажилтан гараар оруулна. Энэ нь орлого биш, авлага юм. Орлого − зардлын зөрүү нь бүртгэгдсэн мөнгөн урсгал бөгөөд цэвэр ашиг биш.</p>" +
       (profitRows.length
-        ? "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;'><table style='width:100%;min-width:850px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;text-align:right;'>Захиалгын үнэ</th><th style='padding:10px;text-align:right;'>Бодит орлого</th><th style='padding:10px;text-align:right;'>Төлөгдөөгүй үлдэгдэл</th><th style='padding:10px;text-align:right;'>Зардал</th><th style='padding:10px;text-align:right;'>Орлого − зардал</th></tr></thead><tbody>" +
+        ? "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;'><table style='width:100%;min-width:850px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;text-align:right;'>Захиалгын үнэ</th><th style='padding:10px;text-align:right;'>Бодит орлого</th><th style='padding:10px;text-align:right;'>Төлөгдөөгүй үлдэгдэл (гараар)</th><th style='padding:10px;text-align:right;'>Зардал</th><th style='padding:10px;text-align:right;'>Орлого − зардал</th></tr></thead><tbody>" +
           profitRows.map(row => "<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;'>" +
             escapeHTML(row.order.messenger_order_number || ("Захиалга #" + row.order.id)) + "<br><span style='color:#64748b;'>" + escapeHTML(row.order.customer_name || "") + "</span></td>" +
             "<td style='padding:10px;text-align:right;white-space:nowrap;'>" + (row.orderPrice == null ? "Тохиролцоно" : money(row.orderPrice)) + "</td>" +
             "<td style='padding:10px;text-align:right;white-space:nowrap;color:#15803d;'>" + money(row.orderIncome) + "</td>" +
-            "<td style='padding:10px;text-align:right;white-space:nowrap;color:" + (row.outstanding > 0 ? "#b91c1c" : "#15803d") + ";font-weight:700;'>" + (row.outstanding == null ? "—" : money(row.outstanding)) + "</td>" +
+            "<td style='padding:10px;text-align:right;white-space:nowrap;color:" + (row.outstanding > 0 ? "#b91c1c" : "#15803d") + ";font-weight:700;'>" + (row.outstanding == null ? "Оруулаагүй" : money(row.outstanding)) + "</td>" +
             "<td style='padding:10px;text-align:right;white-space:nowrap;color:#c2410c;'>" + money(row.orderExpense) + "</td>" +
             "<td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;color:" + (row.cashDifference >= 0 ? "#15803d" : "#b91c1c") + ";'>" + money(row.cashDifference) + "</td></tr>").join("") +
           "</tbody></table></div>"
@@ -1414,6 +1414,7 @@ async function updateOrderStatus(orderId, newStatus) {
 
   let completionExpense = null;
   let remainingIncome = null;
+  let unpaidBalance = null;
   if (newStatus === "Дууссан") {
     const expenseText = prompt("Энэ захиалгад гарсан НИЙТ ЗАРЛАГЫН дүнг оруулна уу (₮):", "0");
     if (expenseText === null) { await loadOrders(); return; }
@@ -1451,6 +1452,15 @@ async function updateOrderStatus(orderId, newStatus) {
       description: "Захиалгын үлдэгдэл төлбөр",
       entryDate: localDateString()
     };
+
+    const unpaidText = prompt("Захиалгын дараа ҮЛДСЭН ТӨЛӨГДӨӨГҮЙ ЗӨРҮҮ / АВЛАГЫН дүнг гараар оруулна уу (₮). Төлбөрийн үлдэгдэлгүй бол 0 гэж бичнэ үү:", "0");
+    if (unpaidText === null) { await loadOrders(); return; }
+    unpaidBalance = Number(String(unpaidText).replace(/,/g, "").trim());
+    if (!Number.isFinite(unpaidBalance) || unpaidBalance < 0 || unpaidBalance > 100000000000) {
+      alert("Төлөгдөөгүй үлдэгдлийн дүнг 0 эсвэл түүнээс их тоогоор оруулна уу.");
+      await loadOrders();
+      return;
+    }
   }
 
   try {
@@ -1469,7 +1479,7 @@ async function updateOrderStatus(orderId, newStatus) {
     const response = await fetch("/api/update-order-status", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.access_token },
-      body: JSON.stringify({ orderId, newStatus, quotePdfBase64, confirmationIncome, completionExpense, remainingIncome })
+      body: JSON.stringify({ orderId, newStatus, quotePdfBase64, confirmationIncome, completionExpense, remainingIncome, unpaidBalance })
     });
     const result = await response.json();
     if (!response.ok || !result.success) {
