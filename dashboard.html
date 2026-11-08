@@ -1187,11 +1187,15 @@ async function createOrderQuotePdf(order) {
     }).from(renderNode);
 
     // PDF болгохоос өмнө canvas дээр бодит текст/хүснэгтийн пиксел буусан эсэхийг шалгана.
-    const canvas = await worker.toCanvas().get("canvas");
-    if (!canvas || canvas.width < 100 || canvas.height < 100) {
-      throw new Error("PDF-ийн зураглал үүссэнгүй. Дахин оролдоно уу.");
+    // Canvas-ийг үүсгэх болон авах үйлдлийг тусад нь await хийж,
+    // html2pdf Worker-ийн chain дотор canvas хоосон уншигдахаас сэргийлнэ.
+    await worker.toCanvas();
+    const canvas = await worker.get("canvas");
+    if (!canvas || !canvas.width || !canvas.height || canvas.width < 100 || canvas.height < 100) {
+      throw new Error("PDF зураглалын хэмжээ буруу байна. Хуудсыг дахин ачаалаад оролдоно уу.");
     }
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) throw new Error("PDF зураглалыг уншиж чадсангүй. Дахин оролдоно уу.");
     const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
     let visibleContentPixels = 0;
     for (let i = 0; i < pixels.length; i += 4 * 20) {
