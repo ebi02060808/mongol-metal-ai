@@ -270,7 +270,17 @@
     Захиалгуудыг ачаалж байна...
   </div>
 </div>
-      <div class="section" id="financeSection">
+      <div class="section" id="staffSection" style="display:none;">
+        <h2>👷 Ажилтны эрхийн удирдлага</h2>
+        <p style="color:#64748b;margin-bottom:12px;">Ажилтан системд бүртгэлтэй имэйл хаягаараа нэвтэрнэ. Эхлээд тухайн хүн Supabase Auth-д хэрэглэгчээр бүртгүүлсэн байх шаардлагатай.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;">
+          <input id="staffEmail" type="email" placeholder="Ажилтны бүртгэлтэй имэйл" style="flex:1;min-width:220px;padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <button type="button" onclick="addStaff()" style="padding:10px 16px;background:#2563eb;color:white;border:0;border-radius:8px;">Ажилтан нэмэх</button>
+        </div>
+        <p id="staffMessage" style="margin:8px 0;color:#475569;"></p>
+        <div id="staffList">Ажилтнуудыг ачаалж байна...</div>
+      </div>
+      <div class="section" id="financeSection" style="display:none;">
         <h2>💰 Орлого, зарлагын тайлан</h2>
         <div id="financeSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:15px 0;">
           <div style="padding:16px;background:#ecfdf5;border-radius:10px;"><small>Нийт орлого</small><h3 id="financeIncome">0 ₮</h3></div>
@@ -317,6 +327,7 @@
     );
 
 let currentQuote = null;
+let currentUserRole = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   ["dimensions", "quantity", "unitPrice"].forEach(id => {
@@ -717,7 +728,7 @@ async function loadOrders() {
                   <button style="padding:6px 8px;margin:2px;" onclick="viewOrderHistory('${order.id}')">Түүх</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="viewOrderPhotos('${order.id}')">Зураг</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="editOrder('${order.id}')">Засах</button>
-                  <button style="padding:6px 8px;margin:2px;" onclick="deleteOrder('${order.id}')">Устгах</button>
+${currentUserRole === "admin" ? `                  <button style="padding:6px 8px;margin:2px;" onclick="deleteOrder('${order.id}')">Устгах</button>` : ""}
                 </td>
               </tr>`;
           }).join("")}
@@ -796,11 +807,73 @@ window.viewOrderHistory = async function(orderId) {
   ).join("");
 };
 
+
+async function staffApi(action, payload = {}) {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) throw new Error("Та эхлээд нэвтэрнэ үү.");
+  const response = await fetch("/api/manage-staff", {
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer " + session.access_token},
+    body:JSON.stringify({action,...payload})
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success) throw new Error(result.error || "Ажилтны эрхийн үйлдэл амжилтгүй.");
+  return result;
+}
+
+window.loadStaff = async function() {
+  if (currentUserRole !== "admin") return;
+  const list = document.getElementById("staffList");
+  try {
+    const result = await staffApi("list");
+    if (!result.employees.length) {
+      list.textContent = "Одоогоор ажилтны эрх олгосон хүн байхгүй байна.";
+      return;
+    }
+    list.innerHTML = result.employees.map(employee =>
+      "<div style='display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid #e2e8f0;padding:12px;border-radius:8px;margin:8px 0;'>" +
+      "<span><strong>" + escapeHTML(employee.email || "Имэйл олдсонгүй") + "</strong><br><small style='color:#64748b;'>Ажилтан</small></span>" +
+      "<button onclick=\"removeStaff('" + escapeHTML(employee.user_id) + "')\" style='padding:7px 10px;border:0;border-radius:7px;background:#fee2e2;color:#991b1b;'>Эрх цуцлах</button></div>"
+    ).join("");
+  } catch(error) {
+    list.textContent = "Алдаа: " + error.message;
+  }
+};
+
+window.addStaff = async function() {
+  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  const emailInput = document.getElementById("staffEmail");
+  const message = document.getElementById("staffMessage");
+  const email = emailInput.value.trim();
+  if (!email) { message.textContent = "Ажилтны имэйл хаягийг оруулна уу."; return; }
+  try {
+    const result = await staffApi("add", {email});
+    message.textContent = "✅ " + result.message;
+    emailInput.value = "";
+    await loadStaff();
+  } catch(error) {
+    message.textContent = "Алдаа: " + error.message;
+  }
+};
+
+window.removeStaff = async function(userId) {
+  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (!confirm("Энэ ажилтны системд нэвтрэх эрхийг цуцлах уу?")) return;
+  try {
+    const result = await staffApi("remove", {userId});
+    document.getElementById("staffMessage").textContent = "✅ " + result.message;
+    await loadStaff();
+  } catch(error) {
+    document.getElementById("staffMessage").textContent = "Алдаа: " + error.message;
+  }
+};
+
 function localDateString(date = new Date()) {
   return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
 }
 
 async function loadFinance() {
+  if (currentUserRole !== "admin") return;
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return;
   const [entriesResult, ordersResult] = await Promise.all([
@@ -841,6 +914,7 @@ async function loadFinance() {
 }
 
 window.saveFinanceEntry = async function() {
+  if (currentUserRole !== "admin") return alert("Санхүүгийн бүртгэл хийх админы эрх шаардлагатай.");
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
   const type = document.getElementById("financeType").value;
@@ -867,6 +941,7 @@ window.saveFinanceEntry = async function() {
 };
 
 window.deleteFinanceEntry = async function(id) {
+  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
   if (!confirm("Энэ санхүүгийн бүртгэлийг устгах уу?")) return;
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
@@ -1085,6 +1160,7 @@ window.editOrder = async function(orderId) {
 
 
 window.deleteOrder = async function(orderId) {
+  if (currentUserRole !== "admin") return alert("Захиалга устгах админы эрх шаардлагатай.");
   if (!confirm("Энэ захиалгыг бүрмөсөн устгах уу?")) {
     return;
   }
@@ -1192,14 +1268,15 @@ window.deleteOrder = async function(orderId) {
     .eq("user_id", session.user.id)
     .maybeSingle();
 
-  if (error || !admin || admin.role !== "admin") {
-    alert("Танд админ эрх байхгүй байна.");
+  if (error || !admin || !["admin", "employee"].includes(admin.role)) {
+    alert("Танд системд нэвтрэх эрх байхгүй байна.");
     window.location.href = "index.html";
     return false;
   }
 
+  currentUserRole = admin.role;
   document.getElementById("userEmail").textContent =
-    session.user.email;
+    session.user.email + (admin.role === "admin" ? " · Админ" : " · Ажилтан");
 
   return true;
 }
@@ -1209,14 +1286,19 @@ window.deleteOrder = async function(orderId) {
       window.location.href = "index.html";
     }
 
-checkLogin().then(isAdmin => {
-  if (isAdmin) {
+checkLogin().then(isAuthorized => {
+  if (isAuthorized) {
     loadOrders();
     loadCustomers();
     loadDashboardStats();
-    const financeDate = document.getElementById("financeDate");
-    if (financeDate) financeDate.value = localDateString();
-    loadFinance();
+    if (currentUserRole === "admin") {
+      document.getElementById("financeSection").style.display = "block";
+      document.getElementById("staffSection").style.display = "block";
+      const financeDate = document.getElementById("financeDate");
+      if (financeDate) financeDate.value = localDateString();
+      loadFinance();
+      loadStaff();
+    }
   }
 });
   </script>
