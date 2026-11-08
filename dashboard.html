@@ -291,6 +291,7 @@
           <div style="padding:16px;background:#fff7ed;border-radius:10px;"><small>Нийт зарлага</small><h3 id="financeExpense">0 ₮</h3></div>
           <div style="padding:16px;background:#eff6ff;border-radius:10px;"><small>Үлдэгдэл</small><h3 id="financeBalance">0 ₮</h3></div>
         </div>
+        <div id="financeOrderProfit" style="margin:18px 0;"></div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:15px 0;">
           <select id="financeType" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
             <option value="income">Орлого</option><option value="expense">Зарлага</option>
@@ -928,12 +929,37 @@ async function loadFinance() {
     if (selected) select.value = selected;
   }
   const entries = entriesResult.data || [];
+  const orders = ordersResult.data || [];
   const income = entries.filter(x => x.entry_type === "income").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const expense = entries.filter(x => x.entry_type === "expense").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const money = value => Math.round(value).toLocaleString("mn-MN") + " ₮";
   document.getElementById("financeIncome").textContent = money(income);
   document.getElementById("financeExpense").textContent = money(expense);
   document.getElementById("financeBalance").textContent = money(income-expense);
+
+  // Захиалга тус бүрийн бодит бүртгэлтэй орлого - холбосон зардлыг харуулна.
+  const profitRows = orders.map(order => {
+    const linked = entries.filter(entry => String(entry.order_id || "") === String(order.id));
+    const orderIncome = linked.filter(entry => entry.entry_type === "income").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    const orderExpense = linked.filter(entry => entry.entry_type === "expense").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    return { order, orderIncome, orderExpense, profit: orderIncome - orderExpense, hasEntries: linked.length > 0 };
+  }).filter(row => row.hasEntries);
+
+  const profitContainer = document.getElementById("financeOrderProfit");
+  if (profitContainer) {
+    profitContainer.innerHTML = "<h3 style='margin:12px 0;'>📈 Захиалга тус бүрийн ашиг</h3>" +
+      "<p style='font-size:13px;color:#64748b;margin-bottom:10px;'>Ашиг = тухайн захиалгад холбосон орлого − тухайн захиалгад холбосон зардал. Бүртгэлгүй зардал энэ тооцоонд орохгүй.</p>" +
+      (profitRows.length
+        ? "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;'><table style='width:100%;min-width:620px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;text-align:right;'>Орлого</th><th style='padding:10px;text-align:right;'>Зардал</th><th style='padding:10px;text-align:right;'>Зөрүү</th></tr></thead><tbody>" +
+          profitRows.map(row => "<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;'>" +
+            escapeHTML(row.order.messenger_order_number || ("Захиалга #" + row.order.id)) + "<br><span style='color:#64748b;'>" + escapeHTML(row.order.customer_name || "") + "</span></td>" +
+            "<td style='padding:10px;text-align:right;white-space:nowrap;color:#15803d;'>" + money(row.orderIncome) + "</td>" +
+            "<td style='padding:10px;text-align:right;white-space:nowrap;color:#c2410c;'>" + money(row.orderExpense) + "</td>" +
+            "<td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;color:" + (row.profit >= 0 ? "#15803d" : "#b91c1c") + ";'>" + money(row.profit) + "</td></tr>").join("") +
+          "</tbody></table></div>"
+        : "<p style='padding:14px;background:#f8fafc;border-radius:8px;color:#64748b;'>Одоогоор орлого эсвэл зардалтай холбосон захиалга алга. Бүртгэл хийхдээ захиалгаа сонгоорой.</p>");
+  }
+
   if (!entries.length) { list.textContent = "Одоогоор орлого, зарлагын бүртгэл байхгүй байна."; return; }
   list.innerHTML = "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;margin-top:14px;'><table style='width:100%;min-width:720px;border-collapse:collapse;font-size:13px;'>" +
     "<thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Огноо</th><th style='padding:10px;text-align:left;'>Төрөл</th><th style='padding:10px;text-align:left;'>Ангилал / тайлбар</th><th style='padding:10px;text-align:right;'>Дүн</th><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;'>Үйлдэл</th></tr></thead><tbody>" +
@@ -961,7 +987,7 @@ window.saveFinanceEntry = async function() {
   const { error } = await supabaseClient.from("finance_entries").insert({
     user_id:session.user.id, created_by:session.user.id, entry_type:type, amount, category,
     description:description || null, entry_date:entryDate,
-    order_id:type === "income" && orderIdValue ? Number(orderIdValue) : null
+    order_id:orderIdValue ? Number(orderIdValue) : null
   });
   if (error) {
     message.textContent = error.code === "23505" ? "Энэ захиалгын орлогыг өмнө нь бүртгэсэн байна." : "Хадгалахад алдаа гарлаа: " + error.message;
