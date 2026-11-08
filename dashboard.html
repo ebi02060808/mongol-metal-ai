@@ -737,7 +737,7 @@ async function loadOrders() {
                 <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;">${order.price == null ? "Тохиролцоно" : Number(order.price).toLocaleString("mn-MN") + " ₮"}</td>
                  <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;color:${normalizedStatus === "Дууссан" && Number(order.unpaid_balance || 0) > 0 ? "#b91c1c" : "#64748b"};">
                    ${normalizedStatus !== "Дууссан" ? "—" : (order.unpaid_balance == null ? "Оруулаагүй" : Number(order.unpaid_balance).toLocaleString("mn-MN") + " ₮")}
-                   ${currentUserRole === "admin" && normalizedStatus === "Дууссан" ? "<div style='display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;margin-top:7px;'><button type='button' style='padding:7px 9px;background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;' onclick='editUnpaidBalance(" + JSON.stringify(order.id) + ", " + (order.unpaid_balance == null ? 0 : Number(order.unpaid_balance)) + ")'>✏️ Үлдэгдэл засах</button>" + (order.unpaid_balance == null ? "<span style='display:inline-block;padding:6px 8px;background:#fef3c7;color:#92400e;border-radius:6px;font-size:12px;'>⚠️ Дүн оруулаагүй</span>" : (Number(order.unpaid_balance) > 0 ? "<button type='button' style='padding:7px 9px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;' onclick='markUnpaidBalancePaid(" + JSON.stringify(order.id) + ", " + Number(order.unpaid_balance) + ")'>✓ Үлдэгдэл төлөгдсөн</button>" : "<span style='display:inline-block;padding:6px 8px;background:#dcfce7;color:#166534;border-radius:6px;font-size:12px;'>✓ Төлөгдсөн</span>")) + "</div>" : ""}
+                   ${currentUserRole === "admin" && normalizedStatus === "Дууссан" ? (order.unpaid_balance == null ? "<div style='margin-top:7px;color:#92400e;font-size:12px;'>⚠️ Дүн оруулаагүй</div>" : (Number(order.unpaid_balance) > 0 ? "<div style='margin-top:7px;'><button type='button' style='padding:7px 9px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;' onclick='markUnpaidBalancePaid(" + JSON.stringify(order.id) + ", " + Number(order.unpaid_balance) + ")'>✓ Үлдэгдэл төлөгдсөн</button></div>" : "<div style='margin-top:7px;'><span style='display:inline-block;padding:6px 8px;background:#dcfce7;color:#166534;border-radius:6px;font-size:12px;'>✓ Төлөгдсөн</span></div>")) : ""}
                  </td>
                 <td style="padding:11px 10px;white-space:nowrap;">${new Date(order.created_at).toLocaleDateString("mn-MN")}</td>
                 <td style="padding:11px 10px;">
@@ -805,45 +805,25 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
 }
 
 
-window.editUnpaidBalance = async function(orderId, currentAmount) {
-  const value = prompt("Энэ захиалгын ОДОО ТӨЛӨГДӨӨГҮЙ үлдэгдлийг оруулна уу (₮). Бүрэн төлөгдсөн бол 0 гэж бичнэ үү:", String(currentAmount || 0));
-  if (value === null) return;
-  const amount = Number(String(value).replace(/,/g, "").trim());
-  if (!Number.isFinite(amount) || amount < 0 || amount > 100000000000) {
-    alert("Үлдэгдлийн дүнг 0 эсвэл түүнээс их тоогоор зөв оруулна уу.");
-    return;
-  }
-  try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) throw new Error("Та эхлээд нэвтэрнэ үү.");
-    const response = await fetch("/api/update-order-status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.access_token },
-      body: JSON.stringify({ orderId, newStatus: "Дууссан", unpaidBalance: amount, updateUnpaidBalanceOnly: true })
-    });
-    const result = await response.json();
-    if (!response.ok || !result.success) throw new Error(result.error || "Үлдэгдэл шинэчилж чадсангүй.");
-    alert(amount > 0 ? "Үлдэгдэл шинэчлэгдлээ. Захиалга өнгөөр ялгаатай хэвээр байна." : "Төлбөр бүрэн төлөгдсөнөөр тэмдэглэлээ. Захиалга хэвийн өнгөтэй боллоо.");
-    await loadOrders();
-    if (currentUserRole === "admin") await loadFinance();
-  } catch (error) {
-    alert("Алдаа: " + error.message);
-  }
-};
-
 window.markUnpaidBalancePaid = async function(orderId, currentAmount) {
-  if (!confirm("Харилцагч " + Number(currentAmount || 0).toLocaleString("mn-MN") + " ₮-ийн үлдэгдлээ бүрэн төлсөн гэж тэмдэглэх үү?")) return;
+  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (!confirm("Харилцагч " + Number(currentAmount || 0).toLocaleString("mn-MN") + " ₮-ийн үлдэгдлээ бүрэн төлсөн гэж тэмдэглэж, орлогод бүртгэх үү?")) return;
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) throw new Error("Та эхлээд нэвтэрнэ үү.");
     const response = await fetch("/api/update-order-status", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.access_token },
-      body: JSON.stringify({ orderId, newStatus: "Дууссан", unpaidBalance: 0, updateUnpaidBalanceOnly: true })
+      body: JSON.stringify({
+        orderId,
+        newStatus: "Дууссан",
+        markUnpaidBalancePaid: true,
+        entryDate: localDateString()
+      })
     });
     const result = await response.json();
-    if (!response.ok || !result.success) throw new Error(result.error || "Үлдэгдлийг шинэчилж чадсангүй.");
-    alert("Үлдэгдлийг төлөгдсөн гэж тэмдэглэлээ. Өмнөх орлого, зарлагын бүртгэл өөрчлөгдөөгүй.");
+    if (!response.ok || !result.success) throw new Error(result.error || "Үлдэгдэл төлбөр бүртгэж чадсангүй.");
+    alert(result.message + (result.amount ? "\nОрлогод бүртгэсэн дүн: " + Number(result.amount).toLocaleString("mn-MN") + " ₮" : ""));
     await loadOrders();
     if (currentUserRole === "admin") await loadFinance();
   } catch (error) {
@@ -866,7 +846,7 @@ window.viewOrderHistory = async function(orderId) {
   if (error) return alert("Түүх авахад алдаа гарлаа: " + error.message);
 
   const labels = { created:"Захиалга үүсгэсэн", updated:"Мэдээлэл өөрчилсөн", deleted:"Захиалга устгасан", baseline:"Өмнөх захиалгын эхний бүртгэл" };
-  const fields = { customer_name:"Харилцагч", phone:"Утас", product:"Бүтээгдэхүүн", size:"Хэмжээ", quantity:"Тоо ширхэг", area_per_unit:"Нэгж талбай", unit_price:"1 м² үнэ", price:"Нийт үнэ", status:"Төлөв" };
+  const fields = { customer_name:"Харилцагч", phone:"Утас", product:"Бүтээгдэхүүн", size:"Хэмжээ", quantity:"Тоо ширхэг", area_per_unit:"Нэгж талбай", unit_price:"1 м² үнэ", price:"Нийт үнэ", unpaid_balance:"Төлөгдөөгүй үлдэгдэл", payment_amount:"Төлсөн дүн", payment_category:"Төлбөрийн төрөл", status:"Төлөв" };
   const moneyFields = ["unit_price","price"];
   const renderValues = values => {
     if (!values) return "<span style='color:#64748b;'>—</span>";
