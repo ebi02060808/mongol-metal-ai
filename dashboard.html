@@ -318,7 +318,7 @@
 
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
   <script>
 
     const SUPABASE_URL = "https://sqywsxbaknjznvohnsim.supabase.co";
@@ -445,24 +445,29 @@ async function downloadQuotePDF() {
     alert("Эхлээд үнийн санал тооцоолно уу.");
     return;
   }
-  if (typeof html2pdf !== "function") {
-    alert("PDF сан ачаалагдсангүй. Интернэт холболтоо шалгаад дахин оролдоно уу.");
-    return;
-  }
-  const filename = "Mongol-Metal-Quote-" +
-    currentQuote.date.toISOString().slice(0, 10) + ".pdf";
   try {
-    await html2pdf().set({
-      margin: 10,
-      filename,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    }).from(document.getElementById("quotePaper")).save();
+    const doc = await buildQuotePdfDocument({
+      orderNumber: "MM-" + currentQuote.date.toISOString().slice(0, 10).replace(/-/g, ""),
+      date: currentQuote.date,
+      customerName: currentQuote.customerName,
+      phone: currentQuote.phone,
+      items: [{
+        product: currentQuote.product,
+        size: currentQuote.size || "—",
+        quantity: currentQuote.quantity,
+        unitPrice: currentQuote.unitPrice,
+        total: currentQuote.total,
+        negotiable: false
+      }],
+      totalPrice: currentQuote.total,
+      totalArea: currentQuote.quantity,
+      totalPieces: 0
+    });
+    doc.save("Mongol-Metal-Quote-" + currentQuote.date.toISOString().slice(0, 10) + ".pdf");
     document.getElementById("quoteMessage").textContent = "PDF файл татагдлаа. Үнийн санал Dashboard-д хэвээр байна.";
   } catch (error) {
     console.error("PDF үүсгэх алдаа:", error);
-    alert("PDF үүсгэхэд алдаа гарлаа. Дахин оролдоно уу.");
+    alert("PDF үүсгэхэд алдаа гарлаа: " + error.message);
   }
 }
 
@@ -1071,8 +1076,171 @@ function escapeHTML(value) {
 }
 
 
+let quotePdfFontPromise = null;
+
+async function loadQuotePdfFont() {
+  if (!quotePdfFontPromise) {
+    quotePdfFontPromise = (async () => {
+      const fontUrl = "https://cdn.jsdelivr.net/gh/notofonts/noto-fonts@main/hinted/ttf/NotoSans/NotoSans-Regular.ttf";
+      const response = await fetch(fontUrl, { mode: "cors", cache: "force-cache" });
+      if (!response.ok) throw new Error("Монгол кирилл фонт татагдсангүй. Интернэт холболтоо шалгана уу.");
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      let binary = "";
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      return binary;
+    })().catch(error => {
+      quotePdfFontPromise = null;
+      throw error;
+    });
+  }
+  return quotePdfFontPromise;
+}
+
+async function buildQuotePdfDocument(data) {
+  if (!window.jspdf || typeof window.jspdf.jsPDF !== "function") {
+    throw new Error("PDF сан ачаалагдсангүй. Хуудсыг дахин ачаална уу.");
+  }
+  const fontData = await loadQuotePdfFont();
+  const doc = new window.jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+  doc.addFileToVFS("NotoSans-Regular.ttf", fontData);
+  doc.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
+  doc.setFont("NotoSans", "normal");
+
+  const pageWidth = 210;
+  const margin = 15;
+  const contentWidth = pageWidth - margin * 2;
+  const money = value => Math.round(Number(value || 0)).toLocaleString("mn-MN") + " ₮";
+  let y = 18;
+
+  doc.setFillColor(17, 24, 39);
+  doc.rect(margin, y, contentWidth, 2, "F");
+  y += 12;
+  doc.setTextColor(17, 24, 39);
+  doc.setFontSize(19);
+  doc.text("МОНГОЛ МЕТАЛЛ ХИЙЦ", margin, y);
+  y += 7;
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Чанартай хийц, бат бөх суурилуулалт", margin, y);
+  y += 10;
+  doc.setTextColor(17, 24, 39);
+  doc.setFontSize(16);
+  doc.text("ҮНИЙН САНАЛ", margin, y);
+  y += 10;
+
+  const meta = [
+    ["Захиалгын дугаар:", String(data.orderNumber || "—")],
+    ["Огноо:", new Date(data.date || Date.now()).toLocaleDateString("mn-MN")],
+    ["Харилцагч:", String(data.customerName || "—")],
+    ["Утас:", String(data.phone || "—")]
+  ];
+  doc.setFontSize(9.5);
+  for (const [label, value] of meta) {
+    doc.setTextColor(71, 85, 105);
+    doc.text(label, margin, y);
+    doc.setTextColor(17, 24, 39);
+    doc.text(doc.splitTextToSize(value, 135), margin + 32, y);
+    y += 6;
+  }
+  y += 5;
+
+  const columns = [
+    { title: "Бүтээгдэхүүн / ажил", width: 48 },
+    { title: "Хэмжээ", width: 32 },
+    { title: "Тоо", width: 25 },
+    { title: "Нэгж үнэ", width: 38 },
+    { title: "Дүн", width: 37 }
+  ];
+  const rowHeightFor = row => {
+    const values = [
+      row.product || "—",
+      row.size || "—",
+      row.quantityLabel || String(row.quantity || 1),
+      row.negotiable ? "Тохиролцоно" : money(row.unitPrice),
+      row.negotiable ? "Тохиролцоно" : money(row.total)
+    ];
+    const widths = columns.map(c => c.width - 4);
+    const lines = values.map((v, i) => doc.splitTextToSize(String(v), widths[i]));
+    return { values, lines, height: Math.max(10, ...lines.map(line => line.length * 4.2 + 3)) };
+  };
+  const drawTableHeader = () => {
+    doc.setFillColor(241, 245, 249);
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(margin, y, contentWidth, 10, "FD");
+    let x = margin;
+    doc.setFontSize(8);
+    doc.setTextColor(30, 41, 59);
+    columns.forEach(col => {
+      doc.text(col.title, x + 2, y + 6.5);
+      x += col.width;
+    });
+    y += 10;
+  };
+  drawTableHeader();
+
+  for (const rawRow of (data.items || [])) {
+    const row = rowHeightFor(rawRow);
+    if (y + row.height > 270) {
+      doc.addPage();
+      y = 18;
+      drawTableHeader();
+    }
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(margin, y, contentWidth, row.height);
+    let x = margin;
+    doc.setFontSize(8);
+    doc.setTextColor(30, 41, 59);
+    row.lines.forEach((lines, i) => {
+      doc.text(lines, x + 2, y + 5, { lineHeightFactor: 1.15 });
+      x += columns[i].width;
+    });
+    x = margin;
+    for (const col of columns) {
+      x += col.width;
+      if (x < margin + contentWidth) doc.line(x, y, x, y + row.height);
+    }
+    y += row.height;
+  }
+
+  y += 9;
+  if (y > 260) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+  if (data.totalPieces) {
+    doc.text("Нийт ширхэг: " + Number(data.totalPieces).toLocaleString("mn-MN") + " ш", margin, y);
+    y += 6;
+  }
+  doc.text("Нийт талбай: " + Number(data.totalArea || 0).toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²", margin, y);
+  y += 12;
+  doc.setFontSize(13);
+  doc.setTextColor(17, 24, 39);
+  const totalLabel = data.totalPrice == null ? "НИЙТ ДҮН: Ажлын хөлсийг тохиролцоно" : "НИЙТ ДҮН: " + money(data.totalPrice);
+  doc.text(doc.splitTextToSize(totalLabel, contentWidth), pageWidth - margin, y, { align: "right" });
+  y += 20;
+  if (y > 270) {
+    doc.addPage();
+    y = 25;
+  }
+  doc.setDrawColor(203, 213, 225);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 8;
+  doc.setFontSize(9);
+  doc.setTextColor(51, 65, 85);
+  doc.text("Баталгаат хугацаа: 2 жил", margin, y);
+  y += 6;
+  doc.text(doc.splitTextToSize("Үнийн саналтай холбоотой нэмэлт нөхцөлийг захиалга баталгаажуулах үед тохиролцоно.", contentWidth), margin, y);
+  y += 12;
+  doc.text("Хүндэтгэсэн, Монгол металл хийц", margin, y);
+  return doc;
+}
+
 async function createOrderQuotePdf(order) {
-  if (typeof html2pdf !== "function") throw new Error("PDF сан ачаалагдсангүй. Интернэт холболтоо шалгана уу.");
   const savedItems = Array.isArray(order.quote_items) ? order.quote_items : [];
   const items = savedItems.length ? savedItems : [{
     product_type: order.product || "—",
@@ -1091,148 +1259,39 @@ async function createOrderQuotePdf(order) {
   const totalPieces = items.reduce((sum, item) => sum + (item.width != null && item.height != null ? Number(item.quantity || 1) : 0), 0);
   const totalArea = items.reduce((sum, item) => sum + Number(item.area || 0) * Number(item.quantity || 1), 0);
   const money = value => Math.round(Number(value || 0)).toLocaleString("mn-MN") + " ₮";
-  const orderNumber = order.messenger_order_number || ("MP-" + order.id);
-  const rows = items.map((item, index) => {
+  const rows = items.map(item => {
     const qty = Number(item.quantity || 1);
     const area = Number(item.area || 0) * qty;
     const isFacade = item.width == null || item.height == null;
     const size = !isFacade
       ? Number(item.width) + " × " + Number(item.height) + " м"
       : (item.fallback_size || (Number(item.area || 0).toFixed(2) + " м²"));
-    const quantityLabel = isFacade ? Number(item.area || 0).toFixed(2) + " м²" : qty.toLocaleString("mn-MN") + " ш";
-    const isNegotiable = item.pricing_mode === "labor_only";
-    const unitPrice = Number(item.unit_price || 0);
-    const lineTotal = Number(item.total_price || (area * unitPrice));
-    return '<tr>' +
-      '<td style="border:1px solid #cbd5e1;padding:9px;">' + (index + 1) + '. ' + escapeHTML(item.product_type || order.product || "—") + '</td>' +
-      '<td style="border:1px solid #cbd5e1;padding:9px;">' + escapeHTML(size) + '</td>' +
-      '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + quantityLabel + '</td>' +
-      '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + (isNegotiable ? 'Тохиролцоно' : money(unitPrice) + '/м²') + '</td>' +
-      '<td style="border:1px solid #cbd5e1;padding:9px;text-align:right;">' + (isNegotiable ? 'Тохиролцоно' : money(lineTotal)) + '</td>' +
-    '</tr>';
-  }).join("");
-  const paper = document.getElementById("quotePaper");
-  paper.innerHTML =
-    '<div style="border-bottom:3px solid #111827;padding-bottom:18px;margin-bottom:25px;">' +
-      '<h1 style="font-size:27px;margin:0 0 6px;">МОНГОЛ МЕТАЛЛ ХИЙЦ</h1>' +
-      '<p style="font-size:13px;color:#475569;">Чанартай хийц, бат бөх суурилуулалт</p>' +
-      '<h2 style="margin-top:28px;font-size:22px;">ҮНИЙН САНАЛ</h2></div>' +
-    '<p><strong>Захиалгын дугаар:</strong> ' + escapeHTML(orderNumber) + '</p>' +
-    '<p><strong>Огноо:</strong> ' + new Date().toLocaleDateString("mn-MN") + '</p>' +
-    '<p><strong>Харилцагч:</strong> ' + escapeHTML(order.customer_name || "—") + '</p>' +
-    '<p><strong>Утас:</strong> ' + escapeHTML(order.phone || "—") + '</p>' +
-    '<table style="width:100%;border-collapse:collapse;margin-top:24px;font-size:13px;"><thead><tr style="background:#f1f5f9;">' +
-    '<th style="border:1px solid #cbd5e1;padding:9px;text-align:left;">Бүтээгдэхүүн / ажил</th>' +
-    '<th style="border:1px solid #cbd5e1;padding:9px;text-align:left;">Хэмжээ</th>' +
-    '<th style="border:1px solid #cbd5e1;padding:9px;text-align:right;">Тоо</th>' +
-    '<th style="border:1px solid #cbd5e1;padding:9px;text-align:right;">Нэгж үнэ</th>' +
-    '<th style="border:1px solid #cbd5e1;padding:9px;text-align:right;">Дүн</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-    (totalPieces ? '<p style="margin-top:12px;">Нийт ширхэг: ' + totalPieces.toLocaleString("mn-MN") + ' ш</p>' : '') +
-    '<p>Нийт талбай: ' + totalArea.toLocaleString("mn-MN", {maximumFractionDigits:2}) + ' м²</p>' +
-    '<p style="text-align:right;margin-top:24px;font-size:21px;font-weight:700;">НИЙТ ДҮН: ' + (totalPrice == null ? 'Ажлын хөлсийг тохиролцоно' : money(totalPrice)) + '</p>' +
-    '<div style="margin-top:42px;padding-top:18px;border-top:1px solid #cbd5e1;font-size:13px;color:#334155;">' +
-    '<p><strong>Баталгаат хугацаа:</strong> 2 жил</p>' +
-    '<p>Үнийн саналтай холбоотой нэмэлт нөхцөлийг захиалга баталгаажуулах үед тохиролцоно.</p>' +
-    '<p style="margin-top:28px;">Хүндэтгэсэн, Монгол металл хийц</p></div>';
-  // PDF-д зориулсан агуулгыг дэлгэцнээс гадуур биш, body-ийн эхэнд
-  // тусдаа харагдах render хэсэгт байрлуулна.
-  const renderNode = document.createElement("div");
-  renderNode.id = "quotePaperPdfRender";
-  renderNode.innerHTML = paper.innerHTML;
-  renderNode.style.cssText = [
-    "position:absolute",
-    "left:0",
-    "top:0",
-    "display:block",
-    "visibility:visible",
-    "opacity:1",
-    "z-index:2147483647",
-    "width:794px",
-    "min-height:1123px",
-    "height:auto",
-    "box-sizing:border-box",
-    "padding:48px",
-    "margin:0",
-    "overflow:visible",
-    "background:#ffffff",
-    "color:#111827",
-    "font-family:Arial,sans-serif",
-    "pointer-events:none"
-  ].join(";");
-  document.body.appendChild(renderNode);
-
-  let blob;
-  try {
-    if (document.fonts?.ready) await document.fonts.ready;
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-    if (!renderNode.innerText || renderNode.innerText.trim().length < 30) {
-      throw new Error("PDF-д оруулах захиалгын мэдээлэл хоосон байна.");
-    }
-
-    const worker = html2pdf().set({
-      margin: 10,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: 794,
-        windowHeight: Math.max(1123, renderNode.scrollHeight)
-      },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    }).from(renderNode);
-
-    // PDF болгохоос өмнө canvas дээр бодит текст/хүснэгтийн пиксел буусан эсэхийг шалгана.
-    // html2pdf-ийн Worker.get() нь canvas-ийг шууд return хийдэггүй,
-    // callback-аар өгдөг. Иймээс Promise болгон зөв утгыг авна.
-    const canvasWorker = worker.toCanvas();
-    const canvas = await new Promise((resolve, reject) => {
-      try {
-        canvasWorker.get("canvas", resolve);
-      } catch (error) {
-        reject(error);
-      }
-    });
-    if (!canvas || !canvas.width || !canvas.height || canvas.width < 100 || canvas.height < 100) {
-      throw new Error("PDF зураглалын хэмжээ буруу байна. Хуудсыг дахин ачаалаад оролдоно уу.");
-    }
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) throw new Error("PDF зураглалыг уншиж чадсангүй. Дахин оролдоно уу.");
-    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    let visibleContentPixels = 0;
-    for (let i = 0; i < pixels.length; i += 4 * 20) {
-      if (pixels[i + 3] > 0 &&
-          (pixels[i] < 235 || pixels[i + 1] < 235 || pixels[i + 2] < 235)) {
-        visibleContentPixels++;
-        if (visibleContentPixels > 25) break;
-      }
-    }
-    if (visibleContentPixels <= 25) {
-      throw new Error("PDF-ийн агуулга хоосон зураглагдлаа. Файлыг илгээхээс өмнө зогсоолоо.");
-    }
-
-    blob = await canvasWorker.toPdf().outputPdf("blob");
-  } finally {
-    renderNode.remove();
-  }
-
-  if (!blob || blob.size < 1000) {
-    throw new Error("PDF үүссэн боловч агуулга хоосон байна. Дахин оролдоно уу.");
-  }
-  if (blob.size > 3 * 1024 * 1024) {
-    throw new Error("PDF файл 3 MB-аас их байна.");
-  }
-
+    return {
+      product: item.product_type || order.product || "—",
+      size,
+      quantityLabel: isFacade ? Number(item.area || 0).toFixed(2) + " м²" : qty.toLocaleString("mn-MN") + " ш",
+      quantity: qty,
+      unitPrice: Number(item.unit_price || 0),
+      total: Number(item.total_price || (area * Number(item.unit_price || 0))),
+      negotiable: item.pricing_mode === "labor_only"
+    };
+  });
+  const doc = await buildQuotePdfDocument({
+    orderNumber: order.messenger_order_number || ("MP-" + order.id),
+    date: new Date(),
+    customerName: order.customer_name,
+    phone: order.phone,
+    items: rows,
+    totalPrice,
+    totalArea,
+    totalPieces
+  });
+  const blob = doc.output("blob");
+  if (!blob || blob.size < 1000) throw new Error("PDF үүссэн боловч файл хоосон байна.");
+  if (blob.size > 3 * 1024 * 1024) throw new Error("PDF файл 3 MB-аас их байна.");
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const signature = String.fromCharCode(...bytes.subarray(0, 5));
-  if (signature !== "%PDF-") {
-    throw new Error("PDF файлын бүтэц буруу үүссэн байна.");
-  }
-
+  if (signature !== "%PDF-") throw new Error("PDF файлын бүтэц буруу үүссэн байна.");
   let binary = "";
   for (let i = 0; i < bytes.length; i += 32768) {
     binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
