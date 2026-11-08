@@ -60,19 +60,31 @@ export default async function handler(req, res) {
     const currentStatus = String(order.status || "Шинэ").startsWith("Шинэ захиалга")
       ? "Шинэ"
       : String(order.status || "Шинэ");
-    if (req.body?.updateUnpaidBalanceOnly === true) {
-      if (!isAdmin) return res.status(403).json({ error: "Төлөгдөөгүй үлдэгдэл засах эрх зөвхөн админд байна." });
-      const amount = Number(unpaidBalance);
-      if (newStatus !== "Дууссан" || currentStatus !== "Дууссан" ||
-          !Number.isFinite(amount) || amount < 0 || amount > 100000000000) {
-        return res.status(400).json({ error: "Дууссан захиалгын төлөгдөөгүй үлдэгдлийн дүн буруу байна." });
+    if (req.body?.markUnpaidBalancePaid === true) {
+      if (!isAdmin) return res.status(403).json({ error: "Үлдэгдэл төлөгдсөнөөр тэмдэглэх эрх зөвхөн админд байна." });
+      if (newStatus !== "Дууссан" || currentStatus !== "Дууссан") {
+        return res.status(400).json({ error: "Зөвхөн дууссан захиалгын үлдэгдлийг төлөгдсөнөөр тэмдэглэнэ." });
       }
-      const { error: balanceUpdateError } = await supabase.from("orders")
-        .update({ unpaid_balance: amount })
-        .eq("id", orderId)
-        .eq("user_id", ownerUserId);
-      if (balanceUpdateError) return res.status(500).json({ error: "Үлдэгдэл хадгалж чадсангүй: " + balanceUpdateError.message });
-      return res.status(200).json({ success: true, message: "Төлөгдөөгүй үлдэгдэл шинэчлэгдлээ." });
+      const entryDate = String(req.body?.entryDate || "").trim();
+      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)) {
+        return res.status(400).json({ error: "Төлбөрийн огноо буруу байна." });
+      }
+      const { data: paymentResult, error: paymentError } = await supabase.rpc("mark_order_unpaid_balance_paid", {
+        p_order_id: orderId,
+        p_owner_user_id: ownerUserId,
+        p_actor_user_id: user.id,
+        p_entry_date: entryDate
+      });
+      if (paymentError) return res.status(500).json({ error: "Үлдэгдэл төлбөрийн орлого бүртгэж чадсангүй: " + paymentError.message });
+      return res.status(200).json({
+        success: true,
+        amount: Number(paymentResult?.amount || 0),
+        alreadyPaid: Boolean(paymentResult?.already_paid),
+        incomeRecorded: Boolean(paymentResult?.income_recorded),
+        message: paymentResult?.already_paid
+          ? "Энэ захиалгын үлдэгдэл өмнө нь төлөгдсөн байна."
+          : "Үлдэгдэл төлбөр орлогод бүртгэгдэж, захиалгын үлдэгдэл 0 боллоо."
+      });
     }
 
     if (!isAdmin && (["Баталгаажсан", "Дууссан"].includes(newStatus) || ["Баталгаажсан", "Дууссан"].includes(currentStatus))) {
