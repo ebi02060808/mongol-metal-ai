@@ -16,7 +16,7 @@ async function requireAdmin(req) {
   if (error || !member || member.role !== "admin") {
     return { error: "Зөвхөн админ ажилтны эрх удирдах боломжтой.", status: 403 };
   }
-  return { user };
+  return { user, member };
 }
 
 async function findAuthUserByEmail(email) {
