@@ -159,54 +159,67 @@ export default async function handler(req, res) {
       }
     }
 
-    // Баталгаажсан захиалгын үед бодитоор авсан мөнгийг компанийн орлогоор бүртгэнэ.
+    // Баталгаажсан үед урьдчилгаа эсвэл бүтэн төлбөрийг тусдаа ангиллаар бүртгэнэ.
     let confirmationIncomeEntryId = null;
     let confirmationIncomeAlreadyRecorded = false;
     if (newStatus === "Баталгаажсан") {
       const amount = Number(confirmationIncome?.amount);
-      const description = String(confirmationIncome?.description || "").trim();
+      const paymentType = confirmationIncome?.paymentType === "full" ? "full" : confirmationIncome?.paymentType === "deposit" ? "deposit" : "";
       const entryDate = String(confirmationIncome?.entryDate || "").trim();
-      if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000 ||
-          description.length > 500 ||
+      if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000 || !paymentType ||
           !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
-        return res.status(400).json({ error: "Бодитоор авсан орлогын дүн эсвэл огноо буруу байна." });
+        return res.status(400).json({ error: "Төлбөрийн төрөл, бодитоор авсан орлогын дүн эсвэл огноо буруу байна." });
       }
-
+      const category = paymentType === "deposit" ? "Урьдчилгаа орлого" : "Бүтэн төлбөрийн орлого";
       const { data: priorIncome, error: priorIncomeError } = await supabase
-        .from("finance_entries")
-        .select("id")
-        .eq("user_id", ownerUserId)
-        .eq("order_id", orderId)
-        .eq("entry_type", "income")
-        .ilike("description", "Баталгаажсан захиалгын орлого:%")
-        .limit(1)
-        .maybeSingle();
+        .from("finance_entries").select("id").eq("user_id", ownerUserId).eq("order_id", orderId)
+        .eq("entry_type", "income").eq("category", category).limit(1).maybeSingle();
       if (priorIncomeError) return res.status(500).json({ error: "Өмнөх орлогыг шалгаж чадсангүй: " + priorIncomeError.message });
-
       if (priorIncome) {
         confirmationIncomeAlreadyRecorded = true;
       } else {
-        const incomeDescription = "Баталгаажсан захиалгын орлого: " + (description || "Бодитоор хүлээн авсан төлбөр");
         const { data: insertedIncome, error: incomeInsertError } = await supabase
-          .from("finance_entries")
-          .insert({
-            user_id: ownerUserId,
-            created_by: user.id,
-            order_id: orderId,
-            entry_type: "income",
-            amount,
-            category: "Захиалгын орлого",
-            description: incomeDescription,
+          .from("finance_entries").insert({
+            user_id: ownerUserId, created_by: user.id, order_id: orderId, entry_type: "income",
+            amount, category, description: category + ": " + (confirmationIncome.description || "Бодитоор хүлээн авсан төлбөр"),
             entry_date: entryDate
-          })
-          .select("id")
-          .single();
+          }).select("id").single();
         if (incomeInsertError) return res.status(500).json({ error: "Орлого бүртгэж чадсангүй. Захиалгын төлөв өөрчлөгдөөгүй: " + incomeInsertError.message });
         confirmationIncomeEntryId = insertedIncome.id;
       }
     }
 
-    // Захиалга дуусгах үеийн зарлагыг админ эсвэл ажилтны нэр дээр компанийн санхүүтэй холбоно.
+    // Дууссан үед бодитоор авсан үлдэгдэл төлбөрийг тусдаа орлогоор бүртгэнэ.
+    let remainingIncomeEntryId = null;
+    let remainingIncomeAlreadyRecorded = false;
+    if (newStatus === "Дууссан" && remainingIncome) {
+      const amount = Number(remainingIncome.amount);
+      const entryDate = String(remainingIncome.entryDate || "").trim();
+      if (!Number.isFinite(amount) || amount < 0 || amount > 100000000000 || !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
+        return res.status(400).json({ error: "Үлдэгдэл орлогын дүн эсвэл огноо буруу байна." });
+      }
+      if (amount > 0) {
+        const { data: priorRemaining, error: priorRemainingError } = await supabase
+          .from("finance_entries").select("id").eq("user_id", ownerUserId).eq("order_id", orderId)
+          .eq("entry_type", "income").eq("category", "Үлдэгдэл орлого").limit(1).maybeSingle();
+        if (priorRemainingError) return res.status(500).json({ error: "Өмнөх үлдэгдэл орлогыг шалгаж чадсангүй: " + priorRemainingError.message });
+        if (priorRemaining) {
+          remainingIncomeAlreadyRecorded = true;
+        } else {
+          const { data: insertedRemaining, error: remainingInsertError } = await supabase
+            .from("finance_entries").insert({
+              user_id: ownerUserId, created_by: user.id, order_id: orderId, entry_type: "income",
+              amount, category: "Үлдэгдэл орлого",
+              description: "Захиалгын үлдэгдэл төлбөр: " + String(remainingIncome.description || "").slice(0, 500),
+              entry_date: entryDate
+            }).select("id").single();
+          if (remainingInsertError) return res.status(500).json({ error: "Үлдэгдэл орлого бүртгэж чадсангүй. Захиалгын төлөв өөрчлөгдөөгүй: " + remainingInsertError.message });
+          remainingIncomeEntryId = insertedRemaining.id;
+        }
+      }
+    }
+
+    // Захиалга дуусгах үеийн нийт зарлагыг бүртгэнэ.
     let completionExpenseEntryId = null;
     let completionExpenseAlreadyRecorded = false;
     if (newStatus === "Дууссан" && completionExpense && Number(completionExpense.amount) > 0) {
@@ -270,6 +283,9 @@ export default async function handler(req, res) {
       if (completionExpenseEntryId) {
         await supabase.from("finance_entries").delete().eq("id", completionExpenseEntryId).eq("user_id", ownerUserId);
       }
+      if (remainingIncomeEntryId) {
+        await supabase.from("finance_entries").delete().eq("id", remainingIncomeEntryId).eq("user_id", ownerUserId);
+      }
       if (updateError) return res.status(500).json({ error: updateError.message });
       return res.status(404).json({ error: "Захиалга олдсонгүй." });
     }
@@ -301,16 +317,12 @@ export default async function handler(req, res) {
 
     const completionMessage = newStatus === "Баталгаажсан"
       ? (confirmationIncomeEntryId
-          ? "Захиалга баталгаажлаа. Бодитоор хүлээн авсан орлого санхүүгийн тайланд бүртгэгдлээ."
+          ? "Захиалга баталгаажлаа. Урьдчилгаа/бүтэн төлбөрийн орлого тайланд бүртгэгдлээ."
           : confirmationIncomeAlreadyRecorded
             ? "Захиалга баталгаажлаа. Энэ захиалгын орлого өмнө бүртгэгдсэн тул давхар нэмсэнгүй."
             : "Захиалга баталгаажлаа.")
       : newStatus === "Дууссан"
-        ? (completionExpenseEntryId
-            ? "Захиалга дууслаа. Зарлага санхүүгийн тайланд бүртгэгдлээ."
-            : completionExpenseAlreadyRecorded
-              ? "Захиалга дууслаа. Энэ захиалгын дуусгах үеийн зарлага өмнө бүртгэгдсэн тул давхар нэмсэнгүй."
-              : "Захиалга дууслаа. Зарлага бүртгээгүй.")
+        ? "Захиалга дууслаа. Нийт зарлага болон бодитоор авсан үлдэгдэл орлогыг санхүүгийн тайланд бүртгэлээ."
         : "Захиалгын төлөв шинэчлэгдлээ.";
 
     return res.status(200).json({
@@ -318,6 +330,8 @@ export default async function handler(req, res) {
       notificationSent: newStatus === "Үнийн санал" || Boolean(updatedOrder.messenger_sender_id && pageToken),
       incomeRecorded: Boolean(confirmationIncomeEntryId),
       incomeAlreadyRecorded: confirmationIncomeAlreadyRecorded,
+      remainingIncomeRecorded: Boolean(remainingIncomeEntryId),
+      remainingIncomeAlreadyRecorded,
       expenseRecorded: Boolean(completionExpenseEntryId),
       message: newStatus === "Үнийн санал"
         ? "Үнийн санал харилцагчийн Messenger рүү илгээгдэж, төлөв шинэчлэгдлээ."
