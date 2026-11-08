@@ -1071,49 +1071,92 @@ function escapeHTML(value) {
 }
 
 
+async function createOrderQuotePdf(order) {
+  if (typeof html2pdf !== "function") throw new Error("PDF сан ачаалагдсангүй. Интернэт холболтоо шалгана уу.");
+  const quantity = Number(order.quantity || 1);
+  const totalPrice = Number(order.price || 0);
+  const match = String(order.size || "").match(/(\d+(?:[.,]\d+)?)\s*[×xX*]\s*(\d+(?:[.,]\d+)?)/);
+  const parsedArea = match ? Number(match[1].replace(",", ".")) * Number(match[2].replace(",", ".")) : null;
+  const areaPerUnit = parsedArea > 0 ? parsedArea : Number(order.area_per_unit || 1);
+  const totalArea = areaPerUnit * quantity;
+  const unitPrice = Number(order.unit_price || (totalArea > 0 ? totalPrice / totalArea : 0));
+  const money = value => Math.round(Number(value || 0)).toLocaleString("mn-MN") + " ₮";
+  const orderNumber = order.messenger_order_number || ("MP-" + order.id);
+  const paper = document.getElementById("quotePaper");
+  paper.innerHTML =
+    '<div style="border-bottom:3px solid #111827;padding-bottom:18px;margin-bottom:25px;">' +
+      '<h1 style="font-size:27px;margin:0 0 6px;">МОНГОЛ МЕТАЛЛ ХИЙЦ</h1>' +
+      '<p style="font-size:13px;color:#475569;">Чанартай хийц, бат бөх суурилуулалт</p>' +
+      '<h2 style="margin-top:28px;font-size:22px;">ҮНИЙН САНАЛ</h2></div>' +
+    '<p><strong>Захиалгын дугаар:</strong> ' + escapeHTML(orderNumber) + '</p>' +
+    '<p><strong>Огноо:</strong> ' + new Date().toLocaleDateString("mn-MN") + '</p>' +
+    '<p><strong>Харилцагч:</strong> ' + escapeHTML(order.customer_name || "—") + '</p>' +
+    '<p><strong>Утас:</strong> ' + escapeHTML(order.phone || "—") + '</p>' +
+    '<table style="width:100%;border-collapse:collapse;margin-top:24px;font-size:14px;"><thead><tr style="background:#f1f5f9;">' +
+    '<th style="border:1px solid #cbd5e1;padding:10px;text-align:left;">Бүтээгдэхүүн / ажил</th>' +
+    '<th style="border:1px solid #cbd5e1;padding:10px;text-align:left;">Хэмжээ</th>' +
+    '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Тоо хэмжээ</th>' +
+    '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Нэгж үнэ</th>' +
+    '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Дүн</th></tr></thead><tbody><tr>' +
+    '<td style="border:1px solid #cbd5e1;padding:10px;">' + escapeHTML(order.product || "—") + '</td>' +
+    '<td style="border:1px solid #cbd5e1;padding:10px;">' + escapeHTML(order.size || (totalArea.toFixed(2) + " м²")) + '</td>' +
+    '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + quantity.toLocaleString("mn-MN") + '</td>' +
+    '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + money(unitPrice) + '</td>' +
+    '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + money(totalPrice) + '</td></tr></tbody></table>' +
+    '<p style="text-align:right;margin-top:24px;font-size:21px;font-weight:700;">Нийт дүн: ' + money(totalPrice) + '</p>' +
+    '<p>Нийт талбай: ' + totalArea.toLocaleString("mn-MN", {maximumFractionDigits:2}) + ' м²</p>' +
+    '<div style="margin-top:42px;padding-top:18px;border-top:1px solid #cbd5e1;font-size:13px;color:#334155;">' +
+    '<p><strong>Баталгаат хугацаа:</strong> 2 жил</p>' +
+    '<p>Үнийн саналтай холбоотой нэмэлт нөхцөлийг захиалга баталгаажуулах үед тохиролцоно.</p>' +
+    '<p style="margin-top:28px;">Хүндэтгэсэн, Монгол металл хийц</p></div>';
+  const blob = await html2pdf().set({
+    margin: 10,
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+  }).from(paper).outputPdf("blob");
+  if (!blob || blob.size > 5 * 1024 * 1024) throw new Error("PDF файл хоосон эсвэл 5 MB-аас их байна.");
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 32768) binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+  return btoa(binary);
+}
+
 async function updateOrderStatus(orderId, newStatus) {
   if (newStatus === "Баталгаажсан" &&
       !confirm("Харилцагчийн төлбөр дансанд орсныг шалгасан уу? Төлбөр баталгаажсан тохиолдолд л үргэлжлүүлнэ үү.")) {
     await loadOrders();
     return;
   }
-
   try {
-    const {
-      data: { session },
-      error: sessionError
-    } = await supabaseClient.auth.getSession();
-
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
     if (sessionError || !session) {
       alert("Та эхлээд нэвтэрнэ үү.");
       return;
     }
-
+    let quotePdfBase64 = null;
+    if (newStatus === "Үнийн санал") {
+      const { data: order, error: orderError } = await supabaseClient
+        .from("orders").select("*").eq("id", orderId).eq("user_id", currentOwnerUserId).single();
+      if (orderError || !order) throw new Error("Захиалгын мэдээллийг уншиж чадсангүй.");
+      quotePdfBase64 = await createOrderQuotePdf(order);
+    }
     const response = await fetch("/api/update-order-status", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({
-        orderId,
-        newStatus
-      })
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.access_token },
+      body: JSON.stringify({ orderId, newStatus, quotePdfBase64 })
     });
-
     const result = await response.json();
-
     if (!response.ok || !result.success) {
       alert("Алдаа: " + (result.error || "Төлөв шинэчилж чадсангүй."));
       await loadOrders();
       return;
     }
-
     alert(result.message);
     await loadOrders();
-
   } catch (err) {
     alert("Алдаа: " + err.message);
+    await loadOrders();
   }
 }
 
