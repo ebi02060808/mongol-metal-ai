@@ -1130,40 +1130,78 @@ async function createOrderQuotePdf(order) {
     '<p><strong>Баталгаат хугацаа:</strong> 2 жил</p>' +
     '<p>Үнийн саналтай холбоотой нэмэлт нөхцөлийг захиалга баталгаажуулах үед тохиролцоно.</p>' +
     '<p style="margin-top:28px;">Хүндэтгэсэн, Монгол металл хийц</p></div>';
-  // quotePaper нь dashboard дээр дэлгэцнээс гадуур байрладаг тул html2canvas
-  // түүнийг хоосон зураг болгон унших эрсдэлтэй. PDF-д зориулж харагдах viewport-д
-  // түр clone үүсгээд, PDF бэлэн болмогц DOM-оос устгана.
-  const renderNode = paper.cloneNode(true);
+  // PDF-д зориулсан агуулгыг дэлгэцнээс гадуур биш, body-ийн эхэнд
+  // тусдаа харагдах render хэсэгт байрлуулна.
+  const renderNode = document.createElement("div");
   renderNode.id = "quotePaperPdfRender";
-  renderNode.style.position = "fixed";
-  renderNode.style.left = "0";
-  renderNode.style.top = "0";
-  renderNode.style.width = "794px";
-  renderNode.style.maxWidth = "794px";
-  renderNode.style.height = "auto";
-  renderNode.style.minHeight = "auto";
-  renderNode.style.display = "block";
-  renderNode.style.visibility = "visible";
-  renderNode.style.opacity = "1";
-  renderNode.style.zIndex = "2147483647";
-  renderNode.style.background = "#ffffff";
-  renderNode.style.pointerEvents = "none";
+  renderNode.innerHTML = paper.innerHTML;
+  renderNode.style.cssText = [
+    "position:absolute",
+    "left:0",
+    "top:0",
+    "display:block",
+    "visibility:visible",
+    "opacity:1",
+    "z-index:2147483647",
+    "width:794px",
+    "min-height:1123px",
+    "height:auto",
+    "box-sizing:border-box",
+    "padding:48px",
+    "margin:0",
+    "overflow:visible",
+    "background:#ffffff",
+    "color:#111827",
+    "font-family:Arial,sans-serif",
+    "pointer-events:none"
+  ].join(";");
   document.body.appendChild(renderNode);
 
   let blob;
   try {
     if (document.fonts?.ready) await document.fonts.ready;
-    blob = await html2pdf().set({
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    if (!renderNode.innerText || renderNode.innerText.trim().length < 30) {
+      throw new Error("PDF-д оруулах захиалгын мэдээлэл хоосон байна.");
+    }
+
+    const worker = html2pdf().set({
       margin: 10,
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
-        windowWidth: Math.max(document.documentElement.clientWidth, 900)
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: Math.max(1123, renderNode.scrollHeight)
       },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    }).from(renderNode).outputPdf("blob");
+    }).from(renderNode);
+
+    // PDF болгохоос өмнө canvas дээр бодит текст/хүснэгтийн пиксел буусан эсэхийг шалгана.
+    const canvas = await worker.toCanvas().get("canvas");
+    if (!canvas || canvas.width < 100 || canvas.height < 100) {
+      throw new Error("PDF-ийн зураглал үүссэнгүй. Дахин оролдоно уу.");
+    }
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let visibleContentPixels = 0;
+    for (let i = 0; i < pixels.length; i += 4 * 20) {
+      if (pixels[i + 3] > 0 &&
+          (pixels[i] < 235 || pixels[i + 1] < 235 || pixels[i + 2] < 235)) {
+        visibleContentPixels++;
+        if (visibleContentPixels > 25) break;
+      }
+    }
+    if (visibleContentPixels <= 25) {
+      throw new Error("PDF-ийн агуулга хоосон зураглагдлаа. Файлыг илгээхээс өмнө зогсоолоо.");
+    }
+
+    blob = await worker.toPdf().outputPdf("blob");
   } finally {
     renderNode.remove();
   }
