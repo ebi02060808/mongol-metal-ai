@@ -205,39 +205,23 @@
   <h2>📦 Шинэ захиалга</h2>
   <input type="text" id="customerName" placeholder="Харилцагчийн нэр" required>
   <input type="text" id="phone" placeholder="Утасны дугаар" required>
-  <label for="product">Бүтээгдэхүүн сонгох</label>
-  <select id="product" required>
-    <option value="">-- Бүтээгдэхүүн сонгоно уу --</option>
-    <option value="Металл цонх">Металл цонх</option>
-    <option value="Металл хаалга">Металл хаалга</option>
-    <option value="Шилэн фасад">Шилэн фасад</option>
-    <option value="Металл фасад">Металл фасад</option>
-    <option value="Хуванцар хаалт">Хуванцар хаалт</option>
-    <option value="Бусад">Бусад / тусгай захиалга</option>
-  </select>
-  <input type="text" id="customProduct" placeholder="Бусад бүтээгдэхүүний нэрийг бичнэ үү" style="display:none;">
-  <label for="dimensions" style="display:block;margin-top:14px;font-weight:600;">Хэмжээ (Өргөн × Өндөр, метр)</label>
-  <input type="text" id="dimensions" inputmode="decimal" placeholder="Жишээ: 1*2" autocomplete="off" required
-    style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px;">
-  <small style="display:block;color:#64748b;margin-top:5px;">Өргөн болон өндрийг * эсвэл × тэмдгээр тусгаарлан бичнэ. Жишээ: 1*2</small>
-  <p id="areaPreview" style="font-weight:700;margin:8px 0;">Нэгж талбай: 0 м² | Нийт талбай: 0 м²</p>
-  <label for="quantity">Тоо хэмжээ (ширхэг)</label>
-  <input type="number" id="quantity" min="1" step="1" value="1" required>
-  <label for="unitPrice">Нэгж үнэ (₮/м²)</label>
-  <input type="number" id="unitPrice" min="0" step="1" placeholder="1 м²-ийн үнэ" required>
-  <p id="orderTotalPreview" style="font-weight:700;margin:10px 0;">Нийт үнэ: 0 ₮</p>
+  <div style="margin-top:14px;">
+    <strong>Бүтээгдэхүүний жагсаалт</strong>
+    <div id="orderItemsContainer" style="display:grid;gap:12px;margin-top:10px;"></div>
+    <button type="button" onclick="addOrderItemRow('orderItemsContainer')" style="margin-top:10px;background:#e0e7ff;color:#1e40af;border:1px solid #a5b4fc;padding:10px 14px;border-radius:8px;cursor:pointer;">＋ Бүтээгдэхүүн нэмэх</button>
+  </div>
+  <p id="orderTotalPreview" style="font-weight:700;margin:12px 0;">Нийт үнэ: 0 ₮</p>
   <button id="saveOrderButton" type="button" onclick="addOrder()">Захиалга хадгалах</button>
   <p id="orderMessage"></p>
 </div>
 <div class="section" id="quoteSection">
   <h2>🧾 Үнийн санал тооцоолох</h2>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:15px 0;">
+  <div style="display:grid;gap:12px;margin:15px 0;">
     <input type="text" id="quoteCustomerName" placeholder="Харилцагчийн нэр">
     <input type="text" id="quotePhone" placeholder="Утасны дугаар">
-    <input type="text" id="quoteProduct" placeholder="Бүтээгдэхүүн / ажил">
-    <input type="text" id="quoteSize" placeholder="Хэмжээ (жишээ: 2м × 1.5м)">
-    <input type="number" id="quoteQuantity" min="0.01" step="0.01" placeholder="Тоо хэмжээ (м² / ширхэг)">
-    <input type="number" id="quoteUnitPrice" min="0" step="1" placeholder="Нэгж үнэ (₮)">
+    <strong>Бүтээгдэхүүний жагсаалт</strong>
+    <div id="quoteItemsContainer" style="display:grid;gap:12px;"></div>
+    <button type="button" onclick="addOrderItemRow('quoteItemsContainer')" style="justify-self:start;background:#e0e7ff;color:#1e40af;border:1px solid #a5b4fc;padding:10px 14px;border-radius:8px;cursor:pointer;">＋ Бүтээгдэхүүн нэмэх</button>
   </div>
   <button type="button" onclick="calculateQuote()" style="background:#2563eb;color:white;border:0;padding:11px 18px;border-radius:8px;cursor:pointer;">Үнийн санал тооцоолох</button>
   <p id="quoteMessage" style="margin-top:12px;"></p>
@@ -246,6 +230,7 @@
     <strong>Үнийн санал бэлэн боллоо. PDF файл авах уу?</strong>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
       <button type="button" onclick="downloadQuotePDF()" style="background:#16a34a;color:white;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;">Тийм — PDF татах</button>
+      <button id="convertQuoteButton" type="button" onclick="convertQuoteToOrder()" style="background:#2563eb;color:white;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;">Үнийн саналыг захиалга болгох</button>
       <button type="button" onclick="keepQuoteOnDashboard()" style="background:#64748b;color:white;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;">Үгүй — Dashboard-д үлдээх</button>
     </div>
   </div>
@@ -343,133 +328,219 @@ let currentUserRole = null;
 let currentOwnerUserId = null;
 let currentOrderView = "active";
 
-document.addEventListener("DOMContentLoaded", () => {
-  ["dimensions", "quantity", "unitPrice"].forEach(id => {
-    const field = document.getElementById(id);
-    if (field) field.addEventListener("input", updateOrderTotalPreview);
-  });
-  const productSelect = document.getElementById("product");
-  const customProductInput = document.getElementById("customProduct");
-  if (productSelect && customProductInput) {
-    productSelect.addEventListener("change", () => {
-      const isOther = productSelect.value === "Бусад";
-      customProductInput.style.display = isOther ? "block" : "none";
-      customProductInput.required = isOther;
-      if (!isOther) customProductInput.value = "";
 
-      // Баталгаажсан/өмнө ашигласан үнийн жагсаалт (₮/м²)
-      const productPrices = {
-        "Металл цонх": 420000,
-        "Металл хаалга": 840000,
-        "Шилэн фасад": 550000,
-        "Хуванцар хаалт": 160000
-      };
-      const priceInput = document.getElementById("unitPrice");
-      if (priceInput) {
-        if (Object.prototype.hasOwnProperty.call(productPrices, productSelect.value)) {
-          priceInput.value = productPrices[productSelect.value];
-          priceInput.dataset.autoPrice = "true";
-        } else {
-          priceInput.value = "";
-          priceInput.dataset.autoPrice = "false";
-        }
-        updateOrderTotalPreview();
-      }
-    });
-  }
-  updateOrderTotalPreview();
+const PRODUCT_PRICE_DEFAULTS = {
+  "Металл цонх": 420000,
+  "Металл хаалга": 840000,
+  "Шилэн фасад": 550000,
+  "Металл фасад": 330000,
+  "Хуванцар хаалт": 160000,
+  "Хуванцар цонх": 180000,
+  "Хуванцар хаалга": 220000
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  addOrderItemRow("orderItemsContainer");
+  addOrderItemRow("quoteItemsContainer");
 });
 
-function calculateQuote() {
-  const customerName = document.getElementById("quoteCustomerName").value.trim();
-  const phone = document.getElementById("quotePhone").value.trim();
-  const product = document.getElementById("quoteProduct").value.trim();
-  const size = document.getElementById("quoteSize").value.trim();
-  const quantity = Number(document.getElementById("quoteQuantity").value);
-  const unitPrice = Number(document.getElementById("quoteUnitPrice").value);
-
-  if (!customerName || !phone || !product || !Number.isFinite(quantity) ||
-      quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0) {
-    alert("Харилцагчийн нэр, утас, бүтээгдэхүүн, тоо хэмжээ болон нэгж үнийг зөв оруулна уу.");
-    return;
+function addOrderItemRow(containerId, initial = {}) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const row = document.createElement("div");
+  row.className = "multi-order-item";
+  row.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;";
+  const productOptions = ["Металл цонх","Металл хаалга","Шилэн фасад","Металл фасад","Хуванцар хаалт","Хуванцар цонх","Хуванцар хаалга","Бусад"];
+  const options = productOptions.map(name => '<option value="' + escapeHTML(name) + '"' + (initial.product === name ? " selected" : "") + '>' + escapeHTML(name) + '</option>').join("");
+  row.innerHTML =
+    '<div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;"><strong class="item-row-title">Бүтээгдэхүүн</strong><button type="button" class="remove-item-row" style="border:0;background:#fee2e2;color:#991b1b;padding:6px 10px;border-radius:6px;cursor:pointer;">Устгах</button></div>' +
+    '<select class="item-product" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;background:white;"><option value="">Бүтээгдэхүүн сонгох</option>' + options + '</select>' +
+    '<input class="item-custom-product" type="text" placeholder="Бусад бүтээгдэхүүний нэр" style="display:none;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;">' +
+    '<input class="item-dimensions" type="text" inputmode="decimal" placeholder="Өргөн × Өндөр (м), ж: 1*2" value="' + escapeHTML(initial.dimensions || "") + '" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;">' +
+    '<input class="item-quantity" type="number" min="1" step="1" value="' + Number(initial.quantity || 1) + '" placeholder="Тоо ширхэг" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;">' +
+    '<input class="item-unit-price" type="number" min="0" step="1" value="' + (initial.unitPrice != null ? Number(initial.unitPrice) : "") + '" placeholder="Нэгж үнэ (₮/м²)" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;">' +
+    '<div class="item-calculation" style="grid-column:1/-1;color:#475569;font-size:13px;">Талбай: 0 м² · Дүн: 0 ₮</div>';
+  const product = row.querySelector(".item-product");
+  const custom = row.querySelector(".item-custom-product");
+  const price = row.querySelector(".item-unit-price");
+  product.value = initial.product || "";
+  if (initial.product && !productOptions.includes(initial.product)) {
+    product.value = "Бусад";
+    custom.value = initial.product;
+    custom.style.display = "block";
   }
+  product.addEventListener("change", () => {
+    const isOther = product.value === "Бусад";
+    custom.style.display = isOther ? "block" : "none";
+    custom.required = isOther;
+    if (isOther) custom.focus();
+    else custom.value = "";
+    if (Object.prototype.hasOwnProperty.call(PRODUCT_PRICE_DEFAULTS, product.value)) {
+      price.value = PRODUCT_PRICE_DEFAULTS[product.value];
+    } else if (!initial.unitPrice) {
+      price.value = "";
+    }
+    updateAllItemPreviews(containerId);
+  });
+  row.querySelector(".remove-item-row").addEventListener("click", () => {
+    if (container.querySelectorAll(".multi-order-item").length <= 1) {
+      alert("Дор хаяж нэг бүтээгдэхүүн үлдээнэ үү.");
+      return;
+    }
+    row.remove();
+    updateAllItemPreviews(containerId);
+  });
+  row.querySelectorAll("input").forEach(input => input.addEventListener("input", () => updateAllItemPreviews(containerId)));
+  container.appendChild(row);
+  if (initial.product && Object.prototype.hasOwnProperty.call(PRODUCT_PRICE_DEFAULTS, initial.product) && initial.unitPrice == null) {
+    price.value = PRODUCT_PRICE_DEFAULTS[initial.product];
+  }
+  updateAllItemPreviews(containerId);
+}
 
-  const total = quantity * unitPrice;
-  currentQuote = {
-    customerName,
-    phone,
-    product,
-    size,
-    quantity,
-    unitPrice,
-    total,
-    date: new Date()
-  };
+function readOrderItems(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return [];
+  return Array.from(container.querySelectorAll(".multi-order-item")).map(row => {
+    const selected = row.querySelector(".item-product").value;
+    const custom = row.querySelector(".item-custom-product").value.trim();
+    const product = selected === "Бусад" ? custom : selected;
+    const dimensionsText = row.querySelector(".item-dimensions").value.trim();
+    const dimensions = parseOrderDimensions(dimensionsText);
+    const quantity = Number(row.querySelector(".item-quantity").value);
+    const unitPriceText = row.querySelector(".item-unit-price").value;
+    const unitPrice = Number(unitPriceText);
+    const area = dimensions ? dimensions.width * dimensions.height : 0;
+    return {
+      product, selectedProduct: selected, dimensions, dimensionsText,
+      width: dimensions?.width || null,
+      height: dimensions?.height || null,
+      quantity, unitPrice, area,
+      total: area * quantity * unitPrice
+    };
+  });
+}
 
-  const money = value => Math.round(value).toLocaleString("mn-MN") + " ₮";
-  document.getElementById("quotePaper").innerHTML =
-    '<div style="border-bottom:3px solid #111827;padding-bottom:18px;margin-bottom:25px;">' +
+function updateAllItemPreviews(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const rows = Array.from(container.querySelectorAll(".multi-order-item"));
+  let total = 0;
+  rows.forEach((row, index) => {
+    const item = readOrderItems(containerId)[index];
+    const valid = item && item.area > 0 && item.quantity > 0 && Number.isFinite(item.unitPrice);
+    if (valid) total += item.total;
+    row.querySelector(".item-row-title").textContent = "Бүтээгдэхүүн " + (index + 1);
+    row.querySelector(".item-calculation").textContent = valid
+      ? "Нэгж талбай: " + item.area.toFixed(2) + " м² · Нийт талбай: " + (item.area * item.quantity).toFixed(2) + " м² · Дүн: " + Math.round(item.total).toLocaleString("mn-MN") + " ₮"
+      : "Хэмжээ, тоо ширхэг, нэгж үнийг оруулна уу.";
+  });
+  const previewId = containerId === "orderItemsContainer" ? "orderTotalPreview" : "quoteLiveTotal";
+  let preview = document.getElementById(previewId);
+  if (!preview && containerId === "quoteItemsContainer") {
+    preview = document.createElement("p");
+    preview.id = previewId;
+    preview.style.cssText = "font-weight:700;margin:8px 0;";
+    container.after(preview);
+  }
+  if (preview) preview.textContent = "Нийт үнэ: " + Math.round(total).toLocaleString("mn-MN") + " ₮";
+}
+
+function validateOrderItems(items) {
+  if (!items.length) throw new Error("Дор хаяж нэг бүтээгдэхүүн нэмнэ үү.");
+  items.forEach((item, index) => {
+    if (!item.selectedProduct || !item.product) throw new Error((index + 1) + "-р бүтээгдэхүүнийг сонгоно уу.");
+    if (!item.dimensions || item.area <= 0) throw new Error((index + 1) + "-р бүтээгдэхүүний өргөн, өндрийг зөв оруулна уу.");
+    if (!Number.isInteger(item.quantity) || item.quantity <= 0) throw new Error((index + 1) + "-р бүтээгдэхүүний тоо ширхэгийг зөв оруулна уу.");
+    if (!Number.isFinite(item.unitPrice) || item.unitPrice < 0 || item.unitPrice === 0) throw new Error((index + 1) + "-р бүтээгдэхүүний нэгж үнийг зөв оруулна уу.");
+  });
+}
+
+function normalizeOrderItems(items) {
+  return items.map(item => ({
+    product_type: item.product,
+    width: item.width,
+    height: item.height,
+    quantity: item.quantity,
+    area: item.area,
+    unit_price: item.unitPrice,
+    total_price: item.total,
+    pricing_mode: "materials_included"
+  }));
+}
+
+function calculateQuote() {
+  try {
+    const customerName = document.getElementById("quoteCustomerName").value.trim();
+    const phone = document.getElementById("quotePhone").value.trim();
+    const items = readOrderItems("quoteItemsContainer");
+    if (!customerName || !phone) throw new Error("Харилцагчийн нэр, утсыг оруулна уу.");
+    validateOrderItems(items);
+    const total = items.reduce((sum, item) => sum + item.total, 0);
+    currentQuote = {
+      customerName, phone, items, total,
+      date: new Date()
+    };
+    const money = value => Math.round(value).toLocaleString("mn-MN") + " ₮";
+    const rows = items.map((item, index) =>
+      '<tr><td style="border:1px solid #cbd5e1;padding:10px;">' + (index + 1) + '. ' + escapeHTML(item.product) + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:10px;">' + escapeHTML(item.width + " × " + item.height + " м") + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + item.quantity + ' ш</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + money(item.unitPrice) + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + money(item.total) + '</td></tr>'
+    ).join("");
+    document.getElementById("quotePaper").innerHTML =
+      '<div style="border-bottom:3px solid #111827;padding-bottom:18px;margin-bottom:25px;">' +
       '<h1 style="font-size:27px;margin:0 0 6px;">МОНГОЛ МЕТАЛЛ ХИЙЦ</h1>' +
       '<p style="font-size:13px;color:#475569;">Чанартай хийц, бат бөх суурилуулалт</p>' +
-      '<h2 style="margin-top:28px;font-size:22px;">ҮНИЙН САНАЛ</h2>' +
-    '</div>' +
-    '<p><strong>Огноо:</strong> ' + escapeHTML(currentQuote.date.toLocaleDateString("mn-MN")) + '</p>' +
-    '<p style="margin-top:8px;"><strong>Харилцагч:</strong> ' + escapeHTML(customerName) + '</p>' +
-    '<p><strong>Утас:</strong> ' + escapeHTML(phone) + '</p>' +
-    '<table style="width:100%;border-collapse:collapse;margin-top:24px;font-size:14px;">' +
-      '<thead><tr style="background:#f1f5f9;">' +
-        '<th style="border:1px solid #cbd5e1;padding:10px;text-align:left;">Бүтээгдэхүүн / ажил</th>' +
-        '<th style="border:1px solid #cbd5e1;padding:10px;text-align:left;">Хэмжээ</th>' +
-        '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Тоо хэмжээ</th>' +
-        '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Нэгж үнэ</th>' +
-        '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Дүн</th>' +
-      '</tr></thead><tbody><tr>' +
-        '<td style="border:1px solid #cbd5e1;padding:10px;">' + escapeHTML(product) + '</td>' +
-        '<td style="border:1px solid #cbd5e1;padding:10px;">' + escapeHTML(size || "—") + '</td>' +
-        '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + escapeHTML(quantity.toLocaleString("mn-MN")) + '</td>' +
-        '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + money(unitPrice) + '</td>' +
-        '<td style="border:1px solid #cbd5e1;padding:10px;text-align:right;">' + money(total) + '</td>' +
-      '</tr></tbody></table>' +
-    '<h2 style="text-align:right;margin-top:24px;font-size:21px;">Нийт дүн: ' + money(total) + '</h2>' +
-    '<div style="margin-top:42px;padding-top:18px;border-top:1px solid #cbd5e1;font-size:13px;color:#334155;">' +
-      '<p><strong>Баталгаат хугацаа:</strong> 2 жил</p>' +
+      '<h2 style="margin-top:28px;font-size:22px;">ҮНИЙН САНАЛ</h2></div>' +
+      '<p><strong>Огноо:</strong> ' + escapeHTML(currentQuote.date.toLocaleDateString("mn-MN")) + '</p>' +
+      '<p style="margin-top:8px;"><strong>Харилцагч:</strong> ' + escapeHTML(customerName) + '</p>' +
+      '<p><strong>Утас:</strong> ' + escapeHTML(phone) + '</p>' +
+      '<table style="width:100%;border-collapse:collapse;margin-top:24px;font-size:14px;"><thead><tr style="background:#f1f5f9;">' +
+      '<th style="border:1px solid #cbd5e1;padding:10px;text-align:left;">Бүтээгдэхүүн / ажил</th>' +
+      '<th style="border:1px solid #cbd5e1;padding:10px;text-align:left;">Хэмжээ</th>' +
+      '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Тоо</th>' +
+      '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Нэгж үнэ</th>' +
+      '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Дүн</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      '<h2 style="text-align:right;margin-top:24px;font-size:21px;">Нийт дүн: ' + money(total) + '</h2>' +
+      '<div style="margin-top:42px;padding-top:18px;border-top:1px solid #cbd5e1;font-size:13px;color:#334155;"><p><strong>Баталгаат хугацаа:</strong> 2 жил</p>' +
       '<p style="margin-top:8px;">Үнийн саналтай холбоотой нэмэлт нөхцөлийг захиалга баталгаажуулах үед тохиролцоно.</p>' +
-      '<p style="margin-top:28px;">Хүндэтгэсэн, Монгол металл хийц</p>' +
-    '</div>';
-
-  document.getElementById("quotePreview").innerHTML =
-    '<div style="border:1px solid #d1d5db;border-radius:10px;padding:16px;background:white;">' +
+      '<p style="margin-top:28px;">Хүндэтгэсэн, Монгол металл хийц</p></div>';
+    document.getElementById("quotePreview").innerHTML =
+      '<div style="border:1px solid #d1d5db;border-radius:10px;padding:16px;background:white;">' +
       '<strong>Үнийн саналын дүн: ' + money(total) + '</strong><br>' +
-      escapeHTML(product) + ' — ' + escapeHTML(quantity.toLocaleString("mn-MN")) +
-      ' × ' + money(unitPrice) +
-    '</div>';
-  document.getElementById("quotePreview").style.display = "block";
-  document.getElementById("pdfQuestion").style.display = "block";
-  document.getElementById("quoteMessage").textContent = "Үнийн санал амжилттай тооцоологдлоо.";
+      items.length + ' төрлийн бүтээгдэхүүн · ' + items.reduce((sum, item) => sum + item.quantity, 0) + ' ширхэг</div>';
+    document.getElementById("quotePreview").style.display = "block";
+    document.getElementById("pdfQuestion").style.display = "block";
+    document.getElementById("quoteMessage").textContent = "Үнийн санал амжилттай тооцоологдлоо.";
+  } catch (error) {
+    alert(error.message);
+  }
 }
 
 async function downloadQuotePDF() {
-  if (!currentQuote) {
-    alert("Эхлээд үнийн санал тооцоолно уу.");
-    return;
-  }
+  if (!currentQuote) return alert("Эхлээд үнийн санал тооцоолно уу.");
   try {
+    const items = currentQuote.items.map(item => ({
+      product: item.product,
+      size: item.width + " × " + item.height + " м",
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      total: item.total,
+      negotiable: false
+    }));
+    const totalArea = currentQuote.items.reduce((sum, item) => sum + item.area * item.quantity, 0);
+    const totalPieces = currentQuote.items.reduce((sum, item) => sum + item.quantity, 0);
     const doc = await buildQuotePdfDocument({
       orderNumber: "MM-" + currentQuote.date.toISOString().slice(0, 10).replace(/-/g, ""),
       date: currentQuote.date,
       customerName: currentQuote.customerName,
       phone: currentQuote.phone,
-      items: [{
-        product: currentQuote.product,
-        size: currentQuote.size || "—",
-        quantity: currentQuote.quantity,
-        unitPrice: currentQuote.unitPrice,
-        total: currentQuote.total,
-        negotiable: false
-      }],
+      items,
       totalPrice: currentQuote.total,
-      totalArea: currentQuote.quantity,
-      totalPieces: 0
+      totalArea,
+      totalPieces
     });
     doc.save("Mongol-Metal-Quote-" + currentQuote.date.toISOString().slice(0, 10) + ".pdf");
     document.getElementById("quoteMessage").textContent = "PDF файл татагдлаа. Үнийн санал Dashboard-д хэвээр байна.";
@@ -479,10 +550,46 @@ async function downloadQuotePDF() {
   }
 }
 
+async function convertQuoteToOrder() {
+  if (!currentQuote) return alert("Эхлээд үнийн санал тооцоолно уу.");
+  const button = document.getElementById("convertQuoteButton");
+  if (button) { button.disabled = true; button.textContent = "Хадгалж байна..."; }
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) throw new Error("Та эхлээд нэвтэрнэ үү.");
+    const items = currentQuote.items;
+    const totalArea = items.reduce((sum, item) => sum + item.area * item.quantity, 0);
+    const total = currentQuote.total;
+    const productSummary = items.map(item => item.product).join(", ");
+    const sizeSummary = items.map(item => item.width + "м × " + item.height + "м (" + item.quantity + "ш)").join("; ");
+    const { error } = await supabaseClient.from("orders").insert({
+      user_id: currentOwnerUserId,
+      customer_name: currentQuote.customerName,
+      phone: currentQuote.phone,
+      product: productSummary,
+      size: sizeSummary,
+      area_per_unit: totalArea || 1,
+      quantity: 1,
+      unit_price: totalArea > 0 ? total / totalArea : total,
+      price: total,
+      status: "Үнийн санал",
+      quote_items: normalizeOrderItems(items)
+    });
+    if (error) throw error;
+    document.getElementById("quoteMessage").textContent = "✅ Үнийн санал захиалгын жагсаалтад амжилттай нэмэгдлээ.";
+    document.getElementById("pdfQuestion").style.display = "none";
+    await Promise.all([loadOrders(), loadCustomers(), loadDashboardStats()]);
+  } catch (error) {
+    console.error("Үнийн саналыг захиалга болгох алдаа:", error);
+    alert("Захиалга үүсгэхэд алдаа гарлаа: " + error.message);
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "Үнийн саналыг захиалга болгох"; }
+  }
+}
+
 function keepQuoteOnDashboard() {
   document.getElementById("pdfQuestion").style.display = "none";
-  document.getElementById("quoteMessage").textContent =
-    "Үнийн санал Dashboard-д хэвээр үлдлээ.";
+  document.getElementById("quoteMessage").textContent = "Үнийн санал Dashboard-д хэвээр үлдлээ.";
 }
 
 function parseOrderDimensions(value) {
@@ -518,94 +625,49 @@ function updateOrderTotalPreview() {
   }
 }
 
+
 async function addOrder() {
   const button = document.getElementById("saveOrderButton");
   const message = document.getElementById("orderMessage");
-  if (button) {
-    button.disabled = true;
-    button.textContent = "Хадгалж байна...";
-  }
+  if (button) { button.disabled = true; button.textContent = "Хадгалж байна..."; }
   if (message) message.textContent = "";
-
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) {
-      alert("Та эхлээд нэвтэрнэ үү.");
-      return;
-    }
-
+    if (!session) throw new Error("Та эхлээд нэвтэрнэ үү.");
     const customerName = document.getElementById("customerName").value.trim();
     const phone = document.getElementById("phone").value.trim();
-    const selectedProduct = document.getElementById("product").value;
-    const customProduct = document.getElementById("customProduct").value.trim();
-    const product = selectedProduct === "Бусад" ? customProduct : selectedProduct;
-    const dimensions = parseOrderDimensions(document.getElementById("dimensions").value);
-    const width = dimensions?.width || 0;
-    const height = dimensions?.height || 0;
-    const size = width + "м × " + height + "м";
-    const areaPerUnit = width * height;
-    const quantity = Number(document.getElementById("quantity").value);
-    const unitPrice = Number(document.getElementById("unitPrice").value);
-
-    if (!customerName || !phone || !selectedProduct || !product) {
-      throw new Error("Харилцагчийн нэр, утас, бүтээгдэхүүнийг заавал сонгож/оруулна уу.");
-    }
-    if (!Number.isFinite(width) || width <= 0 ||
-        !Number.isFinite(height) || height <= 0 ||
-        !Number.isFinite(areaPerUnit) || areaPerUnit <= 0 ||
-        !Number.isInteger(quantity) || quantity <= 0 ||
-        document.getElementById("unitPrice").value === "" ||
-        !Number.isFinite(unitPrice) || unitPrice < 0) {
-      throw new Error("Нэгж талбай, тоо хэмжээ, нэгж үнийг зөв оруулна уу.");
-    }
-
-    const totalPrice = areaPerUnit * quantity * unitPrice;
-    const { error } = await supabaseClient
-      .from("orders")
-      .insert({
-        user_id: currentOwnerUserId,
-        customer_name: customerName,
-        phone,
-        product,
-        size,
-        area_per_unit: areaPerUnit,
-        quantity,
-        unit_price: unitPrice,
-        price: totalPrice,
-      });
-
-    if (error) throw error;
-
-    message.textContent = "✅ Захиалга амжилттай хадгалагдлаа! Нийт үнэ: " +
-      Math.round(totalPrice).toLocaleString("mn-MN") + " ₮";
-
-    ["customerName", "phone", "product", "customProduct", "dimensions", "unitPrice"].forEach(id => {
-      const field = document.getElementById(id);
-      if (field) field.value = "";
+    const items = readOrderItems("orderItemsContainer");
+    if (!customerName || !phone) throw new Error("Харилцагчийн нэр, утсыг оруулна уу.");
+    validateOrderItems(items);
+    const totalArea = items.reduce((sum, item) => sum + item.area * item.quantity, 0);
+    const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
+    const { error } = await supabaseClient.from("orders").insert({
+      user_id: currentOwnerUserId,
+      customer_name: customerName,
+      phone,
+      product: items.map(item => item.product).join(", "),
+      size: items.map(item => item.width + "м × " + item.height + "м (" + item.quantity + "ш)").join("; "),
+      area_per_unit: totalArea || 1,
+      quantity: 1,
+      unit_price: totalArea > 0 ? totalPrice / totalArea : totalPrice,
+      price: totalPrice,
+      quote_items: normalizeOrderItems(items)
     });
-    document.getElementById("customProduct").style.display = "none";
-    document.getElementById("quantity").value = "1";
-    updateOrderTotalPreview();
-
-    const refreshResults = await Promise.allSettled([
-      loadOrders(),
-      loadCustomers(),
-      loadDashboardStats()
-    ]);
-    if (refreshResults.some(result => result.status === "rejected")) {
-      console.warn("Захиалга хадгалагдсан боловч зарим Dashboard мэдээлэл шинэчлэгдсэнгүй.", refreshResults);
-    }
+    if (error) throw error;
+    message.textContent = "✅ Захиалга амжилттай хадгалагдлаа! Нийт үнэ: " + Math.round(totalPrice).toLocaleString("mn-MN") + " ₮";
+    document.getElementById("customerName").value = "";
+    document.getElementById("phone").value = "";
+    document.getElementById("orderItemsContainer").innerHTML = "";
+    addOrderItemRow("orderItemsContainer");
+    await Promise.all([loadOrders(), loadCustomers(), loadDashboardStats()]);
   } catch (error) {
     console.error("Захиалга хадгалах алдаа:", error);
     if (message) message.textContent = "Алдаа: " + (error.message || "Тодорхойгүй алдаа");
   } finally {
-    if (button) {
-      button.disabled = false;
-      button.textContent = "Захиалга хадгалах";
-    }
+    if (button) { button.disabled = false; button.textContent = "Захиалга хадгалах"; }
   }
 }
-    
+
     async function loadDashboardStats() {
   const { data: { session } } =
     await supabaseClient.auth.getSession();
