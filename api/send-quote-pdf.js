@@ -8,7 +8,7 @@ const supabase = createClient(
 );
 
 function normalizePhone(value) {
-  let digits = String(value || "").replace(/\\D/g, "");
+  let digits = String(value || "").replace(/\D/g, "");
   if (digits.startsWith("976") && digits.length > 8) digits = digits.slice(3);
   return digits;
 }
@@ -82,7 +82,7 @@ export default async function handler(req, res) {
 
   let createdOrderId = null;
   try {
-    const accessToken = (req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+    const accessToken = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     if (!accessToken) return res.status(401).json({ error: "Нэвтрэх эрх олдсонгүй." });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
