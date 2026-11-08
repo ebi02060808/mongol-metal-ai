@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     }
 
     const ownerUserId = admin.owner_user_id || user.id;
-    const { orderId, newStatus, confirmationIncome, completionExpense, remainingIncome } = req.body || {};
+    const { orderId, newStatus, confirmationIncome, completionExpense, remainingIncome, unpaidBalance } = req.body || {};
     const allowedStatuses = ["Шинэ", "Холбогдсон", "Үнийн санал", "Баталгаажсан", "Дууссан"];
     if (!orderId || !allowedStatuses.includes(newStatus)) {
       return res.status(400).json({ error: "Захиалга эсвэл төлөв буруу байна." });
@@ -65,6 +65,10 @@ export default async function handler(req, res) {
           ? "Энэ захиалгад үнийн санал өмнө нь илгээгдсэн байна. Давхар илгээхээс хамгааллаа."
           : "Захиалга аль хэдийн энэ төлөвтэй байна."
       });
+    }
+
+    if (newStatus === "Дууссан" && (!Number.isFinite(Number(unpaidBalance)) || Number(unpaidBalance) < 0 || Number(unpaidBalance) > 100000000000)) {
+      return res.status(400).json({ error: "Гараар оруулсан төлөгдөөгүй үлдэгдлийн дүн буруу байна." });
     }
 
     const pageToken = process.env.PAGE_ACCESS_TOKEN;
@@ -270,7 +274,9 @@ export default async function handler(req, res) {
 
     const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
-      .update({ status: newStatus })
+      .update(newStatus === "Дууссан"
+        ? { status: newStatus, unpaid_balance: Number(unpaidBalance) }
+        : { status: newStatus })
       .eq("id", orderId)
       .eq("user_id", ownerUserId)
       .select("id, status, messenger_sender_id, messenger_order_number")
@@ -322,7 +328,7 @@ export default async function handler(req, res) {
             ? "Захиалга баталгаажлаа. Энэ захиалгын орлого өмнө бүртгэгдсэн тул давхар нэмсэнгүй."
             : "Захиалга баталгаажлаа.")
       : newStatus === "Дууссан"
-        ? "Захиалга дууслаа. Нийт зарлага болон үлдэгдэл төлбөрийн мэдээллийг санхүүгийн тайланд шинэчиллээ."
+        ? "Захиалга дууслаа. Нийт зарлага, бодитоор авсан төлбөр болон гараар оруулсан төлөгдөөгүй авлагыг хадгаллаа."
         : "Захиалгын төлөв шинэчлэгдлээ.";
 
     return res.status(200).json({
