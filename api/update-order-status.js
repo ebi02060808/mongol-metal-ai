@@ -130,17 +130,9 @@ export default async function handler(req, res) {
         "Захиалгын дугаар: " + orderNumber + "\n" +
         "Бүтээгдэхүүн: " + (order.product || "—") + "\n" +
         "Хэмжээ: " + (order.size || "—") + "\n" +
-        "Тоо хэмжээ: " + quantity + " ш\n" +
-        "Нийт талбай: " + totalArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\n" +
-        (quoteItems.length
-          ? quoteItems.map((item, index) =>
-              (index + 1) + ". " + item.product_type + " — " +
-              (item.width != null && item.height != null
-                ? item.width + " × " + item.height + " м, " + item.quantity + " ш"
-                : Number(item.area || 0).toFixed(2) + " м²") +
-              "; " + money(item.unit_price) + "/м²; " + money(item.total_price)
-            ).join("\n") + "\n"
-          : "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\n") +
+        (quoteItems.length ? "Дэлгэрэнгүй хэмжээ, тоо ширхэг, нэгж үнийн задаргаа PDF файлд бий.\\n" : "Тоо хэмжээ: " + quantity + " ш\\n") +
+        "Нийт талбай: " + totalArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\\n" +
+        (quoteItems.length ? "" : "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\\n") +
         "НИЙТ ҮНЭ: " + money(totalPrice) + "\n\n" +
         "Энэхүү үнийн саналтай танилцаад асуух зүйл байвал бидэнд хариу бичээрэй.\n" +
         "Баярлалаа. — Монгол металл хийц";
