@@ -1187,10 +1187,16 @@ async function createOrderQuotePdf(order) {
     }).from(renderNode);
 
     // PDF болгохоос өмнө canvas дээр бодит текст/хүснэгтийн пиксел буусан эсэхийг шалгана.
-    // Canvas-ийг үүсгэх болон авах үйлдлийг тусад нь await хийж,
-    // html2pdf Worker-ийн chain дотор canvas хоосон уншигдахаас сэргийлнэ.
-    await worker.toCanvas();
-    const canvas = await worker.get("canvas");
+    // html2pdf-ийн Worker.get() нь canvas-ийг шууд return хийдэггүй,
+    // callback-аар өгдөг. Иймээс Promise болгон зөв утгыг авна.
+    const canvasWorker = worker.toCanvas();
+    const canvas = await new Promise((resolve, reject) => {
+      try {
+        canvasWorker.get("canvas", resolve);
+      } catch (error) {
+        reject(error);
+      }
+    });
     if (!canvas || !canvas.width || !canvas.height || canvas.width < 100 || canvas.height < 100) {
       throw new Error("PDF зураглалын хэмжээ буруу байна. Хуудсыг дахин ачаалаад оролдоно уу.");
     }
@@ -1209,7 +1215,7 @@ async function createOrderQuotePdf(order) {
       throw new Error("PDF-ийн агуулга хоосон зураглагдлаа. Файлыг илгээхээс өмнө зогсоолоо.");
     }
 
-    blob = await worker.toPdf().outputPdf("blob");
+    blob = await canvasWorker.toPdf().outputPdf("blob");
   } finally {
     renderNode.remove();
   }
