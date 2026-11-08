@@ -1265,8 +1265,8 @@ window.deleteOrder = async function(orderId) {
 
   const { data: admin, error } = await supabaseClient
     .from("admin_users")
-    .select("role")
-    .eq("user_id", currentOwnerUserId)
+    .select("role, owner_user_id")
+    .eq("user_id", session.user.id)
     .maybeSingle();
 
   if (error || !admin || !["admin", "employee"].includes(admin.role)) {
