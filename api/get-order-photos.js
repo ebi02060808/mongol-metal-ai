@@ -43,13 +43,13 @@ export default async function handler(req, res) {
       .from("admin_users")
       .select("user_id, role")
       .eq("user_id", userId)
-      .eq("role", "admin")
+      .in("role", ["admin", "employee"])
       .maybeSingle();
 
     if (adminError || !admin) {
       return res.status(403).json({
         success: false,
-        message: "Админ эрх шаардлагатай."
+        message: "Ажилтны эсвэл админы эрх шаардлагатай."
       });
     }
 
