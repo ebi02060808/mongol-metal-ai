@@ -206,10 +206,15 @@
   <input type="text" id="customerName" placeholder="Харилцагчийн нэр" required>
   <input type="text" id="phone" placeholder="Утасны дугаар" required>
   <input type="text" id="product" placeholder="Бүтээгдэхүүн" required>
-  <input type="text" id="size" placeholder="Хэмжээ / тайлбар (жишээ: 2м × 1.5м)">
-  <input type="number" id="areaPerUnit" min="0.01" step="0.01" value="1" placeholder="Нэгж талбай (м²). Ширхэгээр бол 1">
-  <input type="number" id="quantity" min="1" step="1" value="1" placeholder="Тоо хэмжээ (ширхэг)">
-  <input type="number" id="unitPrice" min="0" step="1" placeholder="Нэгж үнэ (₮/м² эсвэл ширхэг)">
+  <label for="width">Өргөн (метр)</label>
+  <input type="number" id="width" min="0.01" step="0.01" placeholder="Жишээ: 2" required>
+  <label for="height">Өндөр (метр)</label>
+  <input type="number" id="height" min="0.01" step="0.01" placeholder="Жишээ: 1.5" required>
+  <p id="areaPreview" style="font-weight:700;margin:8px 0;">Нэгж талбай: 0 м² | Нийт талбай: 0 м²</p>
+  <label for="quantity">Тоо хэмжээ (ширхэг)</label>
+  <input type="number" id="quantity" min="1" step="1" value="1" required>
+  <label for="unitPrice">Нэгж үнэ (₮/м²)</label>
+  <input type="number" id="unitPrice" min="0" step="1" placeholder="1 м²-ийн үнэ" required>
   <p id="orderTotalPreview" style="font-weight:700;margin:10px 0;">Нийт үнэ: 0 ₮</p>
   <button id="saveOrderButton" type="button" onclick="addOrder()">Захиалга хадгалах</button>
   <p id="orderMessage"></p>
@@ -275,7 +280,7 @@
 let currentQuote = null;
 
 document.addEventListener("DOMContentLoaded", () => {
-  ["areaPerUnit", "quantity", "unitPrice"].forEach(id => {
+  ["width", "height", "quantity", "unitPrice"].forEach(id => {
     const field = document.getElementById(id);
     if (field) field.addEventListener("input", updateOrderTotalPreview);
   });
@@ -383,10 +388,21 @@ function keepQuoteOnDashboard() {
 }
 
 function updateOrderTotalPreview() {
-  const area = Number(document.getElementById("areaPerUnit")?.value || 0);
+  const width = Number(document.getElementById("width")?.value || 0);
+  const height = Number(document.getElementById("height")?.value || 0);
   const quantity = Number(document.getElementById("quantity")?.value || 0);
   const unitPrice = Number(document.getElementById("unitPrice")?.value || 0);
-  const total = area * quantity * unitPrice;
+  const areaPerUnit = width * height;
+  const totalArea = areaPerUnit * quantity;
+  const total = totalArea * unitPrice;
+
+  const areaPreview = document.getElementById("areaPreview");
+  if (areaPreview) {
+    areaPreview.textContent = "Нэгж талбай: " +
+      (Number.isFinite(areaPerUnit) ? areaPerUnit.toFixed(2) : "0.00") +
+      " м² | Нийт талбай: " +
+      (Number.isFinite(totalArea) ? totalArea.toFixed(2) : "0.00") + " м²";
+  }
   const preview = document.getElementById("orderTotalPreview");
   if (preview) {
     preview.textContent = "Нийт үнэ: " +
@@ -413,15 +429,19 @@ async function addOrder() {
     const customerName = document.getElementById("customerName").value.trim();
     const phone = document.getElementById("phone").value.trim();
     const product = document.getElementById("product").value.trim();
-    const size = document.getElementById("size").value.trim();
-    const areaPerUnit = Number(document.getElementById("areaPerUnit").value);
+    const width = Number(document.getElementById("width").value);
+    const height = Number(document.getElementById("height").value);
+    const size = width + "м × " + height + "м";
+    const areaPerUnit = width * height;
     const quantity = Number(document.getElementById("quantity").value);
     const unitPrice = Number(document.getElementById("unitPrice").value);
 
     if (!customerName || !phone || !product) {
       throw new Error("Харилцагчийн нэр, утас, бүтээгдэхүүнийг заавал оруулна уу.");
     }
-    if (!Number.isFinite(areaPerUnit) || areaPerUnit <= 0 ||
+    if (!Number.isFinite(width) || width <= 0 ||
+        !Number.isFinite(height) || height <= 0 ||
+        !Number.isFinite(areaPerUnit) || areaPerUnit <= 0 ||
         !Number.isInteger(quantity) || quantity <= 0 ||
         document.getElementById("unitPrice").value === "" ||
         !Number.isFinite(unitPrice) || unitPrice < 0) {
@@ -449,10 +469,9 @@ async function addOrder() {
     message.textContent = "✅ Захиалга амжилттай хадгалагдлаа! Нийт үнэ: " +
       Math.round(totalPrice).toLocaleString("mn-MN") + " ₮";
 
-    ["customerName", "phone", "product", "size", "unitPrice"].forEach(id => {
+    ["customerName", "phone", "product", "width", "height", "unitPrice"].forEach(id => {
       document.getElementById(id).value = "";
     });
-    document.getElementById("areaPerUnit").value = "1";
     document.getElementById("quantity").value = "1";
     updateOrderTotalPreview();
 
