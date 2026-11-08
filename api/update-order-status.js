@@ -39,6 +39,7 @@ export default async function handler(req, res) {
     }
 
     const ownerUserId = admin.owner_user_id || user.id;
+    const isAdmin = admin.role === "admin";
     const { orderId, newStatus, confirmationIncome, completionExpense, remainingIncome, unpaidBalance } = req.body || {};
     const allowedStatuses = ["Шинэ", "Холбогдсон", "Үнийн санал", "Баталгаажсан", "Дууссан"];
     if (!orderId || !allowedStatuses.includes(newStatus)) {
@@ -60,6 +61,7 @@ export default async function handler(req, res) {
       ? "Шинэ"
       : String(order.status || "Шинэ");
     if (req.body?.updateUnpaidBalanceOnly === true) {
+      if (!isAdmin) return res.status(403).json({ error: "Төлөгдөөгүй үлдэгдэл засах эрх зөвхөн админд байна." });
       const amount = Number(unpaidBalance);
       if (newStatus !== "Дууссан" || currentStatus !== "Дууссан" ||
           !Number.isFinite(amount) || amount < 0 || amount > 100000000000) {
@@ -71,6 +73,10 @@ export default async function handler(req, res) {
         .eq("user_id", ownerUserId);
       if (balanceUpdateError) return res.status(500).json({ error: "Үлдэгдэл хадгалж чадсангүй: " + balanceUpdateError.message });
       return res.status(200).json({ success: true, message: "Төлөгдөөгүй үлдэгдэл шинэчлэгдлээ." });
+    }
+
+    if (!isAdmin && (["Баталгаажсан", "Дууссан"].includes(newStatus) || ["Баталгаажсан", "Дууссан"].includes(currentStatus))) {
+      return res.status(403).json({ error: "Баталгаажуулах, дуусгах болон эдгээр төлөвтэй захиалгыг өөрчлөх эрх зөвхөн админд байна." });
     }
 
     if (currentStatus === newStatus) {
