@@ -10,6 +10,16 @@ function money(value) {
   return Number(value || 0).toLocaleString("mn-MN") + " ₮";
 }
 
+function parseAreaFromSize(size) {
+  // Жишээ: "1. 1.5 × 2.2 м, 1 ш" эсвэл "1.5x2.2"
+  const match = String(size || "").match(/(\d+(?:[.,]\d+)?)\s*[×xX*]\s*(\d+(?:[.,]\d+)?)/);
+  if (!match) return null;
+  const width = Number(match[1].replace(",", "."));
+  const height = Number(match[2].replace(",", "."));
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+  return width * height;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "POST хүсэлт шаардлагатай." });
@@ -46,8 +56,7 @@ export default async function handler(req, res) {
 
     const pageToken = process.env.PAGE_ACCESS_TOKEN;
 
-    // Үнийн санал төлөв сонгоход мэдээллийг эхлээд Messenger-ээр илгээнэ.
-    // Илгээлт амжилтгүй бол төлөвийг өөрчлөхгүй.
+    // Үнийн санал төлөв сонгоход хэмжээг эхлээд захиалгын хэмжээсээс шалгаж бодно.
     if (newStatus === "Үнийн санал") {
       if (!order.messenger_sender_id) {
         return res.status(400).json({
@@ -59,10 +68,18 @@ export default async function handler(req, res) {
       }
 
       const quantity = Number(order.quantity || 1);
-      const areaPerUnit = Number(order.area_per_unit || 1);
+      const storedArea = Number(order.area_per_unit || 0);
+      const parsedArea = parseAreaFromSize(order.size);
+      // Өмнөх захиалгуудад area_per_unit=1 гэсэн default утга хадгалагдсан
+      // байж болох тул хэмжээсээс бодсон талбайг илүүд үзнэ.
+      const areaPerUnit = parsedArea || (storedArea > 0 ? storedArea : 1);
       const totalArea = areaPerUnit * quantity;
-      const unitPrice = order.unit_price == null ? null : Number(order.unit_price);
       const totalPrice = Number(order.price || 0);
+      const storedUnitPrice = order.unit_price == null ? 0 : Number(order.unit_price);
+      // unit_price хадгалагдаагүй хуучин захиалгад нийт үнэ / нийт талбайгаар бодно.
+      const unitPrice = storedUnitPrice > 0
+        ? storedUnitPrice
+        : (totalArea > 0 && totalPrice > 0 ? totalPrice / totalArea : null);
       const orderNumber = order.messenger_order_number || order.id;
 
       const quoteText =
@@ -73,7 +90,7 @@ export default async function handler(req, res) {
         "Бүтээгдэхүүн: " + (order.product || "—") + "\n" +
         "Хэмжээ: " + (order.size || "—") + "\n" +
         "Тоо хэмжээ: " + quantity + " ш\n" +
-        "Нийт талбай: " + totalArea.toLocaleString("mn-MN") + " м²\n" +
+        "Нийт талбай: " + totalArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\n" +
         "1 м² үнэ: " + (unitPrice == null ? "Тодорхойгүй" : money(unitPrice)) + "\n" +
         "НИЙТ ҮНЭ: " + money(totalPrice) + "\n\n" +
         "Энэхүү үнийн саналтай танилцаад асуух зүйл байвал бидэнд хариу бичээрэй.\n" +
