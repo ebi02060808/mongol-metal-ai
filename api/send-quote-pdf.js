@@ -178,9 +178,21 @@ export default async function handler(req, res) {
         .limit(1000);
       if (linkedError) throw linkedError;
 
-      const senderIds = [...new Set((linkedOrders || [])
-        .filter(row => normalizePhone(row.phone) === requestPhone && row.messenger_sender_id)
-        .map(row => String(row.messenger_sender_id)))];
+      const { data: linkedSessions, error: sessionsError } = await supabase
+        .from("messenger_sessions")
+        .select("phone, sender_id")
+        .not("phone", "is", null)
+        .limit(1000);
+      if (sessionsError) throw sessionsError;
+
+      const senderIds = [...new Set([
+        ...(linkedOrders || [])
+          .filter(row => normalizePhone(row.phone) === requestPhone && row.messenger_sender_id)
+          .map(row => String(row.messenger_sender_id)),
+        ...(linkedSessions || [])
+          .filter(row => normalizePhone(row.phone) === requestPhone && row.sender_id)
+          .map(row => String(row.sender_id))
+      ])];
 
       if (senderIds.length === 0) {
         return res.status(404).json({
