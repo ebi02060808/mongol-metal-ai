@@ -129,6 +129,154 @@ async function sendFileAttachment(senderId, fileBuffer, fileName) {
   return sendResult;
 }
 
+
+
+async function buildMessengerQuotePdf(session, items, orderId) {
+  const fontUrl = "https://cdn.jsdelivr.net/gh/notofonts/noto-fonts@main/hinted/ttf/NotoSans/NotoSans-Regular.ttf";
+  const fontResponse = await fetch(fontUrl, { signal: AbortSignal.timeout(20000) });
+  if (!fontResponse.ok) throw new Error("Монгол кирилл фонт татагдсангүй.");
+  const fontBase64 = Buffer.from(await fontResponse.arrayBuffer()).toString("base64");
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+  doc.addFileToVFS("NotoSans-Regular.ttf", fontBase64);
+  doc.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
+  doc.setFont("NotoSans", "normal");
+
+  const margin = 15;
+  const contentWidth = 180;
+  const money = value => Math.round(Number(value || 0)).toLocaleString("mn-MN") + " ₮";
+  const date = new Intl.DateTimeFormat("mn-MN", {
+    timeZone: "Asia/Ulaanbaatar", year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(new Date());
+  let y = 20;
+  doc.setFillColor(17, 24, 39);
+  doc.rect(margin, y, contentWidth, 2, "F");
+  y += 12;
+  doc.setTextColor(17, 24, 39);
+  doc.setFontSize(18);
+  doc.text("МОНГОЛ МЕТАЛЛ ХИЙЦ", margin, y);
+  y += 7;
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Чанартай хийц, бат бөх суурилуулалт", margin, y);
+  y += 10;
+  doc.setTextColor(17, 24, 39);
+  doc.setFontSize(15);
+  doc.text("ҮНИЙН САНАЛ", margin, y);
+  y += 10;
+
+  const details = [
+    ["Захиалгын дугаар:", String(session.order_number || orderId)],
+    ["Огноо:", date],
+    ["Харилцагч:", String(session.customer_name || "—")],
+    ["Утас:", String(session.phone || "—")],
+    ["Байршил:", String(session.address || "—")]
+  ];
+  doc.setFontSize(9);
+  for (const [label, value] of details) {
+    doc.setTextColor(71, 85, 105);
+    doc.text(label, margin, y);
+    doc.setTextColor(17, 24, 39);
+    const wrapped = doc.splitTextToSize(value, 135);
+    doc.text(wrapped, margin + 32, y);
+    y += Math.max(6, wrapped.length * 4.5);
+  }
+  y += 5;
+
+  const cols = [
+    { title: "№", x: margin, w: 8 },
+    { title: "Бүтээгдэхүүн / хэмжээ", x: margin + 8, w: 82 },
+    { title: "Тоо", x: margin + 90, w: 15 },
+    { title: "Нэгж үнэ", x: margin + 105, w: 35 },
+    { title: "Дүн", x: margin + 140, w: 40 }
+  ];
+  const drawHeader = () => {
+    doc.setFillColor(241, 245, 249);
+    doc.rect(margin, y - 5, contentWidth, 9, "F");
+    doc.setFontSize(8);
+    doc.setTextColor(17, 24, 39);
+    for (const col of cols) doc.text(col.title, col.x + 1, y);
+    y += 8;
+  };
+  drawHeader();
+
+  let total = 0;
+  let totalArea = 0;
+  let hasNegotiable = false;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const qty = Number(item.quantity || 1);
+    const area = Number(item.area || 0) * qty;
+    const negotiable = item.pricing_mode === "labor_only";
+    const lineTotal = negotiable ? 0 : Number(item.total_price || 0);
+    total += lineTotal;
+    totalArea += area;
+    hasNegotiable ||= negotiable;
+    const measurement = item.width == null || item.height == null
+      ? area.toFixed(2) + " м²"
+      : Number(item.width) + " × " + Number(item.height) + " м";
+    const productLines = doc.splitTextToSize(String(item.product_type || "Бүтээгдэхүүн") + "\n" + measurement, 78);
+    const rowHeight = Math.max(10, productLines.length * 4.2 + 3);
+    if (y + rowHeight > 275) {
+      doc.addPage();
+      y = 20;
+      drawHeader();
+    }
+    doc.setFontSize(8);
+    doc.setTextColor(17, 24, 39);
+    doc.text(String(i + 1), cols[0].x + 1, y);
+    doc.text(productLines, cols[1].x + 1, y);
+    doc.text(String(qty), cols[2].x + 1, y);
+    doc.text(negotiable ? "Тохирно" : money(item.unit_price) + "/м²", cols[3].x + 1, y);
+    doc.text(negotiable ? "Тохирно" : money(lineTotal), cols[4].x + 1, y);
+    y += rowHeight;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, y - 2, 195, y - 2);
+  }
+  if (y > 265) { doc.addPage(); y = 20; }
+  y += 7;
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Нийт талбай: " + totalArea.toFixed(2) + " м²", margin, y);
+  y += 7;
+  doc.setFontSize(12);
+  doc.setTextColor(17, 24, 39);
+  doc.text("НИЙТ ДҮН: " + (hasNegotiable ? money(total) + " + ажлын хөлс тохиролцоно" : money(total)), margin, y);
+  y += 12;
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  const note = "Тайлбар: Энэхүү үнийн санал нь урьдчилсан тооцоо бөгөөд бодит хэмжилт, объектын нөхцөл, материалын сонголтоос хамаарч эцсийн үнэ өөрчлөгдөж болно.";
+  doc.text(doc.splitTextToSize(note, contentWidth), margin, y);
+  const pdf = Buffer.from(doc.output("arraybuffer"));
+  if (pdf.length < 1000 || pdf.length > 3 * 1024 * 1024 || pdf.subarray(0, 5).toString("ascii") !== "%PDF-") {
+    throw new Error("PDF файлын хэмжээ эсвэл бүтэц буруу байна.");
+  }
+  return pdf;
+}
+
+async function sendQuotePdfQuestion(senderId, orderId) {
+  const response = await fetch(
+    "https://graph.facebook.com/v26.0/me/messages?access_token=" + process.env.PAGE_ACCESS_TOKEN,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: senderId },
+        message: {
+          text: "📄 Таны үнийн саналын PDF файл бэлэн боллоо. Messenger чатаар авах уу?",
+          quick_replies: [
+            { content_type: "text", title: "📄 PDF авах", payload: "GET_QUOTE_PDF:" + orderId },
+            { content_type: "text", title: "Үгүй, баярлалаа", payload: "DECLINE_QUOTE_PDF:" + orderId }
+          ]
+        }
+      })
+    }
+  );
+  const result = await response.json();
+  if (!response.ok || result.error) throw new Error(result.error?.message || "PDF сонголтын асуулт илгээгдсэнгүй.");
+  return result;
+}
+
 async function saveMessengerPhoto(senderId, orderId, attachment) {
   const imageUrl = attachment.payload?.url;
 
@@ -1441,7 +1589,7 @@ const orderStatus = "Шинэ захиалга - " + session.order_number;
 // Давхар бүртгэл үүсэхээс хамгаалж шалгах
 const { data: existingOrder, error: checkError } = await supabase
   .from("orders")
-  .select("id")
+  .select("id, quote_pdf_path")
   .eq("status", orderStatus)
   .eq("user_id", admin.user_id)
   .maybeSingle();
@@ -1458,7 +1606,7 @@ if (checkError) {
 
 // Өмнө бүртгэгдээгүй бол orders хүснэгтэд хадгалах
 if (!existingOrder) {
-  const { error: saveOrderError } = await supabase
+  const { data: savedOrder, error: saveOrderError } = await supabase
     .from("orders")
   .insert({
   customer_name: session.customer_name,
@@ -1483,7 +1631,9 @@ if (!existingOrder) {
     total_price: item.total_price,
     pricing_mode: item.pricing_mode || "materials_included"
   }))
-});
+})
+  .select("id, quote_pdf_path")
+  .single();
   
   if (saveOrderError) {
     console.error("Save Messenger order error:", saveOrderError);
@@ -1493,6 +1643,40 @@ if (!existingOrder) {
       "Захиалгыг бүртгэхэд алдаа гарлаа. Манай ажилтан шалгаж холбогдоно."
     );
     continue;
+  }
+}
+
+// Үнийн саналын PDF-г үүсгэж хадгална. Давтан webhook-д ижил файл ашиглана.
+const quoteOrderId = existingOrder?.id || savedOrder?.id;
+const quoteFilePath = admin.user_id + "/messenger-" + session.order_id + ".pdf";
+if (quoteOrderId) {
+  let pdfPath = existingOrder?.quote_pdf_path || null;
+  if (!pdfPath) {
+    try {
+      const pdfBuffer = await buildMessengerQuotePdf(session, items, quoteOrderId);
+      const { error: pdfUploadError } = await supabase.storage
+        .from("quote-pdfs")
+        .upload(quoteFilePath, pdfBuffer, { contentType: "application/pdf", upsert: true });
+      if (pdfUploadError) throw pdfUploadError;
+      const { error: pdfPathError } = await supabase
+        .from("orders")
+        .update({ quote_pdf_path: quoteFilePath })
+        .eq("id", quoteOrderId)
+        .eq("user_id", admin.user_id);
+      if (pdfPathError) throw pdfPathError;
+      pdfPath = quoteFilePath;
+    } catch (pdfBuildError) {
+      console.error("Messenger quote PDF build/save error:", pdfBuildError);
+      await sendMessage(senderId, "Захиалга бүртгэгдлээ. PDF үүсгэхэд түр алдаа гарлаа. Манай ажилтан PDF-г бэлдэж өгнө.");
+    }
+  }
+  if (pdfPath) {
+    try {
+      await sendQuotePdfQuestion(senderId, quoteOrderId);
+    } catch (questionError) {
+      console.error("Messenger quote PDF question error:", questionError);
+      await sendMessage(senderId, "Таны үнийн санал бэлэн боллоо. PDF авах бол 📄 PDF авах гэж бичнэ үү.");
+    }
   }
 }
 
@@ -1548,7 +1732,7 @@ if (!completedSession) {
     "Нийт үнэ: " + (items.some(item => item.pricing_mode === "labor_only")
       ? (totalPrice > 0 ? totalPrice.toLocaleString("mn-MN") + "₮ + ажлын хөлс тохиролцоно" : "Ажлын хөлсийг тохиролцоно")
       : totalPrice.toLocaleString("mn-MN") + "₮") + "\n\n" +
-    "Манай ажилтан удахгүй холбогдоно. Баярлалаа!"
+    "Манай ажилтан удахгүй холбогдоно. Баярлалаа!\n\nPDF авах бол дээрх 📄 PDF авах товчийг дарна уу."
   );
 
   continue;
