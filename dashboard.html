@@ -1462,12 +1462,6 @@ window.showDashboardPage = function(page) {
   });
 };
 
-window.setOrderView = function(view) {
-  currentOrderView = ["active","completed","all"].includes(view) ? view : "active";
-  const search = document.getElementById("orderSearch");
-  if (search) search.dispatchEvent(new Event("input"));
-};
-
 window.openOrdersByDashboardFilter = function(filter) {
   currentOrderView = "all"; currentOrderDateFilter = ""; currentOrderUnpaidOnly = false;
   const status = document.getElementById("orderStatusFilter");
