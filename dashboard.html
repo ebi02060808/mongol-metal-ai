@@ -1410,13 +1410,13 @@ window.loadStaff = async function() {
       return;
     }
     list.innerHTML = result.employees.map(employee =>
-      "<div style='display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid #e2e8f0;padding:12px;border-radius:8px;margin:8px 0;'>" +
-      "<span><strong>" + escapeHTML(employee.full_name || "Нэр оруулаагүй") + "</strong><br>" +
-      "<small style='color:#64748b;'>" + escapeHTML(employee.email || "Имэйл олдсонгүй") + "</small><br>" +
-      "<small style='color:#475569;'>Утас: " + escapeHTML(employee.phone || "—") + " · Албан тушаал: " + escapeHTML(employee.position || "—") + "</small></span>" +
-      "<div style='display:flex;gap:7px;flex-wrap:wrap;'>" +
-      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='editStaff(this.dataset.userId)' style='padding:7px 10px;border:0;border-radius:7px;background:#dbeafe;color:#1d4ed8;'>✏️ Засах</button>" +
-      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='removeStaff(this.dataset.userId)' style='padding:7px 10px;border:0;border-radius:7px;background:#fee2e2;color:#991b1b;'>Эрх цуцлах</button></div></div>"
+      "<div style='display:block;border:1px solid #cbd5e1;padding:14px;border-radius:10px;margin:10px 0;background:#fff;'>" +
+      "<div style='font-weight:700;font-size:16px;margin-bottom:5px;'>" + escapeHTML(employee.full_name || "Нэр оруулаагүй") + "</div>" +
+      "<div style='font-size:13px;color:#64748b;margin-bottom:5px;'>" + escapeHTML(employee.email || "Имэйл олдсонгүй") + "</div>" +
+      "<div style='font-size:13px;color:#475569;margin-bottom:12px;'>Утас: " + escapeHTML(employee.phone || "—") + " · Албан тушаал: " + escapeHTML(employee.position || "—") + "</div>" +
+      "<div style='display:flex;gap:9px;flex-wrap:wrap;width:100%;'>" +
+      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.editStaff(this.getAttribute(\u0027data-user-id\u0027))' style='display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 16px;border:1px solid #2563eb;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;visibility:visible;opacity:1;'>✏️ Мэдээлэл засах</button>" +
+      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.removeStaff(this.getAttribute(\u0027data-user-id\u0027))' style='display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 16px;border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#991b1b;font-weight:600;cursor:pointer;'>Эрх цуцлах</button></div></div>"
     ).join("");
   } catch(error) {
     list.textContent = "Алдаа: " + error.message;
