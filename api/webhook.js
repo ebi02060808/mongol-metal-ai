@@ -334,7 +334,7 @@ async function sendOrderQuoteDetails(senderId, orderId) {
     try {
       let pdfItems = items;
       if (!pdfItems.length) {
-        const sizeMatch = String(order.size || "").match(/(\\d+(?:[.,]\\d+)?)\\s*[×x*]\\s*(\\d+(?:[.,]\\d+)?)/i);
+        const sizeMatch = String(order.size || "").match(/(\d+(?:[.,]\d+)?)\s*[×x*]\s*(\d+(?:[.,]\d+)?)/i);
         const width = sizeMatch ? Number(sizeMatch[1].replace(",", ".")) : null;
         const height = sizeMatch ? Number(sizeMatch[2].replace(",", ".")) : null;
         const area = Number(order.area_per_unit || (width && height ? width * height : 0));
