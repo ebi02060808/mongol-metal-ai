@@ -1725,6 +1725,7 @@ async function loadFinance() {
     const sale = order.price == null ? null : Number(order.price);
     return {order,orderIncome,orderCosts,sale,estimatedProfit:sale==null?null:sale-orderCosts,unpaid:Number(order.unpaid_balance||0),hasData:linked.length>0 || sale!==null};
   }); // Бүх захиалгыг харуулна. Зардал бүртгээгүй байсан ч ＋ Зардал товч харагдана.
+  // Finance cost action deployment refresh marker.
   const completedOrderIds=new Set(completedOrders.map(o=>String(o.id)));
   const completedOrderCosts=entries.filter(e=>e.entry_type==="expense" && e.order_id && completedOrderIds.has(String(e.order_id))).reduce((s,e)=>s+Number(e.amount||0),0);
   const estimatedProfit=completedSales-completedOrderCosts;
