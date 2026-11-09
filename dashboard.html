@@ -325,7 +325,11 @@
       <div class="page-section" id="customersPage">
         <div class="section">
           <h2>👥 Харилцагчид</h2>
+          <p style="color:#64748b;margin-bottom:12px;">Нэр, утсаар хайж, харилцагчийн захиалгын түүхийг харах боломжтой.</p>
+          <input id="customerSearch" type="search" placeholder="Нэр эсвэл утасны дугаараар хайх..." oninput="renderCustomerList()" style="width:100%;max-width:520px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:14px;font-size:15px;">
+          <p id="customerCount" style="font-size:13px;color:#64748b;margin-bottom:10px;"></p>
           <div id="customersList">Харилцагчдыг ачаалж байна...</div>
+          <div id="customerDetails" style="display:none;margin-top:18px;padding:16px;border:1px solid #bfdbfe;background:#f8fafc;border-radius:10px;"></div>
         </div>
       </div>
       <div class="page-section" id="messengerPage">
@@ -1969,60 +1973,115 @@ window.deleteOrder = async function(orderId) {
 };
 
     
-   async function loadCustomers() {
-  const { data: { session } } =
-    await supabaseClient.auth.getSession();
+   let customerRecords = [];
 
+async function loadCustomers() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return;
+
+  const customersList = document.getElementById("customersList");
+  if (!customersList) return;
+  customersList.textContent = "Харилцагчдыг ачаалж байна...";
 
   const { data: orders, error } = await supabaseClient
     .from("orders")
-    .select("customer_name, phone, price")
+    .select("id, customer_name, phone, product, size, price, status, created_at, quantity")
     .eq("user_id", currentOwnerUserId)
     .order("created_at", { ascending: false });
 
-  const customersList =
-    document.getElementById("customersList");
-
   if (error) {
-    customersList.textContent =
-      "Алдаа: " + error.message;
+    customersList.textContent = "Алдаа: " + error.message;
     return;
   }
 
-  if (!orders || orders.length === 0) {
-    customersList.textContent =
-      "Одоогоор харилцагч байхгүй байна.";
-    return;
-  }
-
-  const customers = {};
-
-  orders.forEach(order => {
-    const key = order.phone;
-
-    if (!customers[key]) {
-      customers[key] = {
-        name: order.customer_name,
-        phone: order.phone,
-        orderCount: 0,
-        total: 0
-      };
+  const grouped = new Map();
+  (orders || []).forEach(order => {
+    const phone = String(order.phone || "").trim();
+    const name = String(order.customer_name || "").trim();
+    const key = phone ? phone.replace(/[\\s()-]/g, "") : "name:" + name.toLocaleLowerCase();
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        name, phone, orderCount: 0, total: 0, orders: []
+      });
     }
-
-    customers[key].orderCount += 1;
-    customers[key].total += Number(order.price) || 0;
+    const customer = grouped.get(key);
+    customer.orderCount += 1;
+    customer.total += Number(order.price) || 0;
+    customer.orders.push(order);
+    if (!customer.name && name) customer.name = name;
+    if (!customer.phone && phone) customer.phone = phone;
   });
 
-  customersList.innerHTML =
-    Object.values(customers).map(customer => `
-      <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; border-radius:10px;">
-<strong>👤 ${escapeHTML(customer.name)}</strong><br>
-📞 ${escapeHTML(customer.phone)}<br>
-        📦 Захиалга: ${customer.orderCount} ширхэг<br>
-        💰 Нийт дүн: ${customer.total.toLocaleString()} ₮
+  customerRecords = Array.from(grouped.values());
+  const details = document.getElementById("customerDetails");
+  if (details) details.style.display = "none";
+  renderCustomerList();
+}
+
+function renderCustomerList() {
+  const list = document.getElementById("customersList");
+  if (!list) return;
+  const query = String(document.getElementById("customerSearch")?.value || "").trim().toLocaleLowerCase();
+  const filtered = customerRecords
+    .map((customer, index) => ({ customer, index }))
+    .filter(({customer}) =>
+      !query ||
+      String(customer.name || "").toLocaleLowerCase().includes(query) ||
+      String(customer.phone || "").toLocaleLowerCase().includes(query)
+    );
+
+  const count = document.getElementById("customerCount");
+  if (count) count.textContent = "Нийт " + customerRecords.length + " харилцагч · Хайлтаар " + filtered.length + " харилцагч";
+  if (!filtered.length) {
+    list.textContent = customerRecords.length
+      ? "Хайлтад тохирох харилцагч олдсонгүй."
+      : "Одоогоор харилцагч байхгүй байна.";
+    return;
+  }
+
+  list.innerHTML = filtered.map(({customer, index}) => `
+    <div style="display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;border:1px solid #e2e8f0;padding:15px;margin-bottom:10px;border-radius:10px;background:white;">
+      <div style="min-width:180px;flex:1;">
+        <strong>👤 ${escapeHTML(customer.name || "Нэргүй харилцагч")}</strong><br>
+        📞 ${escapeHTML(customer.phone || "Утас бүртгээгүй")}<br>
+        <span style="color:#475569;font-size:13px;">📦 Захиалга: ${customer.orderCount} · 💰 Нийт дүн: ${customer.total.toLocaleString("mn-MN")} ₮</span>
       </div>
-    `).join("");
+      <button type="button" onclick="showCustomerDetails(${index})" style="padding:10px 14px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer;">Дэлгэрэнгүй / Түүх</button>
+    </div>
+  `).join("");
+}
+
+function showCustomerDetails(index) {
+  const customer = customerRecords[index];
+  const panel = document.getElementById("customerDetails");
+  if (!customer || !panel) return;
+
+  const money = value => (Number(value) || 0).toLocaleString("mn-MN") + " ₮";
+  const dateLabel = value => {
+    if (!value) return "Огноо тодорхойгүй";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "Огноо тодорхойгүй" : date.toLocaleDateString("mn-MN");
+  };
+
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+      <h3>👤 ${escapeHTML(customer.name || "Нэргүй харилцагч")}</h3>
+      <button type="button" onclick="document.getElementById('customerDetails').style.display='none'" style="padding:7px 11px;border:1px solid #cbd5e1;border-radius:7px;background:white;cursor:pointer;">Хаах ✕</button>
+    </div>
+    <p style="margin:8px 0;">📞 ${escapeHTML(customer.phone || "Утас бүртгээгүй")}</p>
+    <p style="margin:6px 0;color:#475569;">Нийт захиалга: <strong>${customer.orderCount}</strong> · Захиалгын нийт дүн: <strong>${money(customer.total)}</strong></p>
+    <h4 style="margin:16px 0 9px;">📋 Захиалгын түүх</h4>
+    ${customer.orders.map(order => `
+      <div style="border-top:1px solid #e2e8f0;padding:11px 0;">
+        <strong>#${escapeHTML(order.id)}</strong> · ${escapeHTML(order.status || "Төлөвгүй")}<br>
+        <span>${escapeHTML(order.product || "Бүтээгдэхүүн тодорхойгүй")} · ${escapeHTML(order.size || "Хэмжээ тодорхойгүй")}</span><br>
+        <span style="font-size:13px;color:#64748b;">${dateLabel(order.created_at)} · Тоо: ${Number(order.quantity || 1)}</span><br>
+        <strong>${money(order.price)}</strong>
+      </div>
+    `).join("")}
+  `;
+  panel.style.display = "block";
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
    async function checkLogin() {
   const { data: { session } } =
