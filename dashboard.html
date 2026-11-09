@@ -1246,7 +1246,15 @@ async function saveCompanySettings() {
     const facadePrice = numeric("settingPriceMetalFacade","Металл фасадын",true);
     if (facadePrice !== null) settings.prices["Металл фасад"] = facadePrice;
     const glassFacadePrice = numeric("settingPriceGlass","Шилэн фасадын",true);
-    if (glassFacadePrice !== null) settings.prices["Шилэн фасад"] = glassFacadePrice;
+    if (glassFacadePrice !== null && glassFacadePrice > 0) {
+      settings.prices["Шилэн фасад"] = glassFacadePrice;
+    } else {
+      delete settings.prices["Шилэн фасад"];
+    }
+    // Never persist an empty or zero facade price as a fixed price.
+    for (const key of ["Шилэн фасад", "Металл фасад"]) {
+      if (!(Number(settings.prices[key]) > 0)) delete settings.prices[key];
+    }
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
     if (sessionError || !session) throw new Error("Нэвтрэх хугацаа дууссан байна. Дахин нэвтэрнэ үү.");
     const { error } = await supabaseClient.from("company_settings").upsert({
