@@ -581,10 +581,10 @@ export default async function handler(req, res) {
 
 // Dashboard-аас илгээсэн үнийн саналын асуултын quick reply.
 const quoteChoicePayload = String(event.message.quick_reply?.payload || "");
-const quoteYesMatch = quoteChoicePayload.match(/^SEND_ORDER_QUOTE:(\\d+)$/);
-const quoteNoMatch = quoteChoicePayload.match(/^DECLINE_ORDER_QUOTE:(\\d+)$/);
+const quoteYesMatch = quoteChoicePayload.match(/^SEND_ORDER_QUOTE:([A-Za-z0-9-]+)$/);
+const quoteNoMatch = quoteChoicePayload.match(/^DECLINE_ORDER_QUOTE:([A-Za-z0-9-]+)$/);
 if (quoteYesMatch) {
-  await sendOrderQuoteDetails(senderId, Number(quoteYesMatch[1]));
+  await sendOrderQuoteDetails(senderId, quoteYesMatch[1]);
   continue;
 }
 if (quoteNoMatch) {
