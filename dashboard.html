@@ -1374,30 +1374,63 @@ window.removeStaff = async function(userId) {
   }
 };
 
-function showDashboardPage(page) {
+window.showDashboardPage = function(page) {
   const pages = {
-    overview:"overviewPage", orders:"ordersPage", customers:"customersPage",
-    messenger:"messengerPage", finance:"financePage", settings:"settingsPage"  };
-  if (!pages[page]) return;
+    overview:"overviewPage",
+    orders:"ordersPage",
+    customers:"customersPage",
+    messenger:"messengerPage",
+    finance:"financePage",
+    settings:"settingsPage"
+  };
+  if (!Object.prototype.hasOwnProperty.call(pages, page)) return;
   if ((page === "finance" || page === "settings") && currentUserRole !== "admin") {
     alert("Энэ хэсэгт админы эрх шаардлагатай.");
     return;
   }
-  document.querySelectorAll(".page-section").forEach(section => section.classList.remove("active"));
+
   const target = document.getElementById(pages[page]);
-  if (target) target.classList.add("active");
+  if (!target) {
+    console.error("Dashboard хэсэг олдсонгүй:", pages[page]);
+    alert("Энэ цэсний хэсэг олдсонгүй. Хуудсыг дахин ачаална уу.");
+    return;
+  }
+
+  document.querySelectorAll(".page-section").forEach(section => {
+    section.classList.toggle("active", section === target);
+    section.setAttribute("aria-hidden", section === target ? "false" : "true");
+  });
   document.querySelectorAll(".sidebar [data-page]").forEach(button => {
     const active = button.dataset.page === page;
     button.classList.toggle("active", active);
-    if (active) button.setAttribute("aria-current","page");
+    if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
-  if (page === "overview") loadDashboardStats();
-  if (page === "orders") loadOrders();
-  if (page === "customers") loadCustomers();
-  if (page === "finance" && currentUserRole === "admin") loadFinance();
-  if (page === "settings" && currentUserRole === "admin") { loadStaff(); loadCompanySettings(); }
-}
+
+  // Хэсгийг эхлээд харуулж, дараа нь тухайн хэсгийн мэдээллийг ачаална.
+  const loaders = {
+    overview: () => loadDashboardStats(),
+    orders: () => loadOrders(),
+    customers: () => loadCustomers(),
+    messenger: () => Promise.resolve(),
+    finance: () => currentUserRole === "admin" ? loadFinance() : Promise.resolve(),
+    settings: () => currentUserRole === "admin"
+      ? Promise.all([loadStaff(), loadCompanySettings()])
+      : Promise.resolve()
+  };
+  Promise.resolve().then(loaders[page]).catch(error => {
+    console.error(page + " хэсэг ачаалахад алдаа:", error);
+    const messageTargets = {
+      overview: "overviewPage",
+      orders: "ordersList",
+      customers: "customersList",
+      finance: "financeEntries",
+      settings: "staffMessage"
+    };
+    const el = document.getElementById(messageTargets[page] || "");
+    if (el) el.textContent = "Мэдээлэл ачаалахад алдаа гарлаа. Хуудсыг дахин ачаална уу.";
+  });
+};
 
 function localDateString(date = new Date()) {
   return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
@@ -2296,11 +2329,29 @@ function showCustomerDetails(index) {
     }
 
 checkLogin().then(async isAuthorized => {
-  if (isAuthorized) {
-    const financeDate = document.getElementById("financeDate");
-    if (financeDate) financeDate.value = localDateString();
-    await loadCompanySettings();
-    showDashboardPage("overview");
+  if (!isAuthorized) return;
+  const financeDate = document.getElementById("financeDate");
+  if (financeDate) financeDate.value = localDateString();
+
+  // Тохиргооны серверийн хүсэлт удааширсан/алдаатай байсан ч Тойм эхэлж харагдана.
+  showDashboardPage("overview");
+  if (currentUserRole === "admin") {
+    try {
+      await loadCompanySettings();
+    } catch (error) {
+      console.error("Компанийн тохиргоо ачаалахад алдаа:", error);
+      const message = document.getElementById("companySettingsMessage");
+      if (message) message.textContent = "Тохиргоо ачаалж чадсангүй. Дараа дахин оролдоно уу.";
+    }
+  }
+}).catch(error => {
+  console.error("Dashboard эхлүүлэхэд алдаа:", error);
+  const overview = document.getElementById("overviewPage");
+  if (overview) {
+    overview.classList.add("active");
+    const welcome = overview.querySelector(".welcome");
+    if (welcome) welcome.insertAdjacentHTML("beforeend",
+      '<p style="margin-top:10px;color:#b91c1c;">Dashboard эхлүүлэхэд алдаа гарлаа. Хуудсыг дахин ачаална уу.</p>');
   }
 });
   </script>
