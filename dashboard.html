@@ -355,7 +355,7 @@
           <select id="financePaymentMethod" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Төлбөрийн хэлбэр</option><option value="Бэлэн">Бэлэн</option><option value="Банк">Банкны шилжүүлэг</option><option value="Карт">Карт</option><option value="Бусад">Бусад</option></select>
           <select id="financePaymentStatus" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="paid">Төлөгдсөн</option><option value="unpaid">Төлөгдөөгүй / өглөг</option></select>
           <div style="display:flex;flex-direction:column;gap:4px;"><label for="financeDueDate" style="font-size:12px;font-weight:600;color:#334155;">Төлөхөөр товлосон өдөр</label><input id="financeDueDate" type="date" title="Төлөхөөр товлосон өдөр" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><small style="font-size:11px;color:#64748b;">Төлбөрийг ирээдүйд хийхээр тохирсон өдрийг сонгоно.</small></div>
-          <input id="financeDescription" type="text" placeholder="Юунд зориулагдсан / юу авсан (гараар бичнэ)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <input id="financeDescription" type="text" placeholder="Зориулалт / тайлбар" style="width:100%;min-width:0;box-sizing:border-box;padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
         </div>
         <button type="button" onclick="saveFinanceEntry()" style="background:#2563eb;color:white;border:0;padding:11px 18px;border-radius:8px;cursor:pointer;">Бүртгэх</button>
         <p id="financeMessage" style="margin:10px 0;color:#475569;"></p>
