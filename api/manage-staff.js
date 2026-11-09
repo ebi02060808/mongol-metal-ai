@@ -93,7 +93,7 @@ export default async function handler(req, res) {
         result.push({
           user_id: employee.user_id,
           email: userError ? null : data?.user?.email || null,
-          full_name: String(metadata.full_name || "").trim(),
+          full_name: String(metadata.full_name || metadata.name || metadata.display_name || [metadata.last_name, metadata.first_name].filter(Boolean).join(" ") || "").trim(),
           phone: String(metadata.phone || "").trim(),
           position: String(metadata.position || "").trim(),
           created_at: employee.created_at
