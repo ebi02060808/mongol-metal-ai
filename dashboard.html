@@ -184,6 +184,8 @@
         <div class="cards">
           <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('all')"><h3>Нийт захиалга</h3><div class="number" id="totalOrders">0</div><small>Дэлгэрэнгүй харах →</small></div><div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('messenger')"><h3>💬 Messenger захиалга</h3><div class="number" id="messengerOrdersCount">0</div><p id="messengerOrdersBreakdown" style="font-size:12px;color:#64748b;margin-top:6px;"></p><strong id="messengerOrdersAmount">0 ₮</strong></div><div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('in_person')"><h3>🏢 Биечлэн ирсэн захиалга</h3><div class="number" id="inPersonOrdersCount">0</div><p id="inPersonOrdersBreakdown" style="font-size:12px;color:#64748b;margin-top:6px;"></p><strong id="inPersonOrdersAmount">0 ₮</strong></div>
           <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('active')"><h3>Идэвхтэй захиалга</h3><div class="number" id="activeOrdersCount">0</div></div>
+          <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('Шинэ')"><h3>Шинэ захиалга</h3><div class="number" id="newOrdersCount">0</div></div>
+          <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('Холбогдсон')"><h3>Холбогдсон</h3><div class="number" id="contactedOrdersCount">0</div></div>
           <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('Үнийн санал')"><h3>Үнийн санал хүлээж буй</h3><div class="number" id="quoteOrdersCount">0</div></div>
           <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('Баталгаажсан')"><h3>Баталгаажсан</h3><div class="number" id="confirmedOrdersCount">0</div></div>
           <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('Дууссан')"><h3>Дууссан захиалга</h3><div class="number" id="completedOrdersCount">0</div></div>
@@ -886,6 +888,8 @@ async function addOrder() {
   const completed = allOrders.filter(order => normalizedStatus(order) === "Дууссан");
   const confirmed = allOrders.filter(order => normalizedStatus(order) === "Баталгаажсан");
   const quotes = allOrders.filter(order => normalizedStatus(order) === "Үнийн санал");
+  const newOrders = allOrders.filter(order => normalizedStatus(order) === "Шинэ");
+  const contactedOrders = allOrders.filter(order => normalizedStatus(order) === "Холбогдсон");
   const active = allOrders.filter(order => normalizedStatus(order) !== "Дууссан");
   const unpaid = completed.filter(order => Number(order.unpaid_balance || 0) > 0);
 
@@ -907,6 +911,8 @@ async function addOrder() {
   setText("totalCustomers", customers.size);
   setText("todayOrders", todayOrders.length);
   setText("activeOrdersCount", active.length);
+  setText("newOrdersCount", newOrders.length);
+  setText("contactedOrdersCount", contactedOrders.length);
   setText("quoteOrdersCount", quotes.length);
   setText("confirmedOrdersCount", confirmed.length);
   setText("completedOrdersCount", completed.length);
