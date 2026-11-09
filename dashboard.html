@@ -1415,8 +1415,8 @@ window.loadStaff = async function() {
       "<div style='font-size:13px;color:#64748b;margin-bottom:5px;'>" + escapeHTML(employee.email || "Имэйл олдсонгүй") + "</div>" +
       "<div style='font-size:13px;color:#475569;margin-bottom:12px;'>Утас: " + escapeHTML(employee.phone || "—") + " · Албан тушаал: " + escapeHTML(employee.position || "—") + "</div>" +
       "<div style='display:flex;gap:9px;flex-wrap:wrap;width:100%;'>" +
-      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.editStaff(this.getAttribute(\u0027data-user-id\u0027))' style='display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 16px;border:1px solid #2563eb;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;visibility:visible;opacity:1;'>✏️ Мэдээлэл засах</button>" +
-      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.removeStaff(this.getAttribute(\u0027data-user-id\u0027))' style='display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 16px;border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#991b1b;font-weight:600;cursor:pointer;'>Эрх цуцлах</button></div></div>"
+      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.editStaff(this.dataset.userId)' style='display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 16px;border:1px solid #2563eb;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;visibility:visible;opacity:1;'>✏️ Мэдээлэл засах</button>" +
+      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.removeStaff(this.dataset.userId)' style='display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 16px;border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#991b1b;font-weight:600;cursor:pointer;'>Эрх цуцлах</button></div></div>"
     ).join("");
   } catch(error) {
     list.textContent = "Алдаа: " + error.message;
