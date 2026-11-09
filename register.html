@@ -20,8 +20,14 @@
 <body>
   <main class="card">
     <h1>Ажилтан бүртгүүлэх</h1>
-    <p>Имэйл болон нууц үгээр бүртгэл үүсгэнэ. Бүртгүүлсний дараа админ таны имэйлд ажилтны эрх олгоно.</p>
+    <p>Ажилтны мэдээллээ бөглөж бүртгүүлнэ. Дараа нь админ таны имэйлээр системийн эрх олгоно.</p>
     <form id="registerForm">
+      <label for="fullName">Овог, нэр</label>
+      <input id="fullName" type="text" autocomplete="name" maxlength="120" placeholder="Овог нэрээ бүтнээр бичнэ үү" required>
+      <label for="phone">Утасны дугаар</label>
+      <input id="phone" type="tel" autocomplete="tel" maxlength="30" placeholder="Жишээ: 99112233" required>
+      <label for="position">Албан тушаал</label>
+      <input id="position" type="text" autocomplete="organization-title" maxlength="100" placeholder="Жишээ: Угсралтын ажилтан" required>
       <label for="email">Имэйл хаяг</label>
       <input id="email" type="email" autocomplete="email" required>
       <label for="password">Нууц үг (дор хаяж 8 тэмдэгт)</label>
@@ -41,8 +47,17 @@
       event.preventDefault();
       const button = document.getElementById("registerButton");
       const message = document.getElementById("message");
+      const fullName = document.getElementById("fullName").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const position = document.getElementById("position").value.trim();
       const email = document.getElementById("email").value.trim().toLowerCase();
       const password = document.getElementById("password").value;
+      if (fullName.length < 2 || phone.length < 6 || position.length < 2) {
+        message.textContent = "Овог нэр, утас, албан тушаалын мэдээллээ зөв бөглөнө үү.";
+        button.disabled = false;
+        button.textContent = "Бүртгүүлэх";
+        return;
+      }
       button.disabled = true;
       button.textContent = "Бүртгэж байна...";
       message.textContent = "";
@@ -50,7 +65,9 @@
         const { data, error } = await supabaseClient.auth.signUp({
           email,
           password,
-          options: {}
+          options: {
+            data: { full_name: fullName, phone, position }
+          }
         });
         if (error) throw error;
         message.textContent = data.session
