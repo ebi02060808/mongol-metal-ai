@@ -254,6 +254,64 @@ async function buildMessengerQuotePdf(session, items, orderId) {
   return pdf;
 }
 
+
+async function sendOrderQuoteDetails(senderId, orderId) {
+  const { data: order, error } = await supabase
+    .from("orders")
+    .select("id, customer_name, product, size, price, quantity, area_per_unit, quote_items, messenger_order_number, messenger_sender_id")
+    .eq("id", orderId)
+    .eq("messenger_sender_id", senderId)
+    .maybeSingle();
+
+  if (error || !order) {
+    console.error("Messenger quote order lookup error:", error);
+    await sendMessage(senderId, "Уучлаарай, үнийн саналын мэдээлэл олдсонгүй. Манай ажилтантай холбогдоно уу.");
+    return;
+  }
+
+  const items = Array.isArray(order.quote_items) ? order.quote_items : [];
+  let totalArea = 0;
+  let fixedTotal = 0;
+  const hasNegotiable = items.some(item => item.pricing_mode === "labor_only");
+  const lines = items.length ? items.map((item, index) => {
+    const quantity = Math.max(1, Number(item.quantity || 1));
+    const area = Number(item.area || 0) * quantity;
+    const negotiable = item.pricing_mode === "labor_only";
+    const lineTotal = negotiable ? 0 : Number(item.total_price || 0);
+    totalArea += area;
+    fixedTotal += lineTotal;
+    const measurement = item.width != null && item.height != null
+      ? "Хэмжээ: " + item.width + " × " + item.height + " м, " + quantity + " ш"
+      : "Талбай: " + area.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²";
+    return (index + 1) + ". " + (item.product_type || "Бүтээгдэхүүн") + "\n" +
+      measurement + "\n" +
+      (negotiable
+        ? "Ажлын хөлс: Харилцан тохиролцоно"
+        : "Нэгж үнэ: " + money(item.unit_price) + "/м²\nДүн: " + money(lineTotal));
+  }) : [
+    (order.product || "Бүтээгдэхүүн") + "\nХэмжээ: " + (order.size || "—") +
+    "\nДүн: " + (order.price == null ? "Үнийг тохиролцоно" : money(order.price))
+  ];
+
+  if (!items.length) {
+    totalArea = Number(order.area_per_unit || parseAreaFromSize(order.size) || 0) * Number(order.quantity || 1);
+    fixedTotal = order.price == null ? 0 : Number(order.price);
+  }
+
+  const total = hasNegotiable
+    ? (fixedTotal > 0 ? money(fixedTotal) + " + ажлын хөлс тохиролцоно" : "Ажлын хөлсийг тохиролцоно")
+    : money(items.length ? fixedTotal : order.price);
+  const message =
+    "📋 МОНГОЛ МЕТАЛЛ ХИЙЦ — ТАНЫ ҮНИЙН САНАЛ\n\n" +
+    "Сайн байна уу, " + (order.customer_name || "хүндэт харилцагч") + " аа.\n" +
+    "Захиалгын дугаар: " + (order.messenger_order_number || order.id) + "\n\n" +
+    lines.join("\n\n") + "\n\n" +
+    "Нийт талбай: " + totalArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\n" +
+    "НИЙТ ДҮН: " + total + "\n\n" +
+    "Нэмэлт зүйл тодруулах бол энэ чатанд бичээрэй. Баярлалаа!";
+  await sendMessage(senderId, message);
+}
+
 async function sendQuotePdfQuestion(senderId, orderId) {
   const response = await fetch(
     "https://graph.facebook.com/v26.0/me/messages?access_token=" + process.env.PAGE_ACCESS_TOKEN,
@@ -520,6 +578,19 @@ export default async function handler(req, res) {
       }
 
      const senderId = event.sender.id;
+
+// Dashboard-аас илгээсэн үнийн саналын асуултын quick reply.
+const quoteChoicePayload = String(event.message.quick_reply?.payload || "");
+const quoteYesMatch = quoteChoicePayload.match(/^SEND_ORDER_QUOTE:(\\d+)$/);
+const quoteNoMatch = quoteChoicePayload.match(/^DECLINE_ORDER_QUOTE:(\\d+)$/);
+if (quoteYesMatch) {
+  await sendOrderQuoteDetails(senderId, Number(quoteYesMatch[1]));
+  continue;
+}
+if (quoteNoMatch) {
+  await sendMessage(senderId, "Ойлголоо. Үнийн санал илгээхгүй. Хэрэгтэй үедээ энэ чатанд бичээрэй. 😊");
+  continue;
+}
 
 const messageText = event.message.text
   ? event.message.text.trim()
