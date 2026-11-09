@@ -173,34 +173,33 @@
     <main class="main">
 
       <div class="page-section active" id="overviewPage">
-      <div class="welcome">
-        <h1>Тойм</h1>
-        <p>Тавтай морилно уу, <strong id="userEmail">...</strong></p>
-      </div>
+        <div class="welcome">
+          <h1>Тойм</h1>
+          <p>Тавтай морилно уу, <strong id="userEmail">...</strong></p>
+          <p style="color:#64748b;margin-top:6px;">Бизнесийн захиалга, харилцагчийн өнөөгийн төлөв</p>
+        </div>
 
-      <div class="cards">
+        <div class="cards">
+          <div class="card"><h3>Нийт захиалга</h3><div class="number" id="totalOrders">0</div></div>
+          <div class="card"><h3>Идэвхтэй захиалга</h3><div class="number" id="activeOrdersCount">0</div></div>
+          <div class="card"><h3>Үнийн санал хүлээж буй</h3><div class="number" id="quoteOrdersCount">0</div></div>
+          <div class="card"><h3>Баталгаажсан</h3><div class="number" id="confirmedOrdersCount">0</div></div>
+          <div class="card"><h3>Дууссан захиалга</h3><div class="number" id="completedOrdersCount">0</div></div>
+          <div class="card"><h3>Нийт харилцагч</h3><div class="number" id="totalCustomers">0</div></div>
+          <div class="card"><h3>Өнөөдрийн захиалга</h3><div class="number" id="todayOrders">0</div></div>
+          <div class="card"><h3>Төлөгдөөгүй үлдэгдэлтэй</h3><div class="number" id="unpaidOrdersCount">0</div></div>
+        </div>
 
-        <div class="card">
-<h3>Нийт захиалга</h3>
-<div class="number" id="totalOrders">0</div>
-</div>
-
-<div class="card">
-  <h3>Шинэ харилцагч</h3>
-  <div class="number" id="totalCustomers">0</div>
-</div>
-
-<div class="card">
-  <h3>Messenger чат</h3>
-  <div class="number" id="totalChats">0</div>
-</div>
-
-<div class="card">
-  <h3>Өнөөдрийн захиалга</h3>
-  <div class="number" id="todayOrders">0</div>
-</div>
-
-      </div>
+        <div class="section" style="margin-top:18px;">
+          <h2>⚡ Шуурхай үйлдэл</h2>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="button" onclick="showDashboardPage('orders');document.getElementById('customerName')?.focus();" style="padding:11px 15px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer;">＋ Шинэ захиалга</button>
+            <button type="button" onclick="showDashboardPage('orders');document.getElementById('quoteCustomerName')?.focus();" style="padding:11px 15px;border:0;border-radius:8px;background:#0f766e;color:white;cursor:pointer;">🧾 Үнийн санал</button>
+            <button type="button" onclick="showDashboardPage('customers')" style="padding:11px 15px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;cursor:pointer;">👥 Харилцагчид</button>
+            <button type="button" onclick="showDashboardPage('messenger')" style="padding:11px 15px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;cursor:pointer;">💬 Messenger</button>
+            <button id="overviewFinanceQuick" type="button" onclick="showDashboardPage('finance')" style="display:none;padding:11px 15px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;cursor:pointer;">💰 Санхүү</button>
+          </div>
+        </div>
       </div>
 
       <div class="page-section" id="ordersPage">
@@ -815,14 +814,12 @@ async function addOrder() {
 }
 
     async function loadDashboardStats() {
-  const { data: { session } } =
-    await supabaseClient.auth.getSession();
-
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return;
 
   const { data: orders, error } = await supabaseClient
     .from("orders")
-    .select("id, phone, price, status, created_at")
+    .select("id, phone, price, status, created_at, unpaid_balance")
     .eq("user_id", currentOwnerUserId);
 
   if (error) {
@@ -830,48 +827,45 @@ async function addOrder() {
     return;
   }
 
- const allOrders = orders || [];
+  const allOrders = orders || [];
+  const normalizedStatus = order => {
+    const status = String(order.status || "Шинэ");
+    return status.startsWith("Шинэ захиалга") ? "Шинэ" : status;
+  };
 
-const now = new Date();
-const start = new Date(
-  now.getFullYear(),
-  now.getMonth(),
-  now.getDate()
-);
-const end = new Date(
-  now.getFullYear(),
-  now.getMonth(),
-  now.getDate() + 1
-);
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const todayOrders = allOrders.filter(order => {
+    const created = new Date(order.created_at);
+    return Number.isFinite(created.getTime()) && created >= start && created < end;
+  });
 
-const todayOrders = allOrders.filter(order => {
-  const created = new Date(order.created_at);
-  return created >= start && created < end;
-});
-      
-  const customers = new Set(
-    allOrders.map(order => order.phone).filter(Boolean)
-  );
+  const customers = new Set(allOrders.map(order => String(order.phone || "").trim()).filter(Boolean));
+  const completed = allOrders.filter(order => normalizedStatus(order) === "Дууссан");
+  const confirmed = allOrders.filter(order => normalizedStatus(order) === "Баталгаажсан");
+  const quotes = allOrders.filter(order => normalizedStatus(order) === "Үнийн санал");
+  const active = allOrders.filter(order => normalizedStatus(order) !== "Дууссан");
+  const unpaid = completed.filter(order => Number(order.unpaid_balance || 0) > 0);
 
-  const totalAmount = allOrders.reduce(
-    (sum, order) => sum + (Number(order.price) || 0), 0
-  );
+  const setText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = String(value);
+  };
 
-  document.getElementById("totalOrders").textContent =
-    allOrders.length;
+  setText("totalOrders", allOrders.length);
+  setText("totalCustomers", customers.size);
+  setText("todayOrders", todayOrders.length);
+  setText("activeOrdersCount", active.length);
+  setText("quoteOrdersCount", quotes.length);
+  setText("confirmedOrdersCount", confirmed.length);
+  setText("completedOrdersCount", completed.length);
+  setText("unpaidOrdersCount", unpaid.length);
 
-  document.getElementById("totalCustomers").textContent =
-    customers.size;
-
-  document.getElementById("todayOrders").textContent =
-    todayOrders.length;
-
-  const totalAmountElement =
-    document.getElementById("totalAmount");
-
+  const totalAmountElement = document.getElementById("totalAmount");
   if (totalAmountElement) {
-    totalAmountElement.textContent =
-      totalAmount.toLocaleString("mn-MN") + " ₮";
+    const totalAmount = allOrders.reduce((sum, order) => sum + (Number(order.price) || 0), 0);
+    totalAmountElement.textContent = totalAmount.toLocaleString("mn-MN") + " ₮";
   }
 }
 
@@ -2060,11 +2054,13 @@ window.deleteOrder = async function(orderId) {
     document.getElementById("financeNav").style.display = "block";
     document.getElementById("financeSection").style.display = "block";
     document.getElementById("staffSection").style.display = "block";
+    document.getElementById("overviewFinanceQuick").style.display = "inline-block";
   } else {
     document.getElementById("adminSettingsNav").style.display = "none";
     document.getElementById("financeNav").style.display = "none";
     document.getElementById("financeSection").style.display = "none";
     document.getElementById("staffSection").style.display = "none";
+    document.getElementById("overviewFinanceQuick").style.display = "none";
   }
 
   return true;
