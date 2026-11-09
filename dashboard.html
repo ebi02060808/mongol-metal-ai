@@ -1032,7 +1032,7 @@ async function loadOrders() {
                   </select>`}
                 </td>
                 <td style="padding:11px 10px;white-space:nowrap;">
-                  <button style="padding:6px 8px;margin:2px;" onclick="viewOrderHistory('${order.id}')">Түүх</button>
+                  <button style="padding:6px 8px;margin:2px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;color:#1d4ed8;cursor:pointer;" onclick="viewOrderDetails('${order.id}')">Дэлгэрэнгүй / Түүх</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="viewOrderPhotos('${order.id}')">Зураг</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="editOrder('${order.id}')">Засах</button>
 ${currentUserRole === "admin" ? `                  <button style="padding:6px 8px;margin:2px;" onclick="deleteOrder('${order.id}')">Устгах</button>` : ""}
@@ -1163,6 +1163,35 @@ window.setOrderView = function(view) {
   if (source) source.value = "";
 
   loadOrders();
+};
+
+window.viewOrderDetails = async function(orderId) {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
+  const [o,h] = await Promise.all([
+    supabaseClient.from("orders").select("*").eq("id",orderId).eq("user_id",currentOwnerUserId).single(),
+    supabaseClient.from("order_history").select("event_type,old_values,new_values,actor_user_id,created_at").eq("order_id",orderId).eq("user_id",currentOwnerUserId).order("created_at",{ascending:false})
+  ]);
+  if(o.error || !o.data) return alert("Захиалгын мэдээлэл олдсонгүй: "+(o.error?.message||""));
+  if(h.error) return alert("Түүх уншихад алдаа гарлаа: "+h.error.message);
+  const order=o.data, history=h.data||[];
+  const money=v => v==null || v==="" ? "—" : Number(v).toLocaleString("mn-MN")+" ₮";
+  const date=v => { const d=new Date(v); return v && !Number.isNaN(d.getTime()) ? d.toLocaleString("mn-MN") : "—"; };
+  const source=order.order_source==="messenger" || (!order.order_source && order.messenger_sender_id) ? "💬 Messenger" : "🏢 Биечлэн ирсэн";
+  const info=(k,v)=>"<div style='padding:11px;background:#f8fafc;border-radius:8px;'><small style='color:#64748b;'>"+k+"</small><div style='font-weight:700;margin-top:4px;'>"+v+"</div></div>";
+  const items=Array.isArray(order.quote_items)?order.quote_items:[];
+  const products=items.length ? items.map((x,i)=>"<div style='padding:9px 0;border-bottom:1px solid #e2e8f0;'><strong>"+(i+1)+". "+escapeHTML(x.product_type||x.product||"Бүтээгдэхүүн")+"</strong><div style='font-size:13px;color:#475569;'>Хэмжээ: "+escapeHTML(x.width!=null && x.height!=null ? x.width+" × "+x.height+" м" : (x.area||"—")+" м²")+" · Тоо: "+escapeHTML(x.quantity??1)+" · Нэгж үнэ: "+money(x.unit_price)+"</div></div>").join("") : "<p style='color:#64748b;padding:10px 0;'>Нэмэлт бүтээгдэхүүний мөр бүртгэгдээгүй.</p>";
+  const labels={customer_name:"Харилцагч",phone:"Утас",product:"Бүтээгдэхүүн",size:"Хэмжээ",quantity:"Тоо ширхэг",area_per_unit:"Нэгж талбай",unit_price:"1 м² үнэ",price:"Нийт үнэ",unpaid_balance:"Төлөгдөөгүй үлдэгдэл",payment_amount:"Төлсөн дүн",payment_category:"Төлбөрийн төрөл",status:"Төлөв"};
+  const render=v=>{ if(!v||typeof v!=="object") return "—"; return Object.keys(labels).filter(k=>k in v).map(k=>"<div style='padding:3px 0;'><strong>"+labels[k]+":</strong> "+(v[k]==null?"—":["unit_price","price","unpaid_balance","payment_amount"].includes(k)?money(v[k]):escapeHTML(typeof v[k]==="object"?JSON.stringify(v[k]):v[k]))+"</div>").join("")||"—"; };
+  const eventNames={created:"Захиалга үүсгэсэн",updated:"Мэдээлэл өөрчилсөн",deleted:"Захиалга устгасан",baseline:"Өмнөх захиалгын эхний бүртгэл",payment_received:"Үлдэгдэл төлбөр хүлээн авсан",status_changed:"Төлөв өөрчилсөн"};
+  const timeline=history.length?history.map(x=>"<article style='border:1px solid #e2e8f0;border-radius:9px;padding:12px;margin-bottom:9px;'><strong>"+(eventNames[x.event_type]||escapeHTML(x.event_type||"Үйлдэл"))+"</strong><div style='font-size:12px;color:#64748b;margin:5px 0 9px;'>"+date(x.created_at)+" · "+(x.actor_user_id?"Админ / ажилтан":"Систем / өмнөх бүртгэл")+"</div>"+(x.old_values?"<div style='background:#fff7ed;padding:9px;border-radius:7px;margin-bottom:7px;'><strong>Өмнөх</strong>"+render(x.old_values)+"</div>":"")+(x.new_values?"<div style='background:#f0fdf4;padding:9px;border-radius:7px;'><strong>Шинэ</strong>"+render(x.new_values)+"</div>":"")+"</article>").join(""):"<p style='padding:11px;background:#f8fafc;border-radius:8px;color:#64748b;'>Өөрчлөлтийн түүх одоогоор байхгүй.</p>";
+  let modal=document.getElementById("orderDetailsHistoryModal");
+  if(!modal){modal=document.createElement("div");modal.id="orderDetailsHistoryModal";document.body.appendChild(modal);}
+  modal.style.cssText="position:fixed;inset:0;z-index:100001;background:rgba(15,23,42,.65);display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow-y:auto;";
+  modal.innerHTML="<section role='dialog' aria-modal='true' style='width:100%;max-width:820px;margin:12px auto;background:white;border-radius:14px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25);'><div style='display:flex;justify-content:space-between;gap:10px;align-items:center;'><h2>📋 Захиалгын дэлгэрэнгүй #"+escapeHTML(order.id)+"</h2><button id='closeOrderDetailsHistory' type='button' style='padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:white;'>Хаах ✕</button></div><p style='margin:12px 0;'><strong>"+source+"</strong> · <strong>"+escapeHTML(order.status||"Шинэ")+"</strong></p><div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:9px;'>"+
+    info("Харилцагч",escapeHTML(order.customer_name||"—"))+info("Утас",escapeHTML(order.phone||"—"))+info("Бүтээгдэхүүн",escapeHTML(order.product||"—"))+info("Хэмжээ",escapeHTML(order.size||"—"))+info("Тоо ширхэг",escapeHTML(order.quantity??1))+info("1 м² үнэ",money(order.unit_price))+info("Нийт үнэ",money(order.price))+info("Төлөгдөөгүй үлдэгдэл",money(order.unpaid_balance))+info("Үүсгэсэн огноо",date(order.created_at))+"</div><h3 style='margin:20px 0 8px;'>🧾 Бүтээгдэхүүний дэлгэрэнгүй</h3><div style='border:1px solid #e2e8f0;border-radius:8px;padding:0 10px;'>"+products+"</div><h3 style='margin:20px 0 10px;'>🕘 Өөрчлөлтийн түүх</h3>"+timeline+"</section>";
+  modal.querySelector("#closeOrderDetailsHistory").onclick=()=>modal.remove();
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
 };
 
 window.viewOrderHistory = async function(orderId) {
