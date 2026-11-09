@@ -272,6 +272,22 @@
       </div>
       <div class="section" id="financeSection" style="display:none;">
         <h2>💰 Орлого, зарлагын тайлан</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:12px 0;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+          <label for="financePeriod" style="font-weight:600;">Тайлангийн хугацаа:</label>
+          <select id="financePeriod" onchange="loadFinance()" style="padding:10px;border:1px solid #cbd5e1;border-radius:8px;">
+            <option value="all">Бүх хугацаа</option>
+            <option value="today">Өнөөдөр</option>
+            <option value="this_month">Энэ сар</option>
+            <option value="last_month">Өмнөх сар</option>
+            <option value="custom">Огноо сонгох</option>
+          </select>
+          <span id="financeCustomDates" style="display:none;flex-wrap:wrap;gap:8px;align-items:center;">
+            <label for="financeStartDate">Эхлэх:</label>
+            <input id="financeStartDate" type="date" onchange="loadFinance()" style="padding:9px;border:1px solid #cbd5e1;border-radius:8px;">
+            <label for="financeEndDate">Дуусах:</label>
+            <input id="financeEndDate" type="date" onchange="loadFinance()" style="padding:9px;border:1px solid #cbd5e1;border-radius:8px;">
+          </span>
+        </div>
         <div id="financeSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:15px 0;">
           <div style="padding:16px;background:#ecfdf5;border-radius:10px;"><small>Нийт орлого (бодитоор хүлээн авсан)</small><h3 id="financeIncome">0 ₮</h3></div>
           <div style="padding:16px;background:#fff7ed;border-radius:10px;"><small>Нийт зарлага</small><h3 id="financeExpense">0 ₮</h3></div>
@@ -1204,15 +1220,49 @@ async function loadFinance() {
       escapeHTML(order.customer_name || "") + " — " + Number(order.price || 0).toLocaleString("mn-MN") + " ₮</option>").join("");
     if (selected) select.value = selected;
   }
-  const entries = entriesResult.data || [];
+  const allEntries = entriesResult.data || [];
   const orders = ordersResult.data || [];
+  const period = document.getElementById("financePeriod")?.value || "all";
+  const customDates = document.getElementById("financeCustomDates");
+  if (customDates) customDates.style.display = period === "custom" ? "flex" : "none";
+  const today = localDateString();
+  let startDate = "";
+  let endDate = "";
+  if (period === "today") {
+    startDate = today;
+    endDate = today;
+  } else if (period === "this_month") {
+    startDate = today.slice(0, 7) + "-01";
+    endDate = today;
+  } else if (period === "last_month") {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+    startDate = localDateString(firstDay);
+    endDate = localDateString(lastDay);
+  } else if (period === "custom") {
+    startDate = document.getElementById("financeStartDate")?.value || "";
+    endDate = document.getElementById("financeEndDate")?.value || "";
+    if (!startDate || !endDate || startDate > endDate) {
+      if (message) message.textContent = "Тайлан гаргах эхлэх болон дуусах огноог зөв сонгоно уу.";
+      return;
+    }
+  }
+  const entries = allEntries.filter(entry =>
+    (!startDate || entry.entry_date >= startDate) &&
+    (!endDate || entry.entry_date <= endDate)
+  );
   const income = entries.filter(x => x.entry_type === "income").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const depositIncome = entries.filter(x => x.entry_type === "income" && x.category === "Урьдчилгаа орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const fullPaymentIncome = entries.filter(x => x.entry_type === "income" && x.category === "Бүтэн төлбөрийн орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const remainingPaymentIncome = entries.filter(x => x.entry_type === "income" && x.category === "Үлдэгдэл орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const paidLaterIncome = entries.filter(x => x.entry_type === "income" && x.category === "Үлдэгдэл төлбөрийн орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
   const expense = entries.filter(x => x.entry_type === "expense").reduce((sum,x) => sum + Number(x.amount || 0), 0);
-  const completedOrders = orders.filter(order => order.status === "Дууссан");
+  const completedOrders = orders.filter(order => {
+    if (order.status !== "Дууссан") return false;
+    const orderDate = order.created_at ? localDateString(new Date(order.created_at)) : "";
+    return (!startDate || orderDate >= startDate) && (!endDate || orderDate <= endDate);
+  });
   const completedSales = completedOrders.reduce((sum, order) => sum + Number(order.price || 0), 0);
   const money = value => Math.round(value).toLocaleString("mn-MN") + " ₮";
   document.getElementById("financeIncome").textContent = money(income);
@@ -1252,7 +1302,7 @@ async function loadFinance() {
   const profitContainer = document.getElementById("financeOrderProfit");
   if (profitContainer) {
     profitContainer.innerHTML = "<h3 style='margin:12px 0;'>📊 Захиалга тус бүрийн мөнгөн тооцоо</h3>" +
-      "<p style='font-size:13px;color:#64748b;margin-bottom:10px;'>Төлөгдөөгүй үлдэгдлийг захиалга дуусгах үед админ/ажилтан гараар оруулна. Энэ нь орлого биш, авлага юм. Орлого − зардлын зөрүү нь бүртгэгдсэн мөнгөн урсгал бөгөөд цэвэр ашиг биш.</p>" +
+      "<p style='font-size:13px;color:#64748b;margin-bottom:10px;'>Сонгосон хугацаанд бүртгэгдсэн орлого, зарлагыг харуулна. Төлөгдөөгүй үлдэгдэл нь орлого биш, авлага юм. Орлого − зардлын зөрүү нь мөнгөн урсгал бөгөөд бүх зардал бүртгэгдсэн эсэхээс шалтгаалан цэвэр ашигтай тэнцэхгүй.</p>" +
       (profitRows.length
         ? "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;'><table style='width:100%;min-width:850px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;text-align:right;'>Захиалгын үнэ</th><th style='padding:10px;text-align:right;'>Бодит орлого</th><th style='padding:10px;text-align:right;'>Төлөгдөөгүй үлдэгдэл (гараар)</th><th style='padding:10px;text-align:right;'>Зардал</th><th style='padding:10px;text-align:right;'>Орлого − зардал</th></tr></thead><tbody>" +
           profitRows.map(row => "<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;'>" +
