@@ -347,15 +347,15 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:15px 0;">
           <select id="financeType" onchange="updateFinanceFormFields()" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="income">Орлого</option><option value="expense">Зарлага</option></select>
           <input id="financeAmount" type="number" min="1" step="1" placeholder="Дүн (₮)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
-          <input id="financeCategory" list="financeCategoryOptions" type="text" placeholder="Ангилал сонгох / бичих" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
-          <datalist id="financeCategoryOptions"><option value="Материал"><option value="Цалин"><option value="Тээвэр"><option value="Суурилуулалт"><option value="Багаж хэрэгсэл"><option value="Түрээс"><option value="Татвар"><option value="Бусад зардал"><option value="Урьдчилгаа орлого"><option value="Бүтэн төлбөрийн орлого"><option value="Үлдэгдэл орлого"></datalist>
+          <select id="financeCategory" required style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;background:white;"><option value="">Ангилал сонгох</option></select>
+          
           <input id="financeDate" type="date" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
           <select id="financeOrderId" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Захиалгатай холбох (заавал биш)</option></select>
           <input id="financeCounterparty" type="text" placeholder="Нийлүүлэгч / төлбөр төлөгч" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
           <select id="financePaymentMethod" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Төлбөрийн хэлбэр</option><option value="Бэлэн">Бэлэн</option><option value="Банк">Банкны шилжүүлэг</option><option value="Карт">Карт</option><option value="Бусад">Бусад</option></select>
           <select id="financePaymentStatus" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="paid">Төлөгдсөн</option><option value="unpaid">Төлөгдөөгүй / өглөг</option></select>
           <input id="financeDueDate" type="date" title="Төлөх хугацаа" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
-          <input id="financeDescription" type="text" placeholder="Тайлбар / баримтын дугаар" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <input id="financeDescription" type="text" placeholder="Юунд зориулагдсан / юу авсан (гараар бичнэ)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
         </div>
         <button type="button" onclick="saveFinanceEntry()" style="background:#2563eb;color:white;border:0;padding:11px 18px;border-radius:8px;cursor:pointer;">Бүртгэх</button>
         <p id="financeMessage" style="margin:10px 0;color:#475569;"></p>
@@ -1609,11 +1609,22 @@ function localDateString(date = new Date()) {
 let currentFinanceReport = null;
 let currentFinanceOrders = [];
 
+const FINANCE_CATEGORY_OPTIONS = {
+  expense: ["Түүхий эд, материал","Шил, вакум","Будаг, өнгөлгөө","Тоноглол, хэрэгсэл","Цалин, ажилчдын хөлс","Гүйцэтгэлийн хөлс","Тээвэр, хүргэлт","Суурилуулалтын зардал","Түрээс","Цахилгаан, ашиглалт","Багаж, тоног төхөөрөмж","Засвар үйлчилгээ","Татвар, шимтгэл","Оффис, бичиг хэрэг","Зар сурталчилгаа","Бусад зардал"],
+  income: ["Урьдчилгаа орлого","Бүтэн төлбөрийн орлого","Үлдэгдэл орлого","Үлдэгдэл төлбөрийн орлого","Металл хаалга, цонхны орлого","Шилэн фасадны орлого","Металл фасадны орлого","Засвар үйлчилгээний орлого","Бусад орлого"]
+};
 window.updateFinanceFormFields = function() {
   const type = document.getElementById("financeType")?.value || "income";
+  const category = document.getElementById("financeCategory");
+  const previous = category?.value || "";
   const status = document.getElementById("financePaymentStatus");
   const due = document.getElementById("financeDueDate");
   const counterparty = document.getElementById("financeCounterparty");
+  if (category) {
+    const options = FINANCE_CATEGORY_OPTIONS[type] || [];
+    category.innerHTML = "<option value=''>Ангилал сонгох</option>" + options.map(value => "<option value='" + escapeHTML(value) + "'>" + escapeHTML(value) + "</option>").join("");
+    if (options.includes(previous)) category.value = previous;
+  }
   if (type === "income") {
     if (status) { status.value = "paid"; status.disabled = true; }
     if (due) { due.value = ""; due.disabled = true; }
@@ -2222,7 +2233,7 @@ async function updateOrderStatus(orderId, newStatus) {
         await loadOrders();
         return;
       }
-      const description = prompt("Нийт зарлагын тайлбар (заавал биш):", "");
+      const description = prompt("Юунд зарцуулсан бэ? (жишээ: профиль төмөр, будаг, гагнуурын ажлын хөлс)", "");
       if (description === null) { await loadOrders(); return; }
       completionExpense = { amount: expenseAmount, category: category.trim(), description: description.trim(), entryDate: localDateString() };
     } else {
