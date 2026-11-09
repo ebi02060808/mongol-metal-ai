@@ -277,7 +277,7 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
           <label>Металл цонх<input id="settingPriceWindow" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
           <label>Металл хаалга<input id="settingPriceDoor" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
-          <label style="display:block;color:#0f172a;font-weight:600;">Шилэн фасад (₮ / м²)<input id="settingPriceGlass" type="number" min="0" step="1000" placeholder="Үнэ тохиролцоно" style="display:block;width:100%;box-sizing:border-box;color:#111827;background:#ffffff;font-weight:500;padding:10px;border:1px solid #94a3b8;border-radius:8px;margin-top:5px;"></label>
+          <label style="display:block;color:#0f172a;font-weight:600;">Шилэн фасад (₮ / м²)<input id="settingPriceGlass" type="text" inputmode="text" autocomplete="off" placeholder="Жишээ: 550,000₮ эсвэл Үнэ тохиролцоно" style="display:block;width:100%;box-sizing:border-box;color:#111827;background:#ffffff;font-weight:500;padding:10px;border:1px solid #94a3b8;border-radius:8px;margin-top:5px;"></label>
           <label>Хуванцар хаалт<input id="settingPricePlastic" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
           <label style="display:block;color:#0f172a;font-weight:700;">Металл фасад (₮ / м²)<input id="settingPriceMetalFacade" type="number" min="0" step="1000" placeholder="Үнэ тохиролцоно" style="display:block;width:100%;box-sizing:border-box;color:#111827;background:#ffffff;font-weight:500;padding:10px;border:1px solid #94a3b8;border-radius:8px;margin-top:5px;"></label>
         </div>
@@ -1172,7 +1172,7 @@ function applyCompanySettings(settings = {}) {
     settingAddress: settings.address || "",
     settingPriceWindow: settings.prices?.["Металл цонх"] ?? 420000,
     settingPriceDoor: settings.prices?.["Металл хаалга"] ?? 840000,
-    settingPriceGlass: Number(settings.prices?.["Шилэн фасад"] || 0) > 0 ? settings.prices["Шилэн фасад"] : "",
+    settingPriceGlass: settings.priceLabels?.["Шилэн фасад"] ?? (Number(settings.prices?.["Шилэн фасад"] || 0) > 0 ? String(settings.prices["Шилэн фасад"]) : ""),
     settingPricePlastic: settings.prices?.["Хуванцар хаалт"] ?? 160000,
     settingPriceMetalFacade: Number(settings.prices?.["Металл фасад"] || 0) > 0 ? settings.prices["Металл фасад"] : "",
     settingWarrantyMonths: settings.warrantyMonths ?? 24
@@ -1245,8 +1245,18 @@ async function saveCompanySettings() {
     };
     const facadePrice = numeric("settingPriceMetalFacade","Металл фасадын",true);
     if (facadePrice !== null) settings.prices["Металл фасад"] = facadePrice;
-    const glassFacadePrice = numeric("settingPriceGlass","Шилэн фасадын",true);
-    if (glassFacadePrice !== null && glassFacadePrice > 0) {
+    // The glass facade setting accepts either a numeric price or descriptive text.
+    const glassFacadeText = read("settingPriceGlass");
+    settings.priceLabels = { ...(currentCompanySettings.priceLabels || {}) };
+    if (glassFacadeText) settings.priceLabels["Шилэн фасад"] = glassFacadeText;
+    else delete settings.priceLabels["Шилэн фасад"];
+
+    // Only a plain numeric/currency value becomes an automatic quote price.
+    const normalizedGlassPrice = glassFacadeText.replace(/[\\s,₮]/g, "");
+    const glassFacadePrice = /^\\d+(?:\\.\\d+)?$/.test(normalizedGlassPrice)
+      ? Number(normalizedGlassPrice)
+      : 0;
+    if (glassFacadePrice > 0 && Number.isFinite(glassFacadePrice)) {
       settings.prices["Шилэн фасад"] = glassFacadePrice;
     } else {
       delete settings.prices["Шилэн фасад"];
