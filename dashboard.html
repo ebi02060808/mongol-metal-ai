@@ -278,7 +278,7 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
           <label>Металл цонх<input id="settingPriceWindow" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
           <label>Металл хаалга<input id="settingPriceDoor" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
-          <label>Шилэн фасад<input id="settingPriceGlass" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+          <label>Шилэн фасад (гараар тохируулах)<input id="settingPriceGlass" type="number" min="0" step="1000" placeholder="Үнэ тохиролцоно" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
           <label>Хуванцар хаалт<input id="settingPricePlastic" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
           <label>Металл фасад (гараар тохируулах)<input id="settingPriceMetalFacade" type="number" min="0" step="1000" placeholder="Үнэ тохиролцоно" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
         </div>
@@ -397,8 +397,7 @@ let currentOrderView = "active";
 const PRODUCT_PRICE_DEFAULTS = {
   "Металл цонх": 420000,
   "Металл хаалга": 840000,
-  "Шилэн фасад": 550000,
-  "Хуванцар хаалт": 160000,
+  "Шилэн фасад": 550000,  "Хуванцар хаалт": 160000,
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -797,8 +796,7 @@ function updateOrderTotalPreview() {
 
   const areaPreview = document.getElementById("areaPreview");
   if (areaPreview) {
-    areaPreview.textContent = "Нэгж талбай: " +
-      (Number.isFinite(areaPerUnit) ? areaPerUnit.toFixed(2) : "0.00") +
+    areaPreview.textContent = "Нэгж талбай: " +      (Number.isFinite(areaPerUnit) ? areaPerUnit.toFixed(2) : "0.00") +
       " м² | Нийт талбай: " +
       (Number.isFinite(totalArea) ? totalArea.toFixed(2) : "0.00") + " м²";
   }
@@ -1181,7 +1179,7 @@ function applyCompanySettings(settings = {}) {
     settingAddress: settings.address || "",
     settingPriceWindow: settings.prices?.["Металл цонх"] ?? 420000,
     settingPriceDoor: settings.prices?.["Металл хаалга"] ?? 840000,
-    settingPriceGlass: settings.prices?.["Шилэн фасад"] ?? 550000,
+    settingPriceGlass: settings.prices?.["Шилэн фасад"] ?? "",
     settingPricePlastic: settings.prices?.["Хуванцар хаалт"] ?? 160000,
     settingPriceMetalFacade: settings.prices?.["Металл фасад"] ?? "",
     settingWarrantyMonths: settings.warrantyMonths ?? 24
@@ -1197,8 +1195,9 @@ function applyCompanySettings(settings = {}) {
 
   PRODUCT_PRICE_DEFAULTS["Металл цонх"] = Number(fields.settingPriceWindow) || 0;
   PRODUCT_PRICE_DEFAULTS["Металл хаалга"] = Number(fields.settingPriceDoor) || 0;
-  PRODUCT_PRICE_DEFAULTS["Шилэн фасад"] = Number(fields.settingPriceGlass) || 0;
-  PRODUCT_PRICE_DEFAULTS["Хуванцар хаалт"] = Number(fields.settingPricePlastic) || 0;
+  const glassFacadePrice = Number(fields.settingPriceGlass);
+  if (glassFacadePrice > 0) PRODUCT_PRICE_DEFAULTS["Шилэн фасад"] = glassFacadePrice;
+  else delete PRODUCT_PRICE_DEFAULTS["Шилэн фасад"];  PRODUCT_PRICE_DEFAULTS["Хуванцар хаалт"] = Number(fields.settingPricePlastic) || 0;
   const metalFacadePrice = Number(fields.settingPriceMetalFacade);
   if (metalFacadePrice > 0) PRODUCT_PRICE_DEFAULTS["Металл фасад"] = metalFacadePrice;
   else delete PRODUCT_PRICE_DEFAULTS["Металл фасад"];
@@ -1246,7 +1245,6 @@ async function saveCompanySettings() {
       prices: {
         "Металл цонх": numeric("settingPriceWindow","Металл цонхны"),
         "Металл хаалга": numeric("settingPriceDoor","Металл хаалганы"),
-        "Шилэн фасад": numeric("settingPriceGlass","Шилэн фасадын"),
         "Хуванцар хаалт": numeric("settingPricePlastic","Хуванцар хаалтын")
       },
       warrantyMonths: numeric("settingWarrantyMonths","Баталгаат хугацааны"),
@@ -1255,6 +1253,8 @@ async function saveCompanySettings() {
     };
     const facadePrice = numeric("settingPriceMetalFacade","Металл фасадын",true);
     if (facadePrice !== null) settings.prices["Металл фасад"] = facadePrice;
+    const glassFacadePrice = numeric("settingPriceGlass","Шилэн фасадын",true);
+    if (glassFacadePrice !== null) settings.prices["Шилэн фасад"] = glassFacadePrice;
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
     if (sessionError || !session) throw new Error("Нэвтрэх хугацаа дууссан байна. Дахин нэвтэрнэ үү.");
     const { error } = await supabaseClient.from("company_settings").upsert({
@@ -1597,7 +1597,6 @@ async function viewOrderPhotos(orderId) {
     }
 
     const photoList = document.getElementById("orderPhotoList");
-
     if (!result.photos || result.photos.length === 0) {
       photoList.textContent = "Энэ захиалгад зураг бүртгэгдээгүй байна.";
       return;
@@ -1997,8 +1996,7 @@ async function updateOrderStatus(orderId, newStatus) {
       alert("Алдаа: " + (result.error || "Төлөв шинэчилж чадсангүй."));
       await loadOrders();
       return;
-    }
-    alert(result.message);
+    }    alert(result.message);
     await loadOrders();
     if (["Баталгаажсан", "Дууссан"].includes(newStatus) && currentUserRole === "admin") await loadFinance();
   } catch (err) {
