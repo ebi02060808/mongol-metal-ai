@@ -300,7 +300,7 @@
       </div>
       <div class="section" id="staffSection" style="display:none;">
         <h2>👷 Ажилтны эрхийн удирдлага</h2>
-        <p style="color:#64748b;margin-bottom:12px;">Ажилтан эхлээд register.html хуудсаар бүртгүүлнэ. Дараа нь бүртгүүлсэн имэйлийг энд оруулж эрх олгоно.</p>
+        <p style="color:#64748b;margin-bottom:12px;">Ажилтан register.html хуудсаар овог нэр, утас, албан тушаал, имэйлээ оруулж бүртгүүлнэ. Дараа нь бүртгүүлсэн имэйлээр нь системийн эрх олгоно.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;">
           <input id="staffEmail" type="email" placeholder="Ажилтны бүртгэлтэй имэйл" style="flex:1;min-width:220px;padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
           <button type="button" onclick="addStaff()" style="padding:10px 16px;background:#2563eb;color:white;border:0;border-radius:8px;">Ажилтан нэмэх</button>        </div>
@@ -1411,8 +1411,10 @@ window.loadStaff = async function() {
     }
     list.innerHTML = result.employees.map(employee =>
       "<div style='display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid #e2e8f0;padding:12px;border-radius:8px;margin:8px 0;'>" +
-      "<span><strong>" + escapeHTML(employee.email || "Имэйл олдсонгүй") + "</strong><br><small style='color:#64748b;'>Ажилтан</small></span>" +
-      "<button onclick=\"removeStaff('" + escapeHTML(employee.user_id) + "')\" style='padding:7px 10px;border:0;border-radius:7px;background:#fee2e2;color:#991b1b;'>Эрх цуцлах</button></div>"
+      "<span><strong>" + escapeHTML(employee.full_name || "Нэр оруулаагүй") + "</strong><br>" +
+      "<small style='color:#64748b;'>" + escapeHTML(employee.email || "Имэйл олдсонгүй") + "</small><br>" +
+      "<small style='color:#475569;'>Утас: " + escapeHTML(employee.phone || "—") + " · Албан тушаал: " + escapeHTML(employee.position || "—") + "</small></span>" +
+      "<button onclick="removeStaff('" + escapeHTML(employee.user_id) + "')" style='padding:7px 10px;border:0;border-radius:7px;background:#fee2e2;color:#991b1b;'>Эрх цуцлах</button></div>" +
     ).join("");
   } catch(error) {
     list.textContent = "Алдаа: " + error.message;
