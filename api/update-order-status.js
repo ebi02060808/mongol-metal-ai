@@ -120,75 +120,15 @@ export default async function handler(req, res) {
 
     const pageToken = process.env.PAGE_ACCESS_TOKEN;
 
-    // Үнийн санал төлөв сонгоход хэмжээг эхлээд захиалгын хэмжээсээс шалгаж бодно.
+    // Үнийн санал төлөв сонгоход эхлээд харилцагчаас Messenger-ээр авах эсэхийг асууна.
     if (newStatus === "Үнийн санал") {
       if (!order.messenger_sender_id) {
         return res.status(400).json({
-          error: "Энэ захиалгад Messenger хэрэглэгчийн ID байхгүй тул үнийн санал илгээх боломжгүй."
+          error: "Энэ захиалгад Messenger хэрэглэгчийн ID байхгүй тул үнийн саналын асуулт илгээх боломжгүй."
         });
       }
       if (!pageToken) {
         return res.status(500).json({ error: "Messenger-ийн Page тохиргоо олдсонгүй." });
-      }
-
-      const quoteItems = Array.isArray(order.quote_items) ? order.quote_items : [];
-      const orderNumber = order.messenger_order_number || order.id;
-      let totalArea = 0;
-      let fixedTotal = 0;
-      const hasNegotiableItems = quoteItems.some(item => item.pricing_mode === "labor_only");
-
-      const itemLines = quoteItems.length
-        ? quoteItems.map((item, index) => {
-            const quantity = Math.max(1, Number(item.quantity || 1));
-            const areaPerUnit = Number(item.area || 0);
-            const itemArea = areaPerUnit * quantity;
-            const negotiable = item.pricing_mode === "labor_only";
-            const lineTotal = negotiable ? 0 : Number(item.total_price || 0);
-            totalArea += itemArea;
-            fixedTotal += lineTotal;
-
-            const measurement = item.width != null && item.height != null
-              ? "Хэмжээ: " + item.width + " × " + item.height + " м × " + quantity + " ш"
-              : "Талбай: " + itemArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²";
-
-            return (index + 1) + ". " + (item.product_type || "Бүтээгдэхүүн") + "\n" +
-              measurement + "\n" +
-              (item.area != null ? "Нийт талбай: " + itemArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\n" : "") +
-              (negotiable
-                ? "Ажлын хөлс: Харилцан тохиролцоно"
-                : "Нэгж үнэ: " + money(item.unit_price) + "/м²\nДүн: " + money(lineTotal));
-          })
-        : [
-            (order.product || "Бүтээгдэхүүн") + "\n" +
-            "Хэмжээ: " + (order.size || "—") + "\n" +
-            "Дүн: " + (order.price == null ? "Тохиролцоно" : money(order.price))
-          ];
-
-      if (!quoteItems.length) {
-        totalArea = Number(order.area_per_unit || parseAreaFromSize(order.size) || 0) * Number(order.quantity || 1);
-        fixedTotal = order.price == null ? 0 : Number(order.price);
-      }
-
-      const totalLine = hasNegotiableItems
-        ? (fixedTotal > 0 ? money(fixedTotal) + " + ажлын хөлс тохиролцоно" : "Ажлын хөлсийг харилцан тохиролцоно")
-        : (order.price == null ? "Үнийг харилцан тохиролцоно" : money(quoteItems.length ? fixedTotal : order.price));
-
-      const quoteText =
-        "📋 МОНГОЛ МЕТАЛЛ ХИЙЦ — ҮНИЙН САНАЛ\n\n" +
-        "Сайн байна уу, " + (order.customer_name || "хүндэт харилцагч") + " аа.\n" +
-        "Таны захиалгын үнийн саналыг хүргэж байна.\n\n" +
-        "Захиалгын дугаар: " + orderNumber + "\n\n" +
-        itemLines.join("\n\n") + "\n\n" +
-        "--------------------\n" +
-        "Нийт талбай: " + totalArea.toLocaleString("mn-MN", { maximumFractionDigits: 2 }) + " м²\n" +
-        "НИЙТ ДҮН: " + totalLine + "\n\n" +
-        "Энэхүү үнийн саналтай танилцаад асуух зүйл байвал энэ чатанд хариу бичээрэй.\n" +
-        "Баярлалаа. — Монгол металл хийц";
-
-      if (quoteText.length > 1900) {
-        return res.status(400).json({
-          error: "Үнийн саналын мэдээлэл хэт урт байна. Бүтээгдэхүүний мөрүүдийг цөөлөөд дахин илгээнэ үү."
-        });
       }
 
       const messengerResponse = await fetch("https://graph.facebook.com/v26.0/me/messages", {
@@ -196,16 +136,22 @@ export default async function handler(req, res) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recipient: { id: order.messenger_sender_id },
-          message: { text: quoteText },
+          message: {
+            text: "Сайн байна уу, " + (order.customer_name || "хүндэт харилцагч") +
+              " аа. 😊\\n\\nТаны захиалгын үнийн санал бэлэн боллоо. Messenger-ээр үнийн саналаа авах уу?",
+            quick_replies: [
+              { content_type: "text", title: "Тийм, авъя", payload: "SEND_ORDER_QUOTE:" + order.id },
+              { content_type: "text", title: "Үгүй, баярлалаа", payload: "DECLINE_ORDER_QUOTE:" + order.id }
+            ]
+          },
           access_token: pageToken
         })
       });
       const messengerResult = await messengerResponse.json();
-
       if (!messengerResponse.ok || messengerResult.error) {
-        console.error("Messenger quote send error:", messengerResult);
+        console.error("Messenger quote question send error:", messengerResult);
         return res.status(502).json({
-          error: "Үнийн санал Messenger-ээр илгээгдсэнгүй. Захиалгын төлөв өөрчлөгдөөгүй."
+          error: "Үнийн санал авах эсэх асуулт Messenger-ээр илгээгдсэнгүй. Захиалгын төлөв өөрчлөгдөөгүй."
         });
       }
     }
