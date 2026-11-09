@@ -336,22 +336,34 @@
           <div style="padding:16px;background:#fff7ed;border-radius:10px;"><small>Дараа төлөгдсөн үлдэгдэл</small><h3 id="financePaidLater">0 ₮</h3></div>
           <div style="padding:16px;background:#eff6ff;border-radius:10px;"><small>Мөнгөн үлдэгдэл</small><h3 id="financeBalance">0 ₮</h3></div>
           <div style="padding:16px;background:#f5f3ff;border-radius:10px;"><small>Дууссан захиалгын борлуулалт</small><h3 id="financeCompletedSales">0 ₮</h3><small id="financeCompletedCount">0 захиалга</small></div>
+          <div style="padding:16px;background:#fff7ed;border-radius:10px;"><small>Авлага — авах үлдэгдэл</small><h3 id="financeReceivableTotal">0 ₮</h3></div>
+          <div style="padding:16px;background:#fef2f2;border-radius:10px;"><small>Өглөг — төлөх үлдэгдэл</small><h3 id="financePayableTotal">0 ₮</h3></div>
         </div>
-        <p style="font-size:12px;color:#64748b;margin:4px 0 12px;">“Баталгаажсан” үед урьдчилгаа эсвэл бүтэн төлбөрийг, “Дууссан” үед нийт зарлага болон бодитоор авсан үлдэгдэл төлбөрийг бүртгэнэ. Нийт орлого нь эдгээр бодит орлогын нийлбэр байна.</p>
+        <p style="font-size:12px;color:#64748b;margin:4px 0 12px;">Орлого, зарлагын бодит бүртгэл тусдаа. Төлөгдөөгүй зарлага нь мөнгөн зарлагад орохгүй, харин өглөгт тооцогдоно. Авлага нь орлого биш бөгөөд төлөгдөөгүй захиалгын үлдэгдлээр харагдана.</p>
         <div id="financeCompletedOrders" style="margin:18px 0;"></div>
         <div id="financeOrderProfit" style="margin:18px 0;"></div>
+        <h3 style="margin:20px 0 8px;">🧾 Шинэ санхүүгийн бүртгэл</h3>
+        <p style="font-size:12px;color:#64748b;margin-bottom:10px;">Зарлага бүртгэхдээ төлбөрийн төлөв, төлөх хугацаа болон нийлүүлэгчийг оруулж өглөгийн хяналтад ашиглана.</p>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:15px 0;">
-          <select id="financeType" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
-            <option value="income">Орлого</option><option value="expense">Зарлага</option>
-          </select>
-          <input id="financeAmount" type="number" min="1" step="0.01" placeholder="Дүн (₮)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
-          <input id="financeCategory" type="text" placeholder="Ангилал (материал, цалин...)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <select id="financeType" onchange="updateFinanceFormFields()" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="income">Орлого</option><option value="expense">Зарлага</option></select>
+          <input id="financeAmount" type="number" min="1" step="1" placeholder="Дүн (₮)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <input id="financeCategory" list="financeCategoryOptions" type="text" placeholder="Ангилал сонгох / бичих" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <datalist id="financeCategoryOptions"><option value="Материал"><option value="Цалин"><option value="Тээвэр"><option value="Суурилуулалт"><option value="Багаж хэрэгсэл"><option value="Түрээс"><option value="Татвар"><option value="Бусад зардал"><option value="Урьдчилгаа орлого"><option value="Бүтэн төлбөрийн орлого"><option value="Үлдэгдэл орлого"></datalist>
           <input id="financeDate" type="date" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
           <select id="financeOrderId" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Захиалгатай холбох (заавал биш)</option></select>
-          <input id="financeDescription" type="text" placeholder="Тайлбар (заавал биш)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <input id="financeCounterparty" type="text" placeholder="Нийлүүлэгч / төлбөр төлөгч" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <select id="financePaymentMethod" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Төлбөрийн хэлбэр</option><option value="Бэлэн">Бэлэн</option><option value="Банк">Банкны шилжүүлэг</option><option value="Карт">Карт</option><option value="Бусад">Бусад</option></select>
+          <select id="financePaymentStatus" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="paid">Төлөгдсөн</option><option value="unpaid">Төлөгдөөгүй / өглөг</option></select>
+          <input id="financeDueDate" type="date" title="Төлөх хугацаа" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <input id="financeDescription" type="text" placeholder="Тайлбар / баримтын дугаар" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
         </div>
         <button type="button" onclick="saveFinanceEntry()" style="background:#2563eb;color:white;border:0;padding:11px 18px;border-radius:8px;cursor:pointer;">Бүртгэх</button>
         <p id="financeMessage" style="margin:10px 0;color:#475569;"></p>
+        <div id="financeAlerts" style="margin:14px 0;"></div>
+        <div id="financeChart" style="margin:18px 0;padding:15px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;"><button type="button" onclick="exportFinanceCSV()" style="padding:9px 13px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">⬇ Excel / CSV татах</button><button type="button" onclick="exportFinancePDF()" style="padding:9px 13px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">📄 PDF тайлан татах</button></div>
+        <div id="financeReceivables" style="margin:18px 0;"></div>
+        <div id="financePayables" style="margin:18px 0;"></div>
         <div id="financeEntries">Санхүүгийн мэдээлэл ачаалж байна...</div>
       </div>
       </div>
@@ -410,6 +422,9 @@ const PRODUCT_PRICE_DEFAULTS = {
 document.addEventListener("DOMContentLoaded", () => {
   addOrderItemRow("orderItemsContainer");
   addOrderItemRow("quoteItemsContainer");
+  const financeDate = document.getElementById("financeDate");
+  if (financeDate) financeDate.value = localDateString();
+  window.updateFinanceFormFields?.();
 });
 
 function addOrderItemRow(containerId, initial = {}) {
@@ -1591,48 +1606,60 @@ function localDateString(date = new Date()) {
   return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
 }
 
+let currentFinanceReport = null;
+let currentFinanceOrders = [];
+
+window.updateFinanceFormFields = function() {
+  const type = document.getElementById("financeType")?.value || "income";
+  const status = document.getElementById("financePaymentStatus");
+  const due = document.getElementById("financeDueDate");
+  const counterparty = document.getElementById("financeCounterparty");
+  if (type === "income") {
+    if (status) { status.value = "paid"; status.disabled = true; }
+    if (due) { due.value = ""; due.disabled = true; }
+    if (counterparty) counterparty.placeholder = "Төлбөр төлөгч / харилцагч";
+  } else {
+    if (status) status.disabled = false;
+    if (due) due.disabled = false;
+    if (counterparty) counterparty.placeholder = "Нийлүүлэгч / байгууллага";
+  }
+};
+
 async function loadFinance() {
   if (currentUserRole !== "admin") return;
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return;
   const [entriesResult, ordersResult] = await Promise.all([
     supabaseClient.from("finance_entries").select("*").eq("user_id", session.user.id).order("entry_date", {ascending:false}).order("created_at", {ascending:false}),
-    supabaseClient.from("orders").select("id,customer_name,price,unpaid_balance,messenger_order_number,status,created_at").eq("user_id", currentOwnerUserId).order("created_at", {ascending:false})
+    supabaseClient.from("orders").select("id,customer_name,phone,price,unpaid_balance,messenger_order_number,status,created_at").eq("user_id", currentOwnerUserId).order("created_at", {ascending:false})
   ]);
   const list = document.getElementById("financeEntries");
   const message = document.getElementById("financeMessage");
   if (entriesResult.error) { list.textContent = "Санхүүгийн мэдээлэл авахад алдаа гарлаа: " + entriesResult.error.message; return; }
   if (ordersResult.error) {
     if (message) message.textContent = "Захиалгын жагсаалт авахад алдаа гарлаа: " + ordersResult.error.message;
-  } else {
-    const select = document.getElementById("financeOrderId");
-    const selected = select.value;
-    select.innerHTML = "<option value=''>Захиалгатай холбох (заавал биш)</option>" +
-      (ordersResult.data || []).map(order => "<option value='" + order.id + "'>" +
-      escapeHTML(order.messenger_order_number || ("Захиалга #" + order.id)) + " — " +
-      escapeHTML(order.customer_name || "") + " — " + Number(order.price || 0).toLocaleString("mn-MN") + " ₮</option>").join("");
-    if (selected) select.value = selected;
   }
   const allEntries = entriesResult.data || [];
   const orders = ordersResult.data || [];
+  currentFinanceOrders = orders;
+  const select = document.getElementById("financeOrderId");
+  if (select) {
+    const selected = select.value;
+    select.innerHTML = "<option value=''>Захиалгатай холбох (заавал биш)</option>" +
+      orders.map(order => "<option value='" + order.id + "'>" + escapeHTML(order.messenger_order_number || ("Захиалга #" + order.id)) + " — " + escapeHTML(order.customer_name || "") + " — " + Number(order.price || 0).toLocaleString("mn-MN") + " ₮</option>").join("");
+    if (selected) select.value = selected;
+  }
   const period = document.getElementById("financePeriod")?.value || "all";
   const customDates = document.getElementById("financeCustomDates");
   if (customDates) customDates.style.display = period === "custom" ? "flex" : "none";
   const today = localDateString();
-  let startDate = "";
-  let endDate = "";
-  if (period === "today") {
-    startDate = today;
-    endDate = today;
-  } else if (period === "this_month") {
-    startDate = today.slice(0, 7) + "-01";
-    endDate = today;
-  } else if (period === "last_month") {
+  let startDate = "", endDate = "";
+  if (period === "today") { startDate = today; endDate = today; }
+  else if (period === "this_month") { startDate = today.slice(0,7) + "-01"; endDate = today; }
+  else if (period === "last_month") {
     const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
-    startDate = localDateString(firstDay);
-    endDate = localDateString(lastDay);
+    startDate = localDateString(new Date(now.getFullYear(),now.getMonth()-1,1));
+    endDate = localDateString(new Date(now.getFullYear(),now.getMonth(),0));
   } else if (period === "custom") {
     startDate = document.getElementById("financeStartDate")?.value || "";
     endDate = document.getElementById("financeEndDate")?.value || "";
@@ -1641,109 +1668,143 @@ async function loadFinance() {
       return;
     }
   }
-  const entries = allEntries.filter(entry =>
-    (!startDate || entry.entry_date >= startDate) &&
-    (!endDate || entry.entry_date <= endDate)
-  );
-  const income = entries.filter(x => x.entry_type === "income").reduce((sum,x) => sum + Number(x.amount || 0), 0);
-  const depositIncome = entries.filter(x => x.entry_type === "income" && x.category === "Урьдчилгаа орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
-  const fullPaymentIncome = entries.filter(x => x.entry_type === "income" && x.category === "Бүтэн төлбөрийн орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
-  const remainingPaymentIncome = entries.filter(x => x.entry_type === "income" && x.category === "Үлдэгдэл орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
-  const paidLaterIncome = entries.filter(x => x.entry_type === "income" && x.category === "Үлдэгдэл төлбөрийн орлого").reduce((sum,x) => sum + Number(x.amount || 0), 0);
-  const expense = entries.filter(x => x.entry_type === "expense").reduce((sum,x) => sum + Number(x.amount || 0), 0);
+  const entries = allEntries.filter(entry => (!startDate || entry.entry_date >= startDate) && (!endDate || entry.entry_date <= endDate));
+  const income = entries.filter(x => x.entry_type === "income").reduce((s,x) => s + Number(x.amount || 0),0);
+  const expense = entries.filter(x => x.entry_type === "expense" && x.payment_status !== "unpaid").reduce((s,x) => s + Number(x.amount || 0),0);
+  const allExpense = entries.filter(x => x.entry_type === "expense").reduce((s,x) => s + Number(x.amount || 0),0);
+  const depositIncome = entries.filter(x => x.entry_type === "income" && x.category === "Урьдчилгаа орлого").reduce((s,x) => s + Number(x.amount || 0),0);
+  const fullPaymentIncome = entries.filter(x => x.entry_type === "income" && x.category === "Бүтэн төлбөрийн орлого").reduce((s,x) => s + Number(x.amount || 0),0);
+  const remainingPaymentIncome = entries.filter(x => x.entry_type === "income" && x.category === "Үлдэгдэл орлого").reduce((s,x) => s + Number(x.amount || 0),0);
+  const paidLaterIncome = entries.filter(x => x.entry_type === "income" && x.category === "Үлдэгдэл төлбөрийн орлого").reduce((s,x) => s + Number(x.amount || 0),0);
+  const receivables = orders.filter(o => Number(o.unpaid_balance || 0) > 0);
+  const receivableTotal = receivables.reduce((s,o) => s + Number(o.unpaid_balance || 0),0);
+  const payables = allEntries.filter(e => e.entry_type === "expense" && e.payment_status === "unpaid");
+  const payableTotal = payables.reduce((s,e) => s + Number(e.amount || 0),0);
+  const overduePayables = payables.filter(e => e.due_date && e.due_date < today);
   const completedOrders = orders.filter(order => {
     if (order.status !== "Дууссан") return false;
     const orderDate = order.created_at ? localDateString(new Date(order.created_at)) : "";
     return (!startDate || orderDate >= startDate) && (!endDate || orderDate <= endDate);
   });
-  const completedSales = completedOrders.reduce((sum, order) => sum + Number(order.price || 0), 0);
-  const money = value => Math.round(value).toLocaleString("mn-MN") + " ₮";
-  document.getElementById("financeIncome").textContent = money(income);
-  document.getElementById("financeExpense").textContent = money(expense);
-  document.getElementById("financeDeposit").textContent = money(depositIncome);
-  document.getElementById("financeFullPayment").textContent = money(fullPaymentIncome);
-  document.getElementById("financeRemaining").textContent = money(remainingPaymentIncome);
-  document.getElementById("financePaidLater").textContent = money(paidLaterIncome);
-  document.getElementById("financeBalance").textContent = money(income-expense);
-  const completedSalesEl = document.getElementById("financeCompletedSales");
-  const completedCountEl = document.getElementById("financeCompletedCount");
-  if (completedSalesEl) completedSalesEl.textContent = money(completedSales);
-  if (completedCountEl) completedCountEl.textContent = completedOrders.length.toLocaleString("mn-MN") + " захиалга";
+  const completedSales = completedOrders.reduce((s,o) => s + Number(o.price || 0),0);
+  const money = value => Math.round(Number(value || 0)).toLocaleString("mn-MN") + " ₮";
+  const setMoney = (id,value) => { const el=document.getElementById(id); if(el) el.textContent=money(value); };
+  setMoney("financeIncome",income);
+  setMoney("financeExpense",allExpense);
+  setMoney("financeDeposit",depositIncome);
+  setMoney("financeFullPayment",fullPaymentIncome);
+  setMoney("financeRemaining",remainingPaymentIncome);
+  setMoney("financePaidLater",paidLaterIncome);
+  setMoney("financeBalance",income-expense);
+  setMoney("financeReceivableTotal",receivableTotal);
+  setMoney("financePayableTotal",payableTotal);
+  const completedSalesEl=document.getElementById("financeCompletedSales");
+  const completedCountEl=document.getElementById("financeCompletedCount");
+  if(completedSalesEl) completedSalesEl.textContent=money(completedSales);
+  if(completedCountEl) completedCountEl.textContent=completedOrders.length.toLocaleString("mn-MN")+" захиалга";
 
-  const completedContainer = document.getElementById("financeCompletedOrders");
-  if (completedContainer) {
-    completedContainer.innerHTML = "<h3 style='margin:12px 0;'>✅ Дууссан захиалгын борлуулалтын тайлан</h3>" +
-      "<p style='font-size:12px;color:#64748b;margin-bottom:10px;'>Зөвхөн төлөв нь “Дууссан” захиалгууд автоматаар харагдана. Огноо нь захиалга үүссэн өдөр. Энэ дүнг бодит орлоготой давхар тооцохгүй.</p>" +
-      (completedOrders.length
-        ? "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;'><table style='width:100%;min-width:560px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Захиалгын огноо</th><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;text-align:left;'>Харилцагч</th><th style='padding:10px;text-align:right;'>Борлуулалтын дүн</th></tr></thead><tbody>" +
-          completedOrders.map(order => "<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;white-space:nowrap;'>" + escapeHTML(order.created_at ? new Date(order.created_at).toLocaleDateString("mn-MN") : "—") + "</td><td style='padding:10px;'>" + escapeHTML(order.messenger_order_number || ("Захиалга #" + order.id)) + "</td><td style='padding:10px;'>" + escapeHTML(order.customer_name || "—") + "</td><td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;'>" + money(order.price || 0) + "</td></tr>").join("") +
-          "</tbody></table></div>"
-        : "<p style='padding:14px;background:#f8fafc;border-radius:8px;color:#64748b;'>Одоогоор дууссан төлөвтэй захиалга алга.</p>");
-  }
-
-  // Захиалга бүрийн борлуулалт, бодит орлого, төлөгдөөгүй үлдэгдэл, зардлыг тусад нь харуулна.
   const profitRows = orders.map(order => {
-    const linked = entries.filter(entry => String(entry.order_id || "") === String(order.id));
-    const orderIncome = linked.filter(entry => entry.entry_type === "income").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    const orderExpense = linked.filter(entry => entry.entry_type === "expense").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    const orderPrice = order.price == null ? null : Number(order.price);
-    const outstanding = order.unpaid_balance == null ? null : Number(order.unpaid_balance);
-    const cashDifference = orderIncome - orderExpense;
-    return { order, orderIncome, orderExpense, orderPrice, outstanding, cashDifference, hasEntries: linked.length > 0 };
-  }).filter(row => row.hasEntries || row.orderPrice !== null);
+    const linked = entries.filter(e => String(e.order_id || "") === String(order.id));
+    const orderIncome = linked.filter(e => e.entry_type === "income").reduce((s,e)=>s+Number(e.amount||0),0);
+    const orderCosts = linked.filter(e => e.entry_type === "expense").reduce((s,e)=>s+Number(e.amount||0),0);
+    const sale = order.price == null ? null : Number(order.price);
+    return {order,orderIncome,orderCosts,sale,estimatedProfit:sale==null?null:sale-orderCosts,unpaid:Number(order.unpaid_balance||0),hasData:linked.length>0 || sale!==null};
+  }).filter(x=>x.hasData);
+  const profitContainer=document.getElementById("financeOrderProfit");
+  if(profitContainer) profitContainer.innerHTML="<h3 style='margin:12px 0;'>📊 Захиалга тус бүрийн өртөг, тооцоолсон ашиг</h3><p style='font-size:12px;color:#64748b;margin-bottom:10px;'>Тооцоолсон ашиг = захиалгын борлуулалтын үнэ − тухайн захиалгад холбосон бүртгэсэн зардал. Бүх зардлыг бүртгээгүй бол ашиг бодит ашгаас өндөр харагдана.</p>"+(profitRows.length?"<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;'><table style='width:100%;min-width:760px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;text-align:right;'>Борлуулалт</th><th style='padding:10px;text-align:right;'>Бүртгэсэн өртөг</th><th style='padding:10px;text-align:right;'>Тооцоолсон ашиг</th><th style='padding:10px;text-align:right;'>Авлага</th></tr></thead><tbody>"+profitRows.map(r=>"<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;'>"+escapeHTML(r.order.messenger_order_number||("Захиалга #"+r.order.id))+"<br><small>"+escapeHTML(r.order.customer_name||"")+"</small></td><td style='padding:10px;text-align:right;'>"+(r.sale==null?"Тохиролцоно":money(r.sale))+"</td><td style='padding:10px;text-align:right;'>"+money(r.orderCosts)+"</td><td style='padding:10px;text-align:right;font-weight:700;color:"+(r.estimatedProfit>=0?"#15803d":"#b91c1c")+";'>"+(r.estimatedProfit==null?"—":money(r.estimatedProfit))+"</td><td style='padding:10px;text-align:right;color:"+(r.unpaid>0?"#b91c1c":"#15803d")+";'>"+money(r.unpaid)+"</td></tr>").join("")+"</tbody></table></div>":"<p>Захиалгын мэдээлэл алга.</p>");
 
-  const profitContainer = document.getElementById("financeOrderProfit");
-  if (profitContainer) {
-    profitContainer.innerHTML = "<h3 style='margin:12px 0;'>📊 Захиалга тус бүрийн мөнгөн тооцоо</h3>" +
-      "<p style='font-size:13px;color:#64748b;margin-bottom:10px;'>Сонгосон хугацаанд бүртгэгдсэн орлого, зарлагыг харуулна. Төлөгдөөгүй үлдэгдэл нь орлого биш, авлага юм. Орлого − зардлын зөрүү нь мөнгөн урсгал бөгөөд бүх зардал бүртгэгдсэн эсэхээс шалтгаалан цэвэр ашигтай тэнцэхгүй.</p>" +
-      (profitRows.length
-        ? "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;'><table style='width:100%;min-width:850px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;text-align:right;'>Захиалгын үнэ</th><th style='padding:10px;text-align:right;'>Бодит орлого</th><th style='padding:10px;text-align:right;'>Төлөгдөөгүй үлдэгдэл (гараар)</th><th style='padding:10px;text-align:right;'>Зардал</th><th style='padding:10px;text-align:right;'>Орлого − зардал</th></tr></thead><tbody>" +
-          profitRows.map(row => "<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;'>" +
-            escapeHTML(row.order.messenger_order_number || ("Захиалга #" + row.order.id)) + "<br><span style='color:#64748b;'>" + escapeHTML(row.order.customer_name || "") + "</span></td>" +
-            "<td style='padding:10px;text-align:right;white-space:nowrap;'>" + (row.orderPrice == null ? "Тохиролцоно" : money(row.orderPrice)) + "</td>" +
-            "<td style='padding:10px;text-align:right;white-space:nowrap;color:#15803d;'>" + money(row.orderIncome) + "</td>" +
-            "<td style='padding:10px;text-align:right;white-space:nowrap;color:" + (row.outstanding > 0 ? "#b91c1c" : "#15803d") + ";font-weight:700;'>" + (row.outstanding == null ? "Оруулаагүй" : money(row.outstanding)) + "</td>" +
-            "<td style='padding:10px;text-align:right;white-space:nowrap;color:#c2410c;'>" + money(row.orderExpense) + "</td>" +
-            "<td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;color:" + (row.cashDifference >= 0 ? "#15803d" : "#b91c1c") + ";'>" + money(row.cashDifference) + "</td></tr>").join("") +
-          "</tbody></table></div>"
-        : "<p style='padding:14px;background:#f8fafc;border-radius:8px;color:#64748b;'>Одоогоор захиалга бүртгэгдээгүй байна.</p>");
+  const receivableBox=document.getElementById("financeReceivables");
+  if(receivableBox) receivableBox.innerHTML="<h3>📥 Авлагын хяналт — "+money(receivableTotal)+"</h3>"+(receivables.length?"<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;font-size:13px;'><thead><tr><th style='text-align:left;padding:8px;'>Захиалга / харилцагч</th><th style='text-align:left;padding:8px;'>Утас</th><th style='text-align:right;padding:8px;'>Авах үлдэгдэл</th></tr></thead><tbody>"+receivables.map(o=>"<tr style='border-top:1px solid #e2e8f0;'><td style='padding:8px;'>"+escapeHTML(o.messenger_order_number||("#"+o.id))+" · "+escapeHTML(o.customer_name||"")+"</td><td style='padding:8px;'>"+escapeHTML(o.phone||"—")+"</td><td style='padding:8px;text-align:right;font-weight:700;color:#b91c1c;'>"+money(o.unpaid_balance)+"</td></tr>").join("")+"</tbody></table></div>":"<p style='color:#64748b;'>Төлөгдөөгүй авлага алга.</p>");
+  const payableBox=document.getElementById("financePayables");
+  if(payableBox) payableBox.innerHTML="<h3>📤 Өглөгийн хяналт — "+money(payableTotal)+"</h3>"+(payables.length?"<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;font-size:13px;'><thead><tr><th style='text-align:left;padding:8px;'>Нийлүүлэгч / ангилал</th><th style='text-align:left;padding:8px;'>Төлөх хугацаа</th><th style='text-align:right;padding:8px;'>Дүн</th><th style='text-align:left;padding:8px;'>Үйлдэл</th></tr></thead><tbody>"+payables.map(e=>"<tr style='border-top:1px solid #e2e8f0;'><td style='padding:8px;'>"+escapeHTML(e.counterparty||e.category)+"<br><small>"+escapeHTML(e.description||"")+"</small></td><td style='padding:8px;color:"+(e.due_date&&e.due_date<today?"#b91c1c":"#475569")+";'>"+escapeHTML(e.due_date||"Тодорхойгүй")+(e.due_date&&e.due_date<today?" · Хугацаа хэтэрсэн":"")+"</td><td style='padding:8px;text-align:right;'>"+money(e.amount)+"</td><td style='padding:8px;'><button type='button' onclick='markFinanceEntryPaid("+e.id+")'>Төлсөн</button></td></tr>").join("")+"</tbody></table></div>":"<p style='color:#64748b;'>Бүртгэлтэй өглөг алга.</p>");
+
+  const alerts=document.getElementById("financeAlerts");
+  if(alerts) alerts.innerHTML=(overduePayables.length? "<div style='padding:11px;margin:7px 0;background:#fef2f2;color:#991b1b;border-radius:8px;'>⚠️ "+overduePayables.length+" өглөгийн төлөх хугацаа хэтэрсэн байна. Нийт "+money(overduePayables.reduce((s,e)=>s+Number(e.amount||0),0))+"</div>":"")+(receivables.length?"<div style='padding:11px;margin:7px 0;background:#fff7ed;color:#9a3412;border-radius:8px;'>🔔 "+receivables.length+" захиалгад авах үлдэгдэл байна. Нийт "+money(receivableTotal)+"</div>":"")||"<p style='padding:10px;background:#f0fdf4;border-radius:8px;color:#166534;'>✅ Хугацаа хэтэрсэн өглөг, бүртгэлтэй авлагын анхааруулга алга.</p>";
+
+  const chart=document.getElementById("financeChart");
+  if(chart){
+    const groups={};
+    entries.forEach(e=>{const key=String(e.entry_date||"").slice(0,7);if(!key)return;groups[key]??={income:0,expense:0};groups[key][e.entry_type]+=Number(e.amount||0);});
+    let keys=Object.keys(groups).sort();
+    if(!startDate && keys.length>6) keys=keys.slice(-6);
+    const max=Math.max(1,...keys.flatMap(k=>[groups[k].income,groups[k].expense]));
+    chart.innerHTML="<h3 style='margin-bottom:12px;'>📈 Сарын мөнгөн урсгал</h3>"+(keys.length?"<div style='display:grid;grid-template-columns:repeat("+keys.length+",minmax(48px,1fr));gap:9px;align-items:end;height:170px;'>"+keys.map(k=>"<div style='height:100%;display:flex;flex-direction:column;justify-content:end;align-items:center;gap:4px;'><div style='display:flex;align-items:end;gap:3px;height:130px;width:100%;justify-content:center;'><span title='Орлого "+money(groups[k].income)+"' style='display:block;width:13px;height:"+Math.max(2,groups[k].income/max*120)+"px;background:#16a34a;border-radius:4px 4px 0 0;'></span><span title='Зарлага "+money(groups[k].expense)+"' style='display:block;width:13px;height:"+Math.max(2,groups[k].expense/max*120)+"px;background:#f97316;border-radius:4px 4px 0 0;'></span></div><small>"+escapeHTML(k)+"</small></div>").join("")+"</div><p style='font-size:12px;color:#64748b;margin-top:9px;'>🟩 Орлого · 🟧 Зарлага. Бүртгэлийн огноогоор тооцов.</p>":"<p style='color:#64748b;'>График гаргах бүртгэл алга.</p>");
   }
 
-  if (!entries.length) { list.textContent = "Одоогоор орлого, зарлагын бүртгэл байхгүй байна."; return; }
-  list.innerHTML = "<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;margin-top:14px;'><table style='width:100%;min-width:720px;border-collapse:collapse;font-size:13px;'>" +
-    "<thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Огноо</th><th style='padding:10px;text-align:left;'>Төрөл</th><th style='padding:10px;text-align:left;'>Ангилал / тайлбар</th><th style='padding:10px;text-align:right;'>Дүн</th><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;'>Үйлдэл</th></tr></thead><tbody>" +
-    entries.map(entry => "<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;white-space:nowrap;'>" + escapeHTML(entry.entry_date) + "</td>" +
-    "<td style='padding:10px;'>" + (entry.entry_type === "income" ? "Орлого" : "Зарлага") + "</td>" +
-    "<td style='padding:10px;'>" + escapeHTML(entry.category) + "<br><span style='color:#64748b;'>" + escapeHTML(entry.description || "") + "</span></td>" +    "<td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;color:" + (entry.entry_type === "income" ? "#15803d" : "#c2410c") + ";'>" + (entry.entry_type === "income" ? "+" : "−") + money(entry.amount) + "</td>" +
-    "<td style='padding:10px;'>" + (entry.order_id ? "#" + escapeHTML(entry.order_id) : "—") + "</td>" +
-    "<td style='padding:10px;text-align:center;'><button onclick='deleteFinanceEntry(" + entry.id + ")' style='padding:6px 8px;'>Устгах</button></td></tr>").join("") +
-    "</tbody></table></div>";
+  currentFinanceReport={entries,orders,receivables,payables,income,expense:allExpense,paidExpense:expense,receivableTotal,payableTotal,startDate,endDate,profitRows};
+  if(!entries.length) { list.textContent="Сонгосон хугацаанд орлого, зарлагын бүртгэл алга."; return; }
+  list.innerHTML="<div style='overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;margin-top:14px;'><table style='width:100%;min-width:950px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Огноо</th><th style='padding:10px;text-align:left;'>Төрөл</th><th style='padding:10px;text-align:left;'>Ангилал / тайлбар</th><th style='padding:10px;text-align:left;'>Харилцагч / нийлүүлэгч</th><th style='padding:10px;text-align:left;'>Төлбөр</th><th style='padding:10px;text-align:right;'>Дүн</th><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;'>Төлөв / үйлдэл</th></tr></thead><tbody>"+entries.map(e=>"<tr style='border-top:1px solid #e2e8f0;'><td style='padding:9px;'>"+escapeHTML(e.entry_date)+"</td><td style='padding:9px;'>"+(e.entry_type==="income"?"Орлого":"Зарлага")+"</td><td style='padding:9px;'>"+escapeHTML(e.category)+"<br><small>"+escapeHTML(e.description||"")+"</small></td><td style='padding:9px;'>"+escapeHTML(e.counterparty||"—")+"</td><td style='padding:9px;'>"+escapeHTML(e.payment_method||"—")+"<br><small>"+(e.payment_status==="unpaid"?"Төлөгдөөгүй":"Төлөгдсөн")+"</small></td><td style='padding:9px;text-align:right;font-weight:700;'>"+(e.entry_type==="income"?"+":"−")+money(e.amount)+"</td><td style='padding:9px;'>"+(e.order_id?"#"+escapeHTML(e.order_id):"—")+"</td><td style='padding:9px;'>"+(e.payment_status==="unpaid"?"<button type='button' onclick='markFinanceEntryPaid("+e.id+")'>Төлсөн</button> ":"")+"<button type='button' onclick='deleteFinanceEntry("+e.id+")'>Устгах</button></td></tr>").join("")+"</tbody></table></div>";
+  window.updateFinanceFormFields();
+}
+
+window.markFinanceEntryPaid = async function(id) {
+  if(currentUserRole!=="admin") return alert("Админы эрх шаардлагатай.");
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(!session) return alert("Дахин нэвтэрнэ үү.");
+  const {error}=await supabaseClient.from("finance_entries").update({payment_status:"paid"}).eq("id",id).eq("user_id",session.user.id).eq("entry_type","expense");
+  if(error) return alert("Төлөв өөрчилж чадсангүй: "+error.message);
+  await loadFinance();
+};
+
+window.exportFinanceCSV = function() {
+  if(!currentFinanceReport) return alert("Эхлээд тайлан ачаална уу.");
+  const rows=[["Огноо","Төрөл","Ангилал","Дүн ₮","Харилцагч/нийлүүлэгч","Төлбөрийн хэлбэр","Төлөв","Төлөх хугацаа","Захиалгын дугаар","Тайлбар"],...currentFinanceReport.entries.map(e=>[e.entry_date,e.entry_type==="income"?"Орлого":"Зарлага",e.category,e.amount,e.counterparty||"",e.payment_method||"",e.payment_status==="unpaid"?"Төлөгдөөгүй":"Төлөгдсөн",e.due_date||"",e.order_id||"",e.description||""])];
+  const csv="\uFEFF"+rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="Mongol-Metal-Sanhuu-"+localDateString()+".csv";a.click();URL.revokeObjectURL(url);
+};
+
+window.exportFinancePDF = async function() {
+  if(!currentFinanceReport) return alert("Эхлээд тайлан ачаална уу.");
+  try {
+    await ensureJsPdfLibrary();
+    const font=await loadQuotePdfFont();
+    const doc=new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+    doc.addFileToVFS("NotoSans-Regular.ttf",font);doc.addFont("NotoSans-Regular.ttf","NotoSans","normal");doc.setFont("NotoSans","normal");
+    doc.setFontSize(16);doc.text("МОНГОЛ МЕТАЛЛ ХИЙЦ — САНХҮҮГИЙН ТАЙЛАН",14,16);
+    doc.setFontSize(9);doc.text("Хугацаа: "+(currentFinanceReport.startDate||"Бүх хугацаа")+" — "+(currentFinanceReport.endDate||localDateString()),14,23);
+    doc.text("Орлого: "+Math.round(currentFinanceReport.income).toLocaleString("mn-MN")+" ₮   Зарлага: "+Math.round(currentFinanceReport.expense).toLocaleString("mn-MN")+" ₮   Авлага: "+Math.round(currentFinanceReport.receivableTotal).toLocaleString("mn-MN")+" ₮   Өглөг: "+Math.round(currentFinanceReport.payableTotal).toLocaleString("mn-MN")+" ₮",14,30);
+    let y=40;doc.setFontSize(8);
+    const headers=["Огноо","Төрөл","Ангилал","Дүн ₮","Төлөв","Харилцагч","Захиалга"];
+    const widths=[25,22,48,28,28,48,25];let x=14;
+    headers.forEach((h,i)=>{doc.text(h,x,y);x+=widths[i];});
+    y+=5;doc.line(14,y,283,y);y+=5;
+    for(const e of currentFinanceReport.entries){
+      if(y>190){doc.addPage();y=18;}
+      const vals=[e.entry_date,e.entry_type==="income"?"Орлого":"Зарлага",e.category,Math.round(Number(e.amount)).toLocaleString("mn-MN"),e.payment_status==="unpaid"?"Төлөгдөөгүй":"Төлөгдсөн",e.counterparty||"",e.order_id?"#"+e.order_id:"—"];
+      x=14;vals.forEach((v,i)=>{doc.text(doc.splitTextToSize(String(v),widths[i]-2).slice(0,2),x,y);x+=widths[i];});y+=7;
+    }
+    doc.save("Mongol-Metal-Sanhuu-"+localDateString()+".pdf");
+  } catch(error){alert("PDF тайлан үүсгэхэд алдаа гарлаа: "+error.message);}
 }
 
 window.saveFinanceEntry = async function() {
-  if (currentUserRole !== "admin") return alert("Санхүүгийн бүртгэл хийх админы эрх шаардлагатай.");
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
-  const type = document.getElementById("financeType").value;
-  const amount = Number(document.getElementById("financeAmount").value);
-  const category = document.getElementById("financeCategory").value.trim();
-  const entryDate = document.getElementById("financeDate").value;
-  const orderIdValue = document.getElementById("financeOrderId").value;
-  const description = document.getElementById("financeDescription").value.trim();
-  const message = document.getElementById("financeMessage");
-  if (!Number.isFinite(amount) || amount <= 0 || !category || !entryDate) { message.textContent = "Дүн, ангилал, огноог зөв бөглөнө үү."; return; }
-  const { error } = await supabaseClient.from("finance_entries").insert({
-    user_id:session.user.id, created_by:session.user.id, entry_type:type, amount, category,
-    description:description || null, entry_date:entryDate,
-    order_id:orderIdValue ? Number(orderIdValue) : null
+  if(currentUserRole!=="admin") return alert("Санхүүгийн бүртгэл хийх админы эрх шаардлагатай.");
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(!session) return alert("Та эхлээд нэвтэрнэ үү.");
+  const type=document.getElementById("financeType").value;
+  const amount=Number(document.getElementById("financeAmount").value);
+  const category=document.getElementById("financeCategory").value.trim();
+  const entryDate=document.getElementById("financeDate").value;
+  const orderIdValue=document.getElementById("financeOrderId").value;
+  const description=document.getElementById("financeDescription").value.trim();
+  const counterparty=document.getElementById("financeCounterparty").value.trim();
+  const paymentMethod=document.getElementById("financePaymentMethod").value;
+  const paymentStatus=type==="expense"?document.getElementById("financePaymentStatus").value:"paid";
+  const dueDate=type==="expense"?(document.getElementById("financeDueDate").value||null):null;
+  const message=document.getElementById("financeMessage");
+  if(!Number.isFinite(amount)||amount<=0||!category||!entryDate){message.textContent="Дүн, ангилал, огноог зөв бөглөнө үү.";return;}
+  if(type==="expense"&&paymentStatus==="unpaid"&&!counterparty){message.textContent="Төлөгдөөгүй өглөгт нийлүүлэгчийн нэрийг оруулна уу.";return;}
+  const {error}=await supabaseClient.from("finance_entries").insert({
+    user_id:session.user.id,created_by:session.user.id,entry_type:type,amount,category,
+    description:description||null,entry_date:entryDate,order_id:orderIdValue?Number(orderIdValue):null,
+    counterparty:counterparty||null,payment_method:paymentMethod||null,payment_status:paymentStatus,due_date:dueDate
   });
-  if (error) {
-    message.textContent = error.code === "23505" ? "Энэ захиалгын орлогыг өмнө нь бүртгэсэн байна." : "Хадгалахад алдаа гарлаа: " + error.message;
-    return;
-  }
-  message.textContent = "✅ Санхүүгийн бүртгэл хадгалагдлаа.";
-  ["financeAmount","financeCategory","financeDescription"].forEach(id => document.getElementById(id).value = "");
-  document.getElementById("financeOrderId").value = "";
+  if(error){message.textContent=error.code==="23505"?"Энэ захиалгын орлогыг өмнө нь бүртгэсэн байна.":"Хадгалахад алдаа гарлаа: "+error.message;return;}
+  message.textContent="✅ Санхүүгийн бүртгэл хадгалагдлаа.";
+  ["financeAmount","financeCategory","financeDescription","financeCounterparty","financeDueDate"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["financeOrderId","financePaymentMethod"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  document.getElementById("financePaymentStatus").value="paid";
   await loadFinance();
 };
 
