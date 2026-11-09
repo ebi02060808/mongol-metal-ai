@@ -45,7 +45,7 @@ async function findAuthUserByEmail(email) {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST хүсэлт шаардлагатай." });
   try {
-    const { action, email, userId, userIds } = req.body || {};
+    const { action, email, userId, userIds, fullName, phone, position } = req.body || {};
 
     if (action === "actor-names") {
       const auth = await requireMember(req);
@@ -100,6 +100,37 @@ export default async function handler(req, res) {
         });
       }
       return res.status(200).json({ success: true, employees: result });
+    }
+
+    if (action === "update-profile") {
+      if (typeof userId !== "string" || !/^[0-9a-f-]{36}$/i.test(userId)) {
+        return res.status(400).json({ error: "Ажилтны ID буруу байна." });
+      }
+      const cleanFullName = String(fullName || "").trim();
+      const cleanPhone = String(phone || "").trim();
+      const cleanPosition = String(position || "").trim();
+      if (cleanFullName.length < 2 || cleanFullName.length > 120 ||
+          cleanPhone.length < 6 || cleanPhone.length > 30 ||
+          cleanPosition.length < 2 || cleanPosition.length > 100) {
+        return res.status(400).json({ error: "Овог нэр, утас, албан тушаалыг зөв бөглөнө үү." });
+      }
+      const { data: employee, error: employeeError } = await supabase
+        .from("admin_users").select("user_id")
+        .eq("user_id", userId).eq("role", "employee").eq("owner_user_id", ownerUserId)
+        .maybeSingle();
+      if (employeeError) throw employeeError;
+      if (!employee) return res.status(404).json({ error: "Танай байгууллагын ажилтан олдсонгүй." });
+
+      const { data: targetData, error: targetError } = await supabase.auth.admin.getUserById(userId);
+      if (targetError || !targetData?.user) {
+        return res.status(404).json({ error: "Ажилтны бүртгэл олдсонгүй." });
+      }
+      const existingMetadata = targetData.user.user_metadata || {};
+      const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+        user_metadata: { ...existingMetadata, full_name: cleanFullName, phone: cleanPhone, position: cleanPosition }
+      });
+      if (updateError) throw updateError;
+      return res.status(200).json({ success: true, message: "Ажилтны мэдээлэл амжилттай шинэчлэгдлээ." });
     }
 
     if (action === "add") {
