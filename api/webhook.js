@@ -25,6 +25,11 @@ const products = {
   "7": "Шилэн фасад, хатаалгатай, 2 давхар шилтэй"
 };
 
+// Messenger үнийн саналын мөнгөн дүнг Монгол форматтай харуулна.
+function money(value) {
+  return Math.round(Number(value || 0)).toLocaleString("mn-MN") + " ₮";
+}
+
 function createOrderNumber() {
   const now = new Date();
 
