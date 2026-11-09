@@ -1252,8 +1252,8 @@ async function saveCompanySettings() {
     else delete settings.priceLabels["Шилэн фасад"];
 
     // Only a plain numeric/currency value becomes an automatic quote price.
-    const normalizedGlassPrice = glassFacadeText.replace(/[\\s,₮]/g, "");
-    const glassFacadePrice = /^\\d+(?:\\.\\d+)?$/.test(normalizedGlassPrice)
+    const normalizedGlassPrice = glassFacadeText.replace(/[\s,₮]/g, "");
+    const glassFacadePrice = /^\d+(?:\.\d+)?$/.test(normalizedGlassPrice)
       ? Number(normalizedGlassPrice)
       : 0;
     if (glassFacadePrice > 0 && Number.isFinite(glassFacadePrice)) {
