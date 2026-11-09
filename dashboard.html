@@ -179,7 +179,7 @@
         </div>
 
         <div class="cards">
-          <div class="card"><h3>Нийт захиалга</h3><div class="number" id="totalOrders">0</div></div>
+          <div class="card"><h3>Нийт захиалга</h3><div class="number" id="totalOrders">0</div></div><div class="card"><h3>💬 Messenger захиалга</h3><div class="number" id="messengerOrdersCount">0</div><p id="messengerOrdersBreakdown" style="font-size:12px;color:#64748b;margin-top:6px;"></p><strong id="messengerOrdersAmount">0 ₮</strong></div><div class="card"><h3>🏢 Биечлэн ирсэн захиалга</h3><div class="number" id="inPersonOrdersCount">0</div><p id="inPersonOrdersBreakdown" style="font-size:12px;color:#64748b;margin-top:6px;"></p><strong id="inPersonOrdersAmount">0 ₮</strong></div>
           <div class="card"><h3>Идэвхтэй захиалга</h3><div class="number" id="activeOrdersCount">0</div></div>
           <div class="card"><h3>Үнийн санал хүлээж буй</h3><div class="number" id="quoteOrdersCount">0</div></div>
           <div class="card"><h3>Баталгаажсан</h3><div class="number" id="confirmedOrdersCount">0</div></div>
@@ -255,6 +255,7 @@
       <option value="Баталгаажсан">Баталгаажсан</option>
       <option value="Дууссан">Дууссан</option>
     </select>
+    <select id="orderSourceFilter" style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;background:white;"><option value="">Бүх эх үүсвэр</option><option value="messenger">💬 Messenger</option><option value="in_person">🏢 Биечлэн ирсэн</option></select>
   </div>
   <p id="ordersFilterCount" style="font-size:13px;color:#64748b;margin:0 0 10px;">Бүх захиалга</p>
   <div id="ordersList">
@@ -732,6 +733,7 @@ async function convertQuoteToOrder() {
     const sizeSummary = items.map(item => item.width + "м × " + item.height + "м (" + item.quantity + "ш)").join("; ");
     const { error } = await supabaseClient.from("orders").insert({
       user_id: currentOwnerUserId,
+      order_source: "in_person",
       customer_name: currentQuote.customerName,
       phone: currentQuote.phone,
       product: productSummary,
@@ -820,6 +822,7 @@ async function addOrder() {
     const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
     const { error } = await supabaseClient.from("orders").insert({
       user_id: currentOwnerUserId,
+      order_source: "in_person",
       customer_name: customerName,
       phone,
       product: items.map(item => item.product).join(", "),
@@ -851,7 +854,7 @@ async function addOrder() {
 
   const { data: orders, error } = await supabaseClient
     .from("orders")
-    .select("id, phone, price, status, created_at, unpaid_balance")
+    .select("id, phone, price, status, created_at, unpaid_balance, order_source")
     .eq("user_id", currentOwnerUserId);
 
   if (error) {
@@ -885,6 +888,15 @@ async function addOrder() {
     if (element) element.textContent = String(value);
   };
 
+  const messengerOrders = allOrders.filter(order => order.order_source === "messenger" || (!order.order_source && order.messenger_sender_id));
+  const inPersonOrders = allOrders.filter(order => !messengerOrders.includes(order));
+  const summarizeSource = rows => { const counts = {}; rows.forEach(order => { const s = normalizedStatus(order); counts[s] = (counts[s] || 0) + 1; }); return ["Шинэ","Холбогдсон","Үнийн санал","Баталгаажсан","Дууссан"].filter(s => counts[s]).map(s => s + " " + counts[s]).join(" · ") || "Захиалга байхгүй"; };
+  setText("messengerOrdersCount", messengerOrders.length);
+  setText("inPersonOrdersCount", inPersonOrders.length);
+  setText("messengerOrdersBreakdown", summarizeSource(messengerOrders));
+  setText("inPersonOrdersBreakdown", summarizeSource(inPersonOrders));
+  setText("messengerOrdersAmount", messengerOrders.reduce((s,o) => s + (Number(o.price)||0),0).toLocaleString("mn-MN") + " ₮");
+  setText("inPersonOrdersAmount", inPersonOrders.reduce((s,o) => s + (Number(o.price)||0),0).toLocaleString("mn-MN") + " ₮");
   setText("totalOrders", allOrders.length);
   setText("totalCustomers", customers.size);
   setText("todayOrders", todayOrders.length);
@@ -930,6 +942,7 @@ async function loadOrders() {
       <table style="width:100%;min-width:1200px;border-collapse:collapse;background:#fff;font-size:13px;">
         <thead>
           <tr style="background:#f1f5f9;color:#334155;">
+            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Эх үүсвэр</th>
             <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Харилцагч / утас</th>
             <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Бүтээгдэхүүн</th>
             <th style="padding:12px 10px;text-align:center;border-bottom:1px solid #cbd5e1;">Хэмжээ (м)</th>
@@ -966,6 +979,8 @@ async function loadOrders() {
             const unitPriceDisplay = orderItems.length > 1
               ? "Олон үнэ"
               : (order.unit_price == null ? "—" : Number(order.unit_price).toLocaleString("mn-MN") + " ₮");
+            const orderSource = order.order_source === "messenger" || (!order.order_source && order.messenger_sender_id) ? "messenger" : "in_person";
+            const sourceLabel = orderSource === "messenger" ? "💬 Messenger" : "🏢 Биечлэн";
             const status = order.status || "Шинэ";
             const normalizedStatus = status.startsWith("Шинэ захиалга") ? "Шинэ" : status;
             const unpaidAmount = order.unpaid_balance == null ? null : Number(order.unpaid_balance);
@@ -980,7 +995,8 @@ async function loadOrders() {
             };
             const statusColor = statusColors[normalizedStatus] || statusColors["Шинэ"];
             return `
-              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" style="border-bottom:1px solid #e2e8f0;background:${hasUnpaidBalance ? '#fff1f2' : missingUnpaidBalance ? '#fffbeb' : '#ffffff'};border-left:${hasUnpaidBalance ? '5px solid #dc2626' : missingUnpaidBalance ? '5px solid #f59e0b' : '5px solid transparent'};">
+              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-source="${orderSource}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" style="border-bottom:1px solid #e2e8f0;background:${hasUnpaidBalance ? '#fff1f2' : missingUnpaidBalance ? '#fffbeb' : '#ffffff'};border-left:${hasUnpaidBalance ? '5px solid #dc2626' : missingUnpaidBalance ? '5px solid #f59e0b' : '5px solid transparent'};">
+                <td style="padding:11px 10px;white-space:nowrap;"><span style="display:inline-block;padding:5px 8px;border-radius:7px;background:${orderSource === "messenger" ? "#e0e7ff" : "#dcfce7"};color:${orderSource === "messenger" ? "#3730a3" : "#166534"};font-weight:700;">${sourceLabel}</span></td>
                 <td style="padding:11px 10px;white-space:nowrap;"><strong>${escapeHTML(order.customer_name || "")}</strong><br><span style="color:#64748b;">${escapeHTML(order.phone || "")}</span></td>
                 <td style="padding:11px 10px;">${productDisplay}</td>
                 <td style="padding:11px 10px;text-align:center;white-space:nowrap;">${sizeDisplay}</td>
@@ -1018,6 +1034,7 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
 
   const searchInput = document.getElementById("orderSearch");
   const statusFilter = document.getElementById("orderStatusFilter");
+  const sourceFilter = document.getElementById("orderSourceFilter");
   const filterCount = document.getElementById("ordersFilterCount");
   const applyOrderFilters = () => {
     const query = (searchInput?.value || "").trim().toLocaleLowerCase("mn-MN");
@@ -1031,7 +1048,9 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
       const matchesView = currentOrderView === "completed" ? isCompleted : !isCompleted;
       const matchesText = (row.dataset.orderSearch || "").toLocaleLowerCase("mn-MN").includes(query);
       const matchesStatus = !selectedStatus || row.dataset.orderStatus === selectedStatus;
-      const show = matchesView && matchesText && matchesStatus;
+      const selectedSource = sourceFilter?.value || "";
+      const matchesSource = !selectedSource || row.dataset.orderSource === selectedSource;
+      const show = matchesView && matchesText && matchesStatus && matchesSource;
       row.style.display = show ? "" : "none";
       if (show) visible++;
     });
@@ -1052,6 +1071,7 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
   if (searchInput && statusFilter) {
     searchInput.oninput = applyOrderFilters;
     statusFilter.onchange = applyOrderFilters;
+    if (sourceFilter) sourceFilter.onchange = applyOrderFilters;
     applyOrderFilters();
   }
 }
