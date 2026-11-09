@@ -147,8 +147,7 @@
       .main { padding:14px; }
       .welcome h1 { font-size:23px; }
       .section { padding:15px; }
-    }
-    @media (max-width:380px) { .cards { grid-template-columns:1fr; } }
+    }    @media (max-width:380px) { .cards { grid-template-columns:1fr; } }
   </style>
 </head>
 
@@ -278,9 +277,9 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
           <label>Металл цонх<input id="settingPriceWindow" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
           <label>Металл хаалга<input id="settingPriceDoor" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
-          <label>Шилэн фасад (гараар тохируулах)<input id="settingPriceGlass" type="number" min="0" step="1000" placeholder="Үнэ тохиролцоно" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+          <label style="display:block;color:#0f172a;font-weight:600;">Шилэн фасад (₮ / м²)<input id="settingPriceGlass" type="number" min="0" step="1000" placeholder="Үнэ тохиролцоно" style="display:block;width:100%;box-sizing:border-box;color:#111827;background:#ffffff;font-weight:500;padding:10px;border:1px solid #94a3b8;border-radius:8px;margin-top:5px;"></label>
           <label>Хуванцар хаалт<input id="settingPricePlastic" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
-          <label>Металл фасад (гараар тохируулах)<input id="settingPriceMetalFacade" type="number" min="0" step="1000" placeholder="Үнэ тохиролцоно" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+          <label style="display:block;color:#0f172a;font-weight:700;">Металл фасад (₮ / м²)<input id="settingPriceMetalFacade" type="number" min="0" step="1000" placeholder="Үнэ тохиролцоно" style="display:block;width:100%;box-sizing:border-box;color:#111827;background:#ffffff;font-weight:500;padding:10px;border:1px solid #94a3b8;border-radius:8px;margin-top:5px;"></label>
         </div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin:16px 0;">
           <label><input id="settingInstallationIncluded" type="checkbox"> Суулгалтын зардал үндсэн үнэд багтсан</label>
@@ -297,8 +296,7 @@
         <p style="color:#64748b;margin-bottom:12px;">Ажилтан эхлээд register.html хуудсаар бүртгүүлнэ. Дараа нь бүртгүүлсэн имэйлийг энд оруулж эрх олгоно.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;">
           <input id="staffEmail" type="email" placeholder="Ажилтны бүртгэлтэй имэйл" style="flex:1;min-width:220px;padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
-          <button type="button" onclick="addStaff()" style="padding:10px 16px;background:#2563eb;color:white;border:0;border-radius:8px;">Ажилтан нэмэх</button>
-        </div>
+          <button type="button" onclick="addStaff()" style="padding:10px 16px;background:#2563eb;color:white;border:0;border-radius:8px;">Ажилтан нэмэх</button>        </div>
         <p id="staffMessage" style="margin:8px 0;color:#475569;"></p>
         <div id="staffList">Ажилтнуудыг ачаалж байна...</div>
       </div>
@@ -447,8 +445,7 @@ function addOrderItemRow(containerId, initial = {}) {
     if (container.querySelectorAll(".multi-order-item").length <= 1) {
       alert("Дор хаяж нэг бүтээгдэхүүн үлдээнэ үү.");
       return;
-    }
-    row.remove();
+    }    row.remove();
     updateAllItemPreviews(containerId);
   });
   row.querySelectorAll("input").forEach(input => input.addEventListener("input", () => updateAllItemPreviews(containerId)));
@@ -597,8 +594,7 @@ async function downloadQuotePDF() {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       total: item.total,
-      negotiable: false
-    }));
+      negotiable: false    }));
     const totalArea = currentQuote.items.reduce((sum, item) => sum + item.area * item.quantity, 0);
     const totalPieces = currentQuote.items.reduce((sum, item) => sum + item.quantity, 0);
     const doc = await buildQuotePdfDocument({
@@ -747,8 +743,7 @@ async function convertQuoteToOrder() {
       status: "Үнийн санал",
       quote_items: normalizeOrderItems(items)
     });
-    if (error) throw error;
-    // Захиалга амжилттай хадгалагдсан тул дараагийн үнийн саналд бэлдэж маягтыг цэвэрлэнэ.
+    if (error) throw error;    // Захиалга амжилттай хадгалагдсан тул дараагийн үнийн саналд бэлдэж маягтыг цэвэрлэнэ.
     currentQuote = null;
     document.getElementById("quoteCustomerName").value = "";
     document.getElementById("quotePhone").value = "";
@@ -898,7 +893,6 @@ async function addOrder() {
   setText("confirmedOrdersCount", confirmed.length);
   setText("completedOrdersCount", completed.length);
   setText("unpaidOrdersCount", unpaid.length);
-
   const totalAmountElement = document.getElementById("totalAmount");
   if (totalAmountElement) {
     const totalAmount = allOrders.reduce((sum, order) => sum + (Number(order.price) || 0), 0);
@@ -1047,8 +1041,7 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
       activeTab.style.background = currentOrderView === "active" ? "#2563eb" : "white";
       activeTab.style.color = currentOrderView === "active" ? "white" : "#334155";
       activeTab.style.borderColor = currentOrderView === "active" ? "#2563eb" : "#cbd5e1";
-      completedTab.style.background = currentOrderView === "completed" ? "#2563eb" : "white";
-      completedTab.style.color = currentOrderView === "completed" ? "white" : "#334155";
+      completedTab.style.background = currentOrderView === "completed" ? "#2563eb" : "white";      completedTab.style.color = currentOrderView === "completed" ? "white" : "#334155";
       completedTab.style.borderColor = currentOrderView === "completed" ? "#2563eb" : "#cbd5e1";
       completedTab.textContent = "🗄️ Дууссан захиалгын архив (" + completedCount + ")";
     }
@@ -1197,8 +1190,7 @@ function applyCompanySettings(settings = {}) {
   PRODUCT_PRICE_DEFAULTS["Металл хаалга"] = Number(fields.settingPriceDoor) || 0;
   const glassFacadePrice = Number(fields.settingPriceGlass);
   if (glassFacadePrice > 0) PRODUCT_PRICE_DEFAULTS["Шилэн фасад"] = glassFacadePrice;
-  else delete PRODUCT_PRICE_DEFAULTS["Шилэн фасад"];  PRODUCT_PRICE_DEFAULTS["Хуванцар хаалт"] = Number(fields.settingPricePlastic) || 0;
-  const metalFacadePrice = Number(fields.settingPriceMetalFacade);
+  else delete PRODUCT_PRICE_DEFAULTS["Шилэн фасад"];  PRODUCT_PRICE_DEFAULTS["Хуванцар хаалт"] = Number(fields.settingPricePlastic) || 0;  const metalFacadePrice = Number(fields.settingPriceMetalFacade);
   if (metalFacadePrice > 0) PRODUCT_PRICE_DEFAULTS["Металл фасад"] = metalFacadePrice;
   else delete PRODUCT_PRICE_DEFAULTS["Металл фасад"];
 }
@@ -1347,8 +1339,7 @@ window.removeStaff = async function(userId) {
 function showDashboardPage(page) {
   const pages = {
     overview:"overviewPage", orders:"ordersPage", customers:"customersPage",
-    messenger:"messengerPage", finance:"financePage", settings:"settingsPage"
-  };
+    messenger:"messengerPage", finance:"financePage", settings:"settingsPage"  };
   if (!pages[page]) return;
   if ((page === "finance" || page === "settings") && currentUserRole !== "admin") {
     alert("Энэ хэсэгт админы эрх шаардлагатай.");
@@ -1497,8 +1488,7 @@ async function loadFinance() {
     "<thead><tr style='background:#f1f5f9;'><th style='padding:10px;text-align:left;'>Огноо</th><th style='padding:10px;text-align:left;'>Төрөл</th><th style='padding:10px;text-align:left;'>Ангилал / тайлбар</th><th style='padding:10px;text-align:right;'>Дүн</th><th style='padding:10px;text-align:left;'>Захиалга</th><th style='padding:10px;'>Үйлдэл</th></tr></thead><tbody>" +
     entries.map(entry => "<tr style='border-top:1px solid #e2e8f0;'><td style='padding:10px;white-space:nowrap;'>" + escapeHTML(entry.entry_date) + "</td>" +
     "<td style='padding:10px;'>" + (entry.entry_type === "income" ? "Орлого" : "Зарлага") + "</td>" +
-    "<td style='padding:10px;'>" + escapeHTML(entry.category) + "<br><span style='color:#64748b;'>" + escapeHTML(entry.description || "") + "</span></td>" +
-    "<td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;color:" + (entry.entry_type === "income" ? "#15803d" : "#c2410c") + ";'>" + (entry.entry_type === "income" ? "+" : "−") + money(entry.amount) + "</td>" +
+    "<td style='padding:10px;'>" + escapeHTML(entry.category) + "<br><span style='color:#64748b;'>" + escapeHTML(entry.description || "") + "</span></td>" +    "<td style='padding:10px;text-align:right;white-space:nowrap;font-weight:700;color:" + (entry.entry_type === "income" ? "#15803d" : "#c2410c") + ";'>" + (entry.entry_type === "income" ? "+" : "−") + money(entry.amount) + "</td>" +
     "<td style='padding:10px;'>" + (entry.order_id ? "#" + escapeHTML(entry.order_id) : "—") + "</td>" +
     "<td style='padding:10px;text-align:center;'><button onclick='deleteFinanceEntry(" + entry.id + ")' style='padding:6px 8px;'>Устгах</button></td></tr>").join("") +
     "</tbody></table></div>";
@@ -1647,8 +1637,7 @@ async function ensureJsPdfLibrary() {
         script.src = src;
         script.async = true;
         script.onload = resolve;
-        script.onerror = () => reject(new Error("PDF сангийн эх үүсвэр холбогдсонгүй."));
-        document.head.appendChild(script);
+        script.onerror = () => reject(new Error("PDF сангийн эх үүсвэр холбогдсонгүй."));        document.head.appendChild(script);
       });
       if (window.jspdf && typeof window.jspdf.jsPDF === "function") return;
     } catch (error) {
@@ -1797,8 +1786,7 @@ async function buildQuotePdfDocument(data) {
   if (y > 260) {
     doc.addPage();
     y = 20;
-  }
-  doc.setFontSize(9);
+  }  doc.setFontSize(9);
   doc.setTextColor(71, 85, 105);
   if (data.totalPieces) {
     doc.text("Нийт ширхэг: " + Number(data.totalPieces).toLocaleString("mn-MN") + " ш", margin, y);
@@ -1948,7 +1936,6 @@ async function updateOrderStatus(orderId, newStatus) {
     } else {
       completionExpense = { amount: 0 };
     }
-
     const remainingText = prompt("Захиалгын үлдэгдэл төлбөрөөс ОДОО бодитоор хүлээн авсан мөнгийг оруулна уу (₮). Бүрэн төлөгдсөн бол 0 гэж бичнэ үү:", "0");
     if (remainingText === null) { await loadOrders(); return; }
     const remainingAmount = Number(String(remainingText).replace(/,/g, "").trim());
@@ -2097,8 +2084,7 @@ window.deleteOrder = async function(orderId) {
     .select("id");
 
   if (error) {
-    alert("Устгахад алдаа гарлаа: " + error.message);
-    return;
+    alert("Устгахад алдаа гарлаа: " + error.message);    return;
   }
 
   if (!data || data.length === 0) {
@@ -2247,8 +2233,7 @@ function showCustomerDetails(index) {
 
   currentUserRole = admin.role;
   currentOwnerUserId = admin.owner_user_id || session.user.id;
-  document.getElementById("userEmail").textContent =
-    session.user.email + (admin.role === "admin" ? " · Админ" : " · Ажилтан");
+  document.getElementById("userEmail").textContent =    session.user.email + (admin.role === "admin" ? " · Админ" : " · Ажилтан");
   if (admin.role === "admin") {
     document.getElementById("adminSettingsNav").style.display = "block";
     document.getElementById("financeNav").style.display = "block";
