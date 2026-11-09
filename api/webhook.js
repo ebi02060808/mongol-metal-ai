@@ -1781,6 +1781,7 @@ if (!existingOrder) {
   unit_price: items.some(item => item.pricing_mode === "labor_only") || !totalArea ? null : Math.round(totalPrice / totalArea),
   status: orderStatus,
   user_id: admin.user_id,
+  order_source: "messenger",
   messenger_sender_id: senderId,
   messenger_order_number: session.order_number,
   quote_items: items.map(item => ({
