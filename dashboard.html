@@ -1821,11 +1821,11 @@ async function buildQuotePdfDocument(data) {
   y += 8;
   doc.setFontSize(9);
   doc.setTextColor(51, 65, 85);
-  doc.text("Баталгаат хугацаа: 2 жил", margin, y);
+  doc.text("Баталгаат хугацаа: " + Number(data.warrantyMonths ?? 24) + " сар", margin, y);
   y += 6;
   doc.text(doc.splitTextToSize("Үнийн саналтай холбоотой нэмэлт нөхцөлийг захиалга баталгаажуулах үед тохиролцоно.", contentWidth), margin, y);
   y += 12;
-  doc.text("Хүндэтгэсэн, Монгол металл хийц", margin, y);
+  doc.text("Хүндэтгэсэн, " + String(data.companyName || "Монгол металл хийц"), margin, y);
   return doc;
 }
 
