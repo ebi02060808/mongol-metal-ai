@@ -1151,7 +1151,17 @@ window.markUnpaidBalancePaid = async function(orderId, currentAmount) {
 };
 
 window.setOrderView = function(view) {
-  currentOrderView = view === "completed" ? "completed" : "active";
+  currentOrderView = ["active", "completed", "all"].includes(view) ? view : "active";
+  currentOrderDateFilter = "";
+  currentOrderUnpaidOnly = false;
+
+  const search = document.getElementById("orderSearch");
+  const status = document.getElementById("orderStatusFilter");
+  const source = document.getElementById("orderSourceFilter");
+  if (search) search.value = "";
+  if (status) status.value = "";
+  if (source) source.value = "";
+
   loadOrders();
 };
 
