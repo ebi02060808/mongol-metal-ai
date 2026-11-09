@@ -2274,7 +2274,7 @@ function showCustomerDetails(index) {
       window.location.href = "index.html";
     }
 
-checkLogin().then(isAuthorized => {
+checkLogin().then(async isAuthorized => {
   if (isAuthorized) {
     const financeDate = document.getElementById("financeDate");
     if (financeDate) financeDate.value = localDateString();
