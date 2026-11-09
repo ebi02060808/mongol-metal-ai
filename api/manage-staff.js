@@ -69,7 +69,7 @@ export default async function handler(req, res) {
         if (!userError && actor) {
           const metadata = actor.user_metadata || {};
           actors[actorId] = {
-            name: String(metadata.full_name || metadata.name || metadata.display_name || "").trim(),
+            name: String(metadata.full_name || [metadata.last_name, metadata.first_name].filter(Boolean).join(" ") || metadata.name || metadata.display_name || "").trim(),
             email: actor.email || ""
           };
         }
@@ -89,9 +89,13 @@ export default async function handler(req, res) {
       const result = [];
       for (const employee of employees || []) {
         const { data, error: userError } = await supabase.auth.admin.getUserById(employee.user_id);
+        const metadata = userError ? {} : (data?.user?.user_metadata || {});
         result.push({
           user_id: employee.user_id,
           email: userError ? null : data?.user?.email || null,
+          full_name: String(metadata.full_name || "").trim(),
+          phone: String(metadata.phone || "").trim(),
+          position: String(metadata.position || "").trim(),
           created_at: employee.created_at
         });
       }
