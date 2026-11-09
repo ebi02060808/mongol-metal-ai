@@ -1172,9 +1172,9 @@ function applyCompanySettings(settings = {}) {
     settingAddress: settings.address || "",
     settingPriceWindow: settings.prices?.["Металл цонх"] ?? 420000,
     settingPriceDoor: settings.prices?.["Металл хаалга"] ?? 840000,
-    settingPriceGlass: settings.prices?.["Шилэн фасад"] ?? "",
+    settingPriceGlass: Number(settings.prices?.["Шилэн фасад"] || 0) > 0 ? settings.prices["Шилэн фасад"] : "",
     settingPricePlastic: settings.prices?.["Хуванцар хаалт"] ?? 160000,
-    settingPriceMetalFacade: settings.prices?.["Металл фасад"] ?? "",
+    settingPriceMetalFacade: Number(settings.prices?.["Металл фасад"] || 0) > 0 ? settings.prices["Металл фасад"] : "",
     settingWarrantyMonths: settings.warrantyMonths ?? 24
   };
   Object.entries(fields).forEach(([id,value]) => {
@@ -1223,7 +1223,7 @@ async function saveCompanySettings() {
   const read = id => document.getElementById(id)?.value?.trim() || "";
   const numeric = (id, label, optional = false) => {
     const raw = read(id);
-    if (optional && !raw) return null;
+    if (optional && (!raw || Number(raw) <= 0)) return null;
     const value = Number(raw);
     if (!Number.isFinite(value) || value < 0) throw new Error(label + " үнэ 0-ээс багагүй тоо байх ёстой.");
     return value;
