@@ -559,8 +559,10 @@ function calculateQuote() {
     ).join("");
     document.getElementById("quotePaper").innerHTML =
       '<div style="border-bottom:3px solid #111827;padding-bottom:18px;margin-bottom:25px;">' +
-      '<h1 style="font-size:27px;margin:0 0 6px;">МОНГОЛ МЕТАЛЛ ХИЙЦ</h1>' +
-      '<p style="font-size:13px;color:#475569;">Чанартай хийц, бат бөх суурилуулалт</p>' +
+      '<h1 style="font-size:27px;margin:0 0 6px;">' + escapeHTML(currentCompanySettings.companyName || "МОНГОЛ МЕТАЛЛ ХИЙЦ") + '</h1>' +
+      '<p style="font-size:13px;color:#475569;">' + escapeHTML(currentCompanySettings.tagline || "Чанартай хийц, бат бөх суурилуулалт") + '</p>' +
+      (currentCompanySettings.phone ? '<p style="font-size:12px;">Утас: ' + escapeHTML(currentCompanySettings.phone) + '</p>' : '') +
+      (currentCompanySettings.address ? '<p style="font-size:12px;">Хаяг: ' + escapeHTML(currentCompanySettings.address) + '</p>' : '') +
       '<h2 style="margin-top:28px;font-size:22px;">ҮНИЙН САНАЛ</h2></div>' +
       '<p><strong>Огноо:</strong> ' + escapeHTML(currentQuote.date.toLocaleDateString("mn-MN")) + '</p>' +
       '<p style="margin-top:8px;"><strong>Харилцагч:</strong> ' + escapeHTML(customerName) + '</p>' +
@@ -572,7 +574,7 @@ function calculateQuote() {
       '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Нэгж үнэ</th>' +
       '<th style="border:1px solid #cbd5e1;padding:10px;text-align:right;">Дүн</th></tr></thead><tbody>' + rows + '</tbody></table>' +
       '<h2 style="text-align:right;margin-top:24px;font-size:21px;">Нийт дүн: ' + money(total) + '</h2>' +
-      '<div style="margin-top:42px;padding-top:18px;border-top:1px solid #cbd5e1;font-size:13px;color:#334155;"><p><strong>Баталгаат хугацаа:</strong> 2 жил</p>' +
+      '<div style="margin-top:42px;padding-top:18px;border-top:1px solid #cbd5e1;font-size:13px;color:#334155;"><p><strong>Баталгаат хугацаа:</strong> ' + Number(currentCompanySettings.warrantyMonths ?? 24) + ' сар</p>' +
       '<p style="margin-top:8px;">Үнийн саналтай холбоотой нэмэлт нөхцөлийг захиалга баталгаажуулах үед тохиролцоно.</p>' +
       '<p style="margin-top:28px;">Хүндэтгэсэн, Монгол металл хийц</p></div>';
     document.getElementById("quotePreview").innerHTML =
@@ -608,7 +610,12 @@ async function downloadQuotePDF() {
       items,
       totalPrice: currentQuote.total,
       totalArea,
-      totalPieces
+      totalPieces,
+      companyName: currentCompanySettings.companyName,
+      tagline: currentCompanySettings.tagline,
+      companyPhone: currentCompanySettings.phone,
+      companyAddress: currentCompanySettings.address,
+      warrantyMonths: currentCompanySettings.warrantyMonths
     });
     doc.save("Mongol-Metal-Quote-" + currentQuote.date.toISOString().slice(0, 10) + ".pdf");
     document.getElementById("quoteMessage").textContent = "PDF файл татагдлаа. Үнийн санал Dashboard-д хэвээр байна.";
@@ -1694,12 +1701,20 @@ async function buildQuotePdfDocument(data) {
   y += 12;
   doc.setTextColor(17, 24, 39);
   doc.setFontSize(19);
-  doc.text("МОНГОЛ МЕТАЛЛ ХИЙЦ", margin, y);
+  doc.text(String(data.companyName || "МОНГОЛ МЕТАЛЛ ХИЙЦ"), margin, y);
   y += 7;
   doc.setFontSize(9);
   doc.setTextColor(71, 85, 105);
-  doc.text("Чанартай хийц, бат бөх суурилуулалт", margin, y);
-  y += 10;
+  doc.text(String(data.tagline || "Чанартай хийц, бат бөх суурилуулалт"), margin, y);
+  y += 6;
+  if (data.companyPhone || data.companyAddress) {
+    doc.setFontSize(8);
+    const contactLine = [data.companyPhone ? "Утас: " + data.companyPhone : "", data.companyAddress ? "Хаяг: " + data.companyAddress : ""].filter(Boolean).join(" · ");
+    doc.text(doc.splitTextToSize(contactLine, contentWidth), margin, y);
+    y += data.companyAddress ? 8 : 5;
+  } else {
+    y += 4;
+  }
   doc.setTextColor(17, 24, 39);
   doc.setFontSize(16);
   doc.text("ҮНИЙН САНАЛ", margin, y);
@@ -2263,6 +2278,7 @@ checkLogin().then(isAuthorized => {
   if (isAuthorized) {
     const financeDate = document.getElementById("financeDate");
     if (financeDate) financeDate.value = localDateString();
+    await loadCompanySettings();
     showDashboardPage("overview");
   }
 });
