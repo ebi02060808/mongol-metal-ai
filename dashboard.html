@@ -1414,7 +1414,7 @@ window.loadStaff = async function() {
       "<span><strong>" + escapeHTML(employee.full_name || "Нэр оруулаагүй") + "</strong><br>" +
       "<small style='color:#64748b;'>" + escapeHTML(employee.email || "Имэйл олдсонгүй") + "</small><br>" +
       "<small style='color:#475569;'>Утас: " + escapeHTML(employee.phone || "—") + " · Албан тушаал: " + escapeHTML(employee.position || "—") + "</small></span>" +
-      '<button onclick="removeStaff(\'' + escapeHTML(employee.user_id) + '\\')" style="padding:7px 10px;border:0;border-radius:7px;background:#fee2e2;color:#991b1b;">Эрх цуцлах</button></div>'
+      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='removeStaff(this.dataset.userId)' style='padding:7px 10px;border:0;border-radius:7px;background:#fee2e2;color:#991b1b;'>Эрх цуцлах</button></div>"
     ).join("");
   } catch(error) {
     list.textContent = "Алдаа: " + error.message;
