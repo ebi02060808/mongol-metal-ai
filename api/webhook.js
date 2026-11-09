@@ -258,7 +258,7 @@ async function buildMessengerQuotePdf(session, items, orderId) {
 async function sendOrderQuoteDetails(senderId, orderId) {
   const { data: order, error } = await supabase
     .from("orders")
-    .select("id, customer_name, product, size, price, quantity, area_per_unit, quote_items, messenger_order_number, messenger_sender_id")
+    .select("id, customer_name, product, size, price, quantity, area_per_unit, quote_items, quote_pdf_path, messenger_order_number, messenger_sender_id")
     .eq("id", orderId)
     .eq("messenger_sender_id", senderId)
     .maybeSingle();
@@ -310,6 +310,41 @@ async function sendOrderQuoteDetails(senderId, orderId) {
     "НИЙТ ДҮН: " + total + "\n\n" +
     "Нэмэлт зүйл тодруулах бол энэ чатанд бичээрэй. Баярлалаа!";
   await sendMessage(senderId, message);
+
+  // Хэрэглэгч "Тийм, авъя" гэж сонгосон бол хадгалсан PDF файлыг хавсарган илгээнэ.
+  if (!order.quote_pdf_path) {
+    await sendMessage(senderId, "Уучлаарай, энэ захиалгын PDF файл хадгалагдаагүй байна. Манай ажилтан PDF-г бэлдэж илгээнэ.");
+    return;
+  }
+
+  const { data: pdfFile, error: pdfDownloadError } = await supabase.storage
+    .from("quote-pdfs")
+    .download(order.quote_pdf_path);
+
+  if (pdfDownloadError || !pdfFile) {
+    console.error("Dashboard quote PDF download error:", pdfDownloadError);
+    await sendMessage(senderId, "Үнийн саналын мэдээлэл илгээгдлээ. Харин PDF файлыг хадгалсан сангаас уншиж чадсангүй. Манай ажилтан шалгаж илгээнэ.");
+    return;
+  }
+
+  const pdfBuffer = Buffer.from(await pdfFile.arrayBuffer());
+  if (pdfBuffer.length < 8 || pdfBuffer.subarray(0, 5).toString("ascii") !== "%PDF-" ||
+      pdfBuffer.length > 3 * 1024 * 1024) {
+    console.error("Dashboard quote PDF validation failed:", { size: pdfBuffer.length });
+    await sendMessage(senderId, "Үнийн саналын PDF файлын бүтэц эсвэл хэмжээ буруу байна. Манай ажилтан шалгаж илгээнэ.");
+    return;
+  }
+
+  try {
+    await sendFileAttachment(
+      senderId,
+      pdfBuffer,
+      "Mongol-Metal-Quote-" + (order.messenger_order_number || order.id) + ".pdf"
+    );
+  } catch (pdfSendError) {
+    console.error("Dashboard quote PDF Messenger send error:", pdfSendError);
+    await sendMessage(senderId, "Үнийн саналын мэдээлэл илгээгдлээ. PDF файлыг Messenger-ээр хавсаргаж чадсангүй. Манай ажилтан шалгана.");
+  }
 }
 
 async function sendQuotePdfQuestion(senderId, orderId) {
