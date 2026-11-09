@@ -349,12 +349,12 @@
           <input id="financeAmount" type="number" min="1" step="1" placeholder="Дүн (₮)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
           <select id="financeCategory" required style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;background:white;"><option value="">Ангилал сонгох</option></select>
           
-          <div style="display:flex;flex-direction:column;gap:4px;"><input id="financeDate" type="date" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><small style="font-size:11px;color:#64748b;">Бодитоор орлого орсон эсвэл зарлага гарсан өдрийг сонгоно. Төлбөр хийхээр товлосон өдрийг “Төлөх хугацаа” хэсэгт оруулна.</small></div>
+          <div style="display:flex;flex-direction:column;gap:4px;"><label id="financeDateLabel" for="financeDate" style="font-size:12px;font-weight:600;color:#334155;">Орлого орсон өдөр</label><input id="financeDate" type="date" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><small id="financeDateHelp" style="font-size:11px;color:#64748b;">Мөнгө бодитоор орж ирсэн өдрийг сонгоно.</small></div>
           <select id="financeOrderId" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Захиалгатай холбох (заавал биш)</option></select>
           <input id="financeCounterparty" type="text" placeholder="Нийлүүлэгч / төлбөр төлөгч" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
           <select id="financePaymentMethod" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Төлбөрийн хэлбэр</option><option value="Бэлэн">Бэлэн</option><option value="Банк">Банкны шилжүүлэг</option><option value="Карт">Карт</option><option value="Бусад">Бусад</option></select>
           <select id="financePaymentStatus" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="paid">Төлөгдсөн</option><option value="unpaid">Төлөгдөөгүй / өглөг</option></select>
-          <input id="financeDueDate" type="date" title="Төлөх хугацаа" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
+          <div style="display:flex;flex-direction:column;gap:4px;"><label for="financeDueDate" style="font-size:12px;font-weight:600;color:#334155;">Төлөхөөр товлосон өдөр</label><input id="financeDueDate" type="date" title="Төлөхөөр товлосон өдөр" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><small style="font-size:11px;color:#64748b;">Төлбөрийг ирээдүйд хийхээр тохирсон өдрийг сонгоно.</small></div>
           <input id="financeDescription" type="text" placeholder="Юунд зориулагдсан / юу авсан (гараар бичнэ)" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
         </div>
         <button type="button" onclick="saveFinanceEntry()" style="background:#2563eb;color:white;border:0;padding:11px 18px;border-radius:8px;cursor:pointer;">Бүртгэх</button>
@@ -1620,6 +1620,10 @@ window.updateFinanceFormFields = function() {
   const status = document.getElementById("financePaymentStatus");
   const due = document.getElementById("financeDueDate");
   const counterparty = document.getElementById("financeCounterparty");
+  const dateLabel = document.getElementById("financeDateLabel");
+  const dateHelp = document.getElementById("financeDateHelp");
+  if (dateLabel) dateLabel.textContent = type === "income" ? "Орлого орсон өдөр" : "Зарлага гарсан өдөр";
+  if (dateHelp) dateHelp.textContent = type === "income" ? "Мөнгө бодитоор орж ирсэн өдрийг сонгоно." : "Мөнгө бодитоор зарцуулсан өдрийг сонгоно.";
   if (category) {
     const options = FINANCE_CATEGORY_OPTIONS[type] || [];
     category.innerHTML = "<option value=''>Ангилал сонгох</option>" + options.map(value => "<option value='" + escapeHTML(value) + "'>" + escapeHTML(value) + "</option>").join("");
