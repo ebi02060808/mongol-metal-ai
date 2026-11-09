@@ -333,7 +333,7 @@ export default async function handler(req, res) {
       remainingIncomeAlreadyRecorded,
       expenseRecorded: Boolean(completionExpenseEntryId),
       message: newStatus === "Үнийн санал"
-        ? "Үнийн санал харилцагчийн Messenger рүү илгээгдэж, төлөв шинэчлэгдлээ."
+        ? "Үнийн санал авах эсэх асуулт харилцагчийн Messenger рүү илгээгдэж, төлөв шинэчлэгдлээ."
         : completionMessage
     });
   } catch (error) {
