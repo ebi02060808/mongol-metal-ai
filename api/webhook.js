@@ -263,7 +263,7 @@ async function buildMessengerQuotePdf(session, items, orderId) {
 async function sendOrderQuoteDetails(senderId, orderId) {
   const { data: order, error } = await supabase
     .from("orders")
-    .select("id, customer_name, product, size, price, quantity, area_per_unit, quote_items, quote_pdf_path, messenger_order_number, messenger_sender_id")
+    .select("id, user_id, customer_name, phone, address, product, size, price, quantity, area_per_unit, quote_items, quote_pdf_path, messenger_order_number, messenger_sender_id")
     .eq("id", orderId)
     .eq("messenger_sender_id", senderId)
     .maybeSingle();
@@ -316,24 +316,75 @@ async function sendOrderQuoteDetails(senderId, orderId) {
     "Нэмэлт зүйл тодруулах бол энэ чатанд бичээрэй. Баярлалаа!";
   await sendMessage(senderId, message);
 
-  // Хэрэглэгч "Тийм, авъя" гэж сонгосон бол хадгалсан PDF файлыг хавсарган илгээнэ.
-  if (!order.quote_pdf_path) {
-    await sendMessage(senderId, "Уучлаарай, энэ захиалгын PDF файл хадгалагдаагүй байна. Манай ажилтан PDF-г бэлдэж илгээнэ.");
-    return;
+  // PDF өмнө нь хадгалагдсан бол эхлээд ашиглана. Байхгүй/уншигдахгүй бол захиалгын
+  // мөрүүдээс шинээр үүсгэж Storage-д хадгалаад Messenger-ээр илгээнэ.
+  let pdfBuffer = null;
+  if (order.quote_pdf_path) {
+    const { data: existingPdf, error: existingPdfError } = await supabase.storage
+      .from("quote-pdfs")
+      .download(order.quote_pdf_path);
+    if (existingPdf && !existingPdfError) {
+      pdfBuffer = Buffer.from(await existingPdf.arrayBuffer());
+    } else {
+      console.warn("Stored quote PDF unavailable; regenerating:", existingPdfError?.message);
+    }
   }
 
-  const { data: pdfFile, error: pdfDownloadError } = await supabase.storage
-    .from("quote-pdfs")
-    .download(order.quote_pdf_path);
+  if (!pdfBuffer) {
+    try {
+      let pdfItems = items;
+      if (!pdfItems.length) {
+        const sizeMatch = String(order.size || "").match(/(\\d+(?:[.,]\\d+)?)\\s*[×x*]\\s*(\\d+(?:[.,]\\d+)?)/i);
+        const width = sizeMatch ? Number(sizeMatch[1].replace(",", ".")) : null;
+        const height = sizeMatch ? Number(sizeMatch[2].replace(",", ".")) : null;
+        const area = Number(order.area_per_unit || (width && height ? width * height : 0));
+        const quantity = Math.max(1, Number(order.quantity || 1));
+        const totalPrice = order.price == null ? 0 : Number(order.price);
+        pdfItems = [{
+          product_type: order.product || "Бүтээгдэхүүн",
+          width,
+          height,
+          area,
+          quantity,
+          unit_price: area > 0 ? totalPrice / (area * quantity) : totalPrice,
+          total_price: totalPrice,
+          pricing_mode: "materials_included"
+        }];
+      }
 
-  if (pdfDownloadError || !pdfFile) {
-    console.error("Dashboard quote PDF download error:", pdfDownloadError);
-    await sendMessage(senderId, "Үнийн саналын мэдээлэл илгээгдлээ. Харин PDF файлыг хадгалсан сангаас уншиж чадсангүй. Манай ажилтан шалгаж илгээнэ.");
-    return;
+      pdfBuffer = await buildMessengerQuotePdf({
+        order_number: order.messenger_order_number || order.id,
+        customer_name: order.customer_name,
+        phone: order.phone,
+        address: order.address
+      }, pdfItems, order.id);
+
+      const pdfPath = order.quote_pdf_path ||
+        String(order.user_id) + "/dashboard-messenger-" + String(order.id) + ".pdf";
+      const { error: uploadError } = await supabase.storage
+        .from("quote-pdfs")
+        .upload(pdfPath, pdfBuffer, {
+          contentType: "application/pdf",
+          upsert: true
+        });
+      if (uploadError) throw uploadError;
+
+      const { error: pathUpdateError } = await supabase
+        .from("orders")
+        .update({ quote_pdf_path: pdfPath })
+        .eq("id", order.id)
+        .eq("messenger_sender_id", senderId);
+      if (pathUpdateError) throw pathUpdateError;
+      order.quote_pdf_path = pdfPath;
+      console.log("Generated and stored Messenger quote PDF:", { orderId: order.id, pdfPath });
+    } catch (pdfCreateError) {
+      console.error("Messenger quote PDF generation/storage error:", pdfCreateError);
+      await sendMessage(senderId, "Үнийн саналын мэдээлэл илгээгдлээ. PDF-г автоматаар үүсгэхэд алдаа гарлаа. Манай ажилтан шалгаж илгээнэ.");
+      return;
+    }
   }
 
-  const pdfBuffer = Buffer.from(await pdfFile.arrayBuffer());
-  if (pdfBuffer.length < 8 || pdfBuffer.subarray(0, 5).toString("ascii") !== "%PDF-" ||
+  if (pdfBuffer.length < 1000 || pdfBuffer.subarray(0, 5).toString("ascii") !== "%PDF-" ||
       pdfBuffer.length > 3 * 1024 * 1024) {
     console.error("Dashboard quote PDF validation failed:", { size: pdfBuffer.length });
     await sendMessage(senderId, "Үнийн саналын PDF файлын бүтэц эсвэл хэмжээ буруу байна. Манай ажилтан шалгаж илгээнэ.");
