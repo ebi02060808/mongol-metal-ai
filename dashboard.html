@@ -1414,10 +1414,74 @@ window.loadStaff = async function() {
       "<span><strong>" + escapeHTML(employee.full_name || "Нэр оруулаагүй") + "</strong><br>" +
       "<small style='color:#64748b;'>" + escapeHTML(employee.email || "Имэйл олдсонгүй") + "</small><br>" +
       "<small style='color:#475569;'>Утас: " + escapeHTML(employee.phone || "—") + " · Албан тушаал: " + escapeHTML(employee.position || "—") + "</small></span>" +
-      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='removeStaff(this.dataset.userId)' style='padding:7px 10px;border:0;border-radius:7px;background:#fee2e2;color:#991b1b;'>Эрх цуцлах</button></div>"
+      "<div style='display:flex;gap:7px;flex-wrap:wrap;'>" +
+      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='editStaff(this.dataset.userId)' style='padding:7px 10px;border:0;border-radius:7px;background:#dbeafe;color:#1d4ed8;'>✏️ Засах</button>" +
+      "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='removeStaff(this.dataset.userId)' style='padding:7px 10px;border:0;border-radius:7px;background:#fee2e2;color:#991b1b;'>Эрх цуцлах</button></div></div>"
     ).join("");
   } catch(error) {
     list.textContent = "Алдаа: " + error.message;
+  }
+};
+
+window.editStaff = async function(userId) {
+  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  try {
+    const result = await staffApi("list");
+    const employee = (result.employees || []).find(item => item.user_id === userId);
+    if (!employee) throw new Error("Ажилтны мэдээлэл олдсонгүй.");
+    let modal = document.getElementById("staffEditModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "staffEditModal";
+      document.body.appendChild(modal);
+    }
+    modal.style.cssText = "position:fixed;inset:0;z-index:100010;background:rgba(15,23,42,.65);display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto;";
+    modal.innerHTML =
+      "<section role='dialog' aria-modal='true' style='width:100%;max-width:480px;background:white;border-radius:14px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25);'>" +
+      "<div style='display:flex;justify-content:space-between;align-items:center;gap:10px;'><h2 style='margin:0;font-size:20px;'>👷 Ажилтны мэдээлэл засах</h2><button type='button' id='closeStaffEdit' style='border:1px solid #cbd5e1;background:white;border-radius:8px;padding:7px 10px;'>✕</button></div>" +
+      "<p style='font-size:13px;color:#64748b;margin:10px 0 14px;'>" + escapeHTML(employee.email || "") + "</p>" +
+      "<form id='staffEditForm'>" +
+      "<label for='editStaffFullName' style='display:block;margin:10px 0 5px;font-weight:600;'>Овог, нэр</label><input id='editStaffFullName' maxlength='120' required value='" + escapeHTML(employee.full_name || "") + "' style='width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;'>" +
+      "<label for='editStaffPhone' style='display:block;margin:10px 0 5px;font-weight:600;'>Утасны дугаар</label><input id='editStaffPhone' type='tel' maxlength='30' required value='" + escapeHTML(employee.phone || "") + "' style='width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;'>" +
+      "<label for='editStaffPosition' style='display:block;margin:10px 0 5px;font-weight:600;'>Албан тушаал</label><input id='editStaffPosition' maxlength='100' required value='" + escapeHTML(employee.position || "") + "' style='width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;'>" +
+      "<p id='staffEditError' style='color:#b91c1c;margin:9px 0;'></p>" +
+      "<div style='display:flex;justify-content:flex-end;gap:8px;margin-top:14px;'><button type='button' id='cancelStaffEdit' style='padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;background:white;'>Болих</button><button type='submit' id='saveStaffEdit' style='padding:10px 14px;border:0;border-radius:8px;background:#2563eb;color:white;'>Хадгалах</button></div>" +
+      "</form></section>";
+    const close = () => { modal.style.display = "none"; };
+    document.getElementById("closeStaffEdit").onclick = close;
+    document.getElementById("cancelStaffEdit").onclick = close;
+    modal.onclick = event => { if (event.target === modal) close(); };
+    document.getElementById("staffEditForm").onsubmit = async event => {
+      event.preventDefault();
+      const save = document.getElementById("saveStaffEdit");
+      const errorEl = document.getElementById("staffEditError");
+      const values = {
+        userId,
+        fullName: document.getElementById("editStaffFullName").value.trim(),
+        phone: document.getElementById("editStaffPhone").value.trim(),
+        position: document.getElementById("editStaffPosition").value.trim()
+      };
+      if (values.fullName.length < 2 || values.phone.length < 6 || values.position.length < 2) {
+        errorEl.textContent = "Овог нэр, утас, албан тушаалыг зөв бөглөнө үү.";
+        return;
+      }
+      save.disabled = true;
+      save.textContent = "Хадгалж байна...";
+      errorEl.textContent = "";
+      try {
+        const saved = await staffApi("update-profile", values);
+        close();
+        document.getElementById("staffMessage").textContent = "✅ " + saved.message;
+        await loadStaff();
+      } catch (error) {
+        errorEl.textContent = error.message;
+      } finally {
+        save.disabled = false;
+        save.textContent = "Хадгалах";
+      }
+    };
+  } catch (error) {
+    document.getElementById("staffMessage").textContent = "Алдаа: " + error.message;
   }
 };
 
