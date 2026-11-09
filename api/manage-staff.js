@@ -6,17 +6,26 @@ const supabase = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
-async function requireAdmin(req) {
+async function requireMember(req) {
   const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   if (!token) return { error: "Нэвтрэх эрх шаардлагатай.", status: 401 };
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
   if (authError || !user) return { error: "Нэвтрэлт хүчингүй байна.", status: 401 };
   const { data: member, error } = await supabase
     .from("admin_users").select("role, owner_user_id").eq("user_id", user.id).maybeSingle();
-  if (error || !member || member.role !== "admin") {
-    return { error: "Зөвхөн админ ажилтны эрх удирдах боломжтой.", status: 403 };
+  if (error || !member || !["admin", "employee"].includes(member.role)) {
+    return { error: "Системийн эрх шаардлагатай.", status: 403 };
   }
   return { user, member };
+}
+
+async function requireAdmin(req) {
+  const auth = await requireMember(req);
+  if (auth.error) return auth;
+  if (auth.member.role !== "admin") {
+    return { error: "Зөвхөн админ ажилтны эрх удирдах боломжтой.", status: 403 };
+  }
+  return auth;
 }
 
 async function findAuthUserByEmail(email) {
@@ -36,11 +45,41 @@ async function findAuthUserByEmail(email) {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST хүсэлт шаардлагатай." });
   try {
+    const { action, email, userId, userIds } = req.body || {};
+
+    if (action === "actor-names") {
+      const auth = await requireMember(req);
+      if (auth.error) return res.status(auth.status).json({ error: auth.error });
+      const ownerUserId = auth.member.owner_user_id || auth.user.id;
+      const requestedIds = Array.isArray(userIds)
+        ? [...new Set(userIds.filter(id => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id)))].slice(0, 100)
+        : [];
+      if (!requestedIds.length) return res.status(200).json({ success: true, actors: {} });
+
+      // Only resolve users who actually appear in this company's own order history.
+      const { data: historyRows, error: historyError } = await supabase
+        .from("order_history").select("actor_user_id")
+        .eq("user_id", ownerUserId).in("actor_user_id", requestedIds);
+      if (historyError) throw historyError;
+      const allowedIds = [...new Set((historyRows || []).map(row => row.actor_user_id).filter(Boolean))];
+      const actors = {};
+      for (const actorId of allowedIds) {
+        const { data, error: userError } = await supabase.auth.admin.getUserById(actorId);
+        const actor = data?.user;
+        if (!userError && actor) {
+          const metadata = actor.user_metadata || {};
+          actors[actorId] = {
+            name: String(metadata.full_name || metadata.name || metadata.display_name || "").trim(),
+            email: actor.email || ""
+          };
+        }
+      }
+      return res.status(200).json({ success: true, actors });
+    }
+
     const auth = await requireAdmin(req);
     if (auth.error) return res.status(auth.status).json({ error: auth.error });
-
     const ownerUserId = auth.member.owner_user_id || auth.user.id;
-    const { action, email, userId } = req.body || {};
 
     if (action === "list") {
       const { data: employees, error } = await supabase
