@@ -111,6 +111,9 @@
       font-size: 30px;
       font-weight: bold;
     }
+    .dashboard-stat-card { cursor:pointer; transition:transform .15s ease, box-shadow .15s ease; }
+    .dashboard-stat-card:hover, .dashboard-stat-card:focus-visible { transform:translateY(-2px); box-shadow:0 6px 18px rgba(15,23,42,.13); outline:2px solid #93c5fd; }
+    .dashboard-stat-card small { display:block; margin-top:8px; color:#64748b; }
 
     .section {
       background: white;
@@ -179,14 +182,14 @@
         </div>
 
         <div class="cards">
-          <div class="card"><h3>Нийт захиалга</h3><div class="number" id="totalOrders">0</div></div><div class="card"><h3>💬 Messenger захиалга</h3><div class="number" id="messengerOrdersCount">0</div><p id="messengerOrdersBreakdown" style="font-size:12px;color:#64748b;margin-top:6px;"></p><strong id="messengerOrdersAmount">0 ₮</strong></div><div class="card"><h3>🏢 Биечлэн ирсэн захиалга</h3><div class="number" id="inPersonOrdersCount">0</div><p id="inPersonOrdersBreakdown" style="font-size:12px;color:#64748b;margin-top:6px;"></p><strong id="inPersonOrdersAmount">0 ₮</strong></div>
-          <div class="card"><h3>Идэвхтэй захиалга</h3><div class="number" id="activeOrdersCount">0</div></div>
-          <div class="card"><h3>Үнийн санал хүлээж буй</h3><div class="number" id="quoteOrdersCount">0</div></div>
-          <div class="card"><h3>Баталгаажсан</h3><div class="number" id="confirmedOrdersCount">0</div></div>
-          <div class="card"><h3>Дууссан захиалга</h3><div class="number" id="completedOrdersCount">0</div></div>
-          <div class="card"><h3>Нийт харилцагч</h3><div class="number" id="totalCustomers">0</div></div>
-          <div class="card"><h3>Өнөөдрийн захиалга</h3><div class="number" id="todayOrders">0</div></div>
-          <div class="card"><h3>Төлөгдөөгүй үлдэгдэлтэй</h3><div class="number" id="unpaidOrdersCount">0</div></div>
+          <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('all')"><h3>Нийт захиалга</h3><div class="number" id="totalOrders">0</div><small>Дэлгэрэнгүй харах →</small></div><div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('messenger')"><h3>💬 Messenger захиалга</h3><div class="number" id="messengerOrdersCount">0</div><p id="messengerOrdersBreakdown" style="font-size:12px;color:#64748b;margin-top:6px;"></p><strong id="messengerOrdersAmount">0 ₮</strong></div><div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('in_person')"><h3>🏢 Биечлэн ирсэн захиалга</h3><div class="number" id="inPersonOrdersCount">0</div><p id="inPersonOrdersBreakdown" style="font-size:12px;color:#64748b;margin-top:6px;"></p><strong id="inPersonOrdersAmount">0 ₮</strong></div>
+          <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('active')"><h3>Идэвхтэй захиалга</h3><div class="number" id="activeOrdersCount">0</div></div>
+          <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('Үнийн санал')"><h3>Үнийн санал хүлээж буй</h3><div class="number" id="quoteOrdersCount">0</div></div>
+          <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('Баталгаажсан')"><h3>Баталгаажсан</h3><div class="number" id="confirmedOrdersCount">0</div></div>
+          <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('Дууссан')"><h3>Дууссан захиалга</h3><div class="number" id="completedOrdersCount">0</div></div>
+          <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="showDashboardPage('customers')"><h3>Нийт харилцагч</h3><div class="number" id="totalCustomers">0</div></div>
+          <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('today')"><h3>Өнөөдрийн захиалга</h3><div class="number" id="todayOrders">0</div></div>
+          <div class="card dashboard-stat-card" role="button" tabindex="0" onclick="openOrdersByDashboardFilter('unpaid')"><h3>Төлөгдөөгүй үлдэгдэлтэй</h3><div class="number" id="unpaidOrdersCount">0</div></div>
         </div>
 
         <div class="section" style="margin-top:18px;">
@@ -242,6 +245,7 @@
 <div class="section">
   <h2>📋 Захиалгын жагсаалт</h2>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;">
+    <button id="allOrdersTab" type="button" onclick="setOrderView('all')" style="padding:9px 14px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;cursor:pointer;">📋 Бүх захиалга</button>
     <button id="activeOrdersTab" type="button" onclick="setOrderView('active')" style="padding:9px 14px;border:1px solid #2563eb;border-radius:8px;background:#2563eb;color:white;cursor:pointer;">📦 Идэвхтэй захиалга</button>
     <button id="completedOrdersTab" type="button" onclick="setOrderView('completed')" style="padding:9px 14px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;cursor:pointer;">🗄️ Дууссан захиалгын архив</button>
   </div>
@@ -391,6 +395,8 @@ let currentQuote = null;
 let currentUserRole = null;
 let currentOwnerUserId = null;
 let currentOrderView = "active";
+let currentOrderDateFilter = "";
+let currentOrderUnpaidOnly = false;
 
 
 const PRODUCT_PRICE_DEFAULTS = {
@@ -995,7 +1001,7 @@ async function loadOrders() {
             };
             const statusColor = statusColors[normalizedStatus] || statusColors["Шинэ"];
             return `
-              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-source="${orderSource}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" style="border-bottom:1px solid #e2e8f0;background:${hasUnpaidBalance ? '#fff1f2' : missingUnpaidBalance ? '#fffbeb' : '#ffffff'};border-left:${hasUnpaidBalance ? '5px solid #dc2626' : missingUnpaidBalance ? '5px solid #f59e0b' : '5px solid transparent'};">
+              <tr data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-source="${orderSource}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" data-order-date="${escapeHTML(String(order.created_at || "").slice(0,10))}" data-order-unpaid="${hasUnpaidBalance ? "yes" : "no"}" style="border-bottom:1px solid #e2e8f0;background:${hasUnpaidBalance ? '#fff1f2' : missingUnpaidBalance ? '#fffbeb' : '#ffffff'};border-left:${hasUnpaidBalance ? '5px solid #dc2626' : missingUnpaidBalance ? '5px solid #f59e0b' : '5px solid transparent'};">
                 <td style="padding:11px 10px;white-space:nowrap;"><span style="display:inline-block;padding:5px 8px;border-radius:7px;background:${orderSource === "messenger" ? "#e0e7ff" : "#dcfce7"};color:${orderSource === "messenger" ? "#3730a3" : "#166534"};font-weight:700;">${sourceLabel}</span></td>
                 <td style="padding:11px 10px;white-space:nowrap;"><strong>${escapeHTML(order.customer_name || "")}</strong><br><span style="color:#64748b;">${escapeHTML(order.phone || "")}</span></td>
                 <td style="padding:11px 10px;">${productDisplay}</td>
@@ -1045,18 +1051,24 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
     rows.forEach(row => {
       const isCompleted = row.dataset.orderArchive === "yes";
       if (isCompleted) completedCount++;
-      const matchesView = currentOrderView === "completed" ? isCompleted : !isCompleted;
+      const matchesView = currentOrderView === "all" ? true : currentOrderView === "completed" ? isCompleted : !isCompleted;
       const matchesText = (row.dataset.orderSearch || "").toLocaleLowerCase("mn-MN").includes(query);
       const matchesStatus = !selectedStatus || row.dataset.orderStatus === selectedStatus;
       const selectedSource = sourceFilter?.value || "";
       const matchesSource = !selectedSource || row.dataset.orderSource === selectedSource;
-      const show = matchesView && matchesText && matchesStatus && matchesSource;
+      const matchesDate = !currentOrderDateFilter || row.dataset.orderDate === currentOrderDateFilter;
+      const matchesUnpaid = !currentOrderUnpaidOnly || row.dataset.orderUnpaid === "yes";
+      const show = matchesView && matchesText && matchesStatus && matchesSource && matchesDate && matchesUnpaid;
       row.style.display = show ? "" : "none";
       if (show) visible++;
     });
+    const allTab = document.getElementById("allOrdersTab");
     const activeTab = document.getElementById("activeOrdersTab");
     const completedTab = document.getElementById("completedOrdersTab");
-    if (activeTab && completedTab) {
+    if (allTab && activeTab && completedTab) {
+      allTab.style.background = currentOrderView === "all" ? "#2563eb" : "white";
+      allTab.style.color = currentOrderView === "all" ? "white" : "#334155";
+      allTab.style.borderColor = currentOrderView === "all" ? "#2563eb" : "#cbd5e1";
       activeTab.style.background = currentOrderView === "active" ? "#2563eb" : "white";
       activeTab.style.color = currentOrderView === "active" ? "white" : "#334155";
       activeTab.style.borderColor = currentOrderView === "active" ? "#2563eb" : "#cbd5e1";
@@ -1064,9 +1076,11 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
       completedTab.style.borderColor = currentOrderView === "completed" ? "#2563eb" : "#cbd5e1";
       completedTab.textContent = "🗄️ Дууссан захиалгын архив (" + completedCount + ")";
     }
-    if (filterCount) filterCount.textContent = currentOrderView === "completed"
-      ? `Архивт харагдаж буй ${visible} / Дууссан ${completedCount} захиалга`
-      : `Идэвхтэй харагдаж буй ${visible} / Нийт ${rows.length - completedCount} захиалга`;
+    if (filterCount) filterCount.textContent = currentOrderView === "all"
+      ? `Харагдаж буй ${visible} / Нийт ${rows.length} захиалга`
+      : currentOrderView === "completed"
+        ? `Архивт харагдаж буй ${visible} / Дууссан ${completedCount} захиалга`
+        : `Идэвхтэй харагдаж буй ${visible} / Нийт ${rows.length - completedCount} захиалга`;
   };
   if (searchInput && statusFilter) {
     searchInput.oninput = applyOrderFilters;
@@ -1430,6 +1444,27 @@ window.showDashboardPage = function(page) {
     const el = document.getElementById(messageTargets[page] || "");
     if (el) el.textContent = "Мэдээлэл ачаалахад алдаа гарлаа. Хуудсыг дахин ачаална уу.";
   });
+};
+
+window.setOrderView = function(view) {
+  currentOrderView = ["active","completed","all"].includes(view) ? view : "active";
+  const search = document.getElementById("orderSearch");
+  if (search) search.dispatchEvent(new Event("input"));
+};
+
+window.openOrdersByDashboardFilter = function(filter) {
+  currentOrderView = "all"; currentOrderDateFilter = ""; currentOrderUnpaidOnly = false;
+  const status = document.getElementById("orderStatusFilter");
+  const source = document.getElementById("orderSourceFilter");
+  const search = document.getElementById("orderSearch");
+  if (status) status.value = ""; if (source) source.value = ""; if (search) search.value = "";
+  if (filter === "active") currentOrderView = "active";
+  else if (filter === "Дууссан") { currentOrderView = "completed"; if (status) status.value = "Дууссан"; }
+  else if (["Шинэ","Холбогдсон","Үнийн санал","Баталгаажсан"].includes(filter)) { if (status) status.value = filter; }
+  else if (filter === "messenger" || filter === "in_person") { if (source) source.value = filter; }
+  else if (filter === "today") currentOrderDateFilter = localDateString();
+  else if (filter === "unpaid") { currentOrderView = "completed"; currentOrderUnpaidOnly = true; }
+  showDashboardPage("orders");
 };
 
 function localDateString(date = new Date()) {
