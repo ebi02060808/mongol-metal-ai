@@ -263,7 +263,7 @@ async function buildMessengerQuotePdf(session, items, orderId) {
 async function sendOrderQuoteDetails(senderId, orderId) {
   const { data: order, error } = await supabase
     .from("orders")
-    .select("id, user_id, customer_name, phone, address, product, size, price, quantity, area_per_unit, quote_items, quote_pdf_path, messenger_order_number, messenger_sender_id")
+    .select("id, user_id, customer_name, phone, product, size, price, quantity, area_per_unit, quote_items, quote_pdf_path, messenger_order_number, messenger_sender_id")
     .eq("id", orderId)
     .eq("messenger_sender_id", senderId)
     .maybeSingle();
@@ -356,7 +356,6 @@ async function sendOrderQuoteDetails(senderId, orderId) {
         order_number: order.messenger_order_number || order.id,
         customer_name: order.customer_name,
         phone: order.phone,
-        address: order.address
       }, pdfItems, order.id);
 
       const pdfPath = order.quote_pdf_path ||
