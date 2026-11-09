@@ -68,10 +68,11 @@
       font-size: 15px;
     }
 
-    .sidebar button:hover {
-      background: #e5e7eb;
-    }
-
+    .sidebar button:hover { background:#e5e7eb; }
+    .sidebar button.active { background:#111827; color:#fff; }
+    .page-section { display:none; }
+    .page-section.active { display:block; }
+    .sidebar { flex-shrink:0; }
     .main {
       flex: 1;
       padding: 30px;
@@ -133,23 +134,21 @@
     }
 
     @media (max-width: 600px) {
-      .container {
-        display: block;
-      }
-
+      .container { display:block; }
       .sidebar {
-        width: 100%;
-        border-right: none;
+        width:100%; display:flex; gap:7px; overflow-x:auto;
+        padding:10px; border-right:none; border-bottom:1px solid #ddd;
+        position:sticky; top:0; z-index:50;
       }
-
-      .cards {
-        grid-template-columns: 1fr;
-      }
-
-      .main {
-        padding: 20px;
-      }
+      .sidebar button { width:auto; min-width:max-content; margin:0; padding:10px 12px; font-size:13px; }
+      .cards { grid-template-columns:1fr 1fr; gap:10px; }
+      .card { padding:14px; }
+      .card .number { font-size:23px; }
+      .main { padding:14px; }
+      .welcome h1 { font-size:23px; }
+      .section { padding:15px; }
     }
+    @media (max-width:380px) { .cards { grid-template-columns:1fr; } }
   </style>
 </head>
 
@@ -162,18 +161,20 @@
 
   <div class="container">
 
-    <aside class="sidebar">
-      <button>📊 Тойм</button>
-      <button>📦 Захиалга</button>
-      <button>👥 Харилцагч</button>
-      <button>💬 Messenger</button>
-      <button id="adminSettingsNav">⚙️ Тохиргоо</button>
+    <aside class="sidebar" aria-label="Үндсэн цэс">
+      <button type="button" class="active" data-page="overview" onclick="showDashboardPage('overview')">📊 Тойм</button>
+      <button type="button" data-page="orders" onclick="showDashboardPage('orders')">📦 Захиалга</button>
+      <button type="button" data-page="customers" onclick="showDashboardPage('customers')">👥 Харилцагч</button>
+      <button type="button" data-page="messenger" onclick="showDashboardPage('messenger')">💬 Messenger</button>
+      <button type="button" id="financeNav" data-page="finance" onclick="showDashboardPage('finance')" style="display:none;">💰 Санхүү</button>
+      <button type="button" id="adminSettingsNav" data-page="settings" onclick="showDashboardPage('settings')" style="display:none;">⚙️ Тохиргоо</button>
     </aside>
 
     <main class="main">
 
+      <div class="page-section active" id="overviewPage">
       <div class="welcome">
-        <h1>Dashboard</h1>
+        <h1>Тойм</h1>
         <p>Тавтай морилно уу, <strong id="userEmail">...</strong></p>
       </div>
 
@@ -200,7 +201,9 @@
 </div>
 
       </div>
+      </div>
 
+      <div class="page-section" id="ordersPage">
      <div class="section">
   <h2>📦 Шинэ захиалга</h2>
   <input type="text" id="customerName" placeholder="Харилцагчийн нэр" required>
@@ -260,6 +263,8 @@
     Захиалгуудыг ачаалж байна...
   </div>
 </div>
+      </div>
+      <div class="page-section" id="settingsPage">
       <div class="section" id="staffSection" style="display:none;">
         <h2>👷 Ажилтны эрхийн удирдлага</h2>
         <p style="color:#64748b;margin-bottom:12px;">Ажилтан эхлээд register.html хуудсаар бүртгүүлнэ. Дараа нь бүртгүүлсэн имэйлийг энд оруулж эрх олгоно.</p>
@@ -270,6 +275,8 @@
         <p id="staffMessage" style="margin:8px 0;color:#475569;"></p>
         <div id="staffList">Ажилтнуудыг ачаалж байна...</div>
       </div>
+      </div>
+      <div class="page-section" id="financePage">
       <div class="section" id="financeSection" style="display:none;">
         <h2>💰 Орлого, зарлагын тайлан</h2>
         <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:12px 0;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
@@ -315,13 +322,23 @@
         <p id="financeMessage" style="margin:10px 0;color:#475569;"></p>
         <div id="financeEntries">Санхүүгийн мэдээлэл ачаалж байна...</div>
       </div>
-      <div class="section">
-  <h2>👥 Харилцагчид</h2>
-  <div id="customersList">Харилцагчдыг ачаалж байна...</div>
-</div>
-      <div class="section">
-        <h2>💬 Messenger</h2>
-        <p>Facebook Messenger холболтыг дараагийн шатанд тохируулна.</p>
+      </div>
+      <div class="page-section" id="customersPage">
+        <div class="section">
+          <h2>👥 Харилцагчид</h2>
+          <div id="customersList">Харилцагчдыг ачаалж байна...</div>
+        </div>
+      </div>
+      <div class="page-section" id="messengerPage">
+        <div class="section">
+          <h2>💬 Messenger</h2>
+          <p style="color:#475569;margin-bottom:12px;">Facebook Messenger-ийн webhook болон үнийн санал илгээх урсгал холбогдсон. Энэ хэсэг одоогоор шууд чат унших, хариу бичих inbox биш.</p>
+          <div style="padding:14px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;">
+            <strong>📄 Үнийн санал илгээх</strong>
+            <p style="margin-top:6px;">Захиалгын хэсгээс үнийн санал үүсгээд Messenger-ээр илгээх боломжтой.</p>
+            <button type="button" onclick="showDashboardPage('orders')" style="margin-top:10px;padding:9px 13px;border:0;border-radius:7px;background:#2563eb;color:white;">Захиалга руу очих</button>
+          </div>
+        </div>
       </div>
 
     </main>
@@ -1194,6 +1211,32 @@ window.removeStaff = async function(userId) {
   }
 };
 
+function showDashboardPage(page) {
+  const pages = {
+    overview:"overviewPage", orders:"ordersPage", customers:"customersPage",
+    messenger:"messengerPage", finance:"financePage", settings:"settingsPage"
+  };
+  if (!pages[page]) return;
+  if ((page === "finance" || page === "settings") && currentUserRole !== "admin") {
+    alert("Энэ хэсэгт админы эрх шаардлагатай.");
+    return;
+  }
+  document.querySelectorAll(".page-section").forEach(section => section.classList.remove("active"));
+  const target = document.getElementById(pages[page]);
+  if (target) target.classList.add("active");
+  document.querySelectorAll(".sidebar [data-page]").forEach(button => {
+    const active = button.dataset.page === page;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current","page");
+    else button.removeAttribute("aria-current");
+  });
+  if (page === "overview") loadDashboardStats();
+  if (page === "orders") loadOrders();
+  if (page === "customers") loadCustomers();
+  if (page === "finance" && currentUserRole === "admin") loadFinance();
+  if (page === "settings" && currentUserRole === "admin") loadStaff();
+}
+
 function localDateString(date = new Date()) {
   return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
 }
@@ -2012,9 +2055,16 @@ window.deleteOrder = async function(orderId) {
   currentOwnerUserId = admin.owner_user_id || session.user.id;
   document.getElementById("userEmail").textContent =
     session.user.email + (admin.role === "admin" ? " · Админ" : " · Ажилтан");
-  if (admin.role !== "admin") {
-    const settingsNav = document.getElementById("adminSettingsNav");
-    if (settingsNav) settingsNav.style.display = "none";
+  if (admin.role === "admin") {
+    document.getElementById("adminSettingsNav").style.display = "block";
+    document.getElementById("financeNav").style.display = "block";
+    document.getElementById("financeSection").style.display = "block";
+    document.getElementById("staffSection").style.display = "block";
+  } else {
+    document.getElementById("adminSettingsNav").style.display = "none";
+    document.getElementById("financeNav").style.display = "none";
+    document.getElementById("financeSection").style.display = "none";
+    document.getElementById("staffSection").style.display = "none";
   }
 
   return true;
@@ -2027,17 +2077,9 @@ window.deleteOrder = async function(orderId) {
 
 checkLogin().then(isAuthorized => {
   if (isAuthorized) {
-    loadOrders();
-    loadCustomers();
-    loadDashboardStats();
-    if (currentUserRole === "admin") {
-      document.getElementById("financeSection").style.display = "block";
-      document.getElementById("staffSection").style.display = "block";
-      const financeDate = document.getElementById("financeDate");
-      if (financeDate) financeDate.value = localDateString();
-      loadFinance();
-      loadStaff();
-    }
+    const financeDate = document.getElementById("financeDate");
+    if (financeDate) financeDate.value = localDateString();
+    showDashboardPage("overview");
   }
 });
   </script>
