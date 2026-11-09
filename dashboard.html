@@ -264,6 +264,34 @@
 </div>
       </div>
       <div class="page-section" id="settingsPage">
+      <div class="section" id="companySettingsSection" style="display:none;">
+        <h2>🏢 Компанийн үндсэн тохиргоо</h2>
+        <p style="color:#64748b;margin:6px 0 14px;">Энд хадгалсан мэдээлэл админы Dashboard болон үнийн саналын тооцоололд ашиглагдана. Хоосон утас, хаягийг заавал бөглөх шаардлагагүй.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;">
+          <label>Компанийн нэр<input id="settingCompanyName" type="text" maxlength="100" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+          <label>Уриа үг<input id="settingTagline" type="text" maxlength="180" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+          <label>Холбоо барих утас<input id="settingPhone" type="tel" maxlength="40" placeholder="Утасны дугаар" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+          <label>Хаяг<input id="settingAddress" type="text" maxlength="200" placeholder="Үйлдвэр / оффисын хаяг" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+        </div>
+        <h3 style="margin:20px 0 10px;">💰 Бүтээгдэхүүний үндсэн үнэ (₮ / м²)</h3>
+        <p style="color:#64748b;font-size:13px;margin-bottom:10px;">Үнэ өөрчилбөл дараагийн шинэ захиалга, үнийн саналын автоматаар санал болгох нэгж үнэд хэрэглэнэ. Өмнөх захиалгын үнийг өөрчлөхгүй.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
+          <label>Металл цонх<input id="settingPriceWindow" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+          <label>Металл хаалга<input id="settingPriceDoor" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+          <label>Шилэн фасад<input id="settingPriceGlass" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+          <label>Хуванцар хаалт<input id="settingPricePlastic" type="number" min="0" step="1000" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+          <label>Металл фасад (гараар тохируулах)<input id="settingPriceMetalFacade" type="number" min="0" step="1000" placeholder="Үнэ тохиролцоно" style="display:block;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin:16px 0;">
+          <label><input id="settingInstallationIncluded" type="checkbox"> Суулгалтын зардал үндсэн үнэд багтсан</label>
+          <label><input id="settingVatIncluded" type="checkbox"> НӨАТ үндсэн үнэд багтсан</label>
+        </div>
+        <label>Баталгаат хугацаа (сар)<input id="settingWarrantyMonths" type="number" min="0" max="120" step="1" style="display:block;width:150px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px;"></label>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px;">
+          <button type="button" onclick="saveCompanySettings()" style="padding:10px 16px;background:#2563eb;color:white;border:0;border-radius:8px;">Тохиргоо хадгалах</button>
+          <span id="companySettingsMessage" style="color:#475569;"></span>
+        </div>
+      </div>
       <div class="section" id="staffSection" style="display:none;">
         <h2>👷 Ажилтны эрхийн удирдлага</h2>
         <p style="color:#64748b;margin-bottom:12px;">Ажилтан эхлээд register.html хуудсаар бүртгүүлнэ. Дараа нь бүртгүүлсэн имэйлийг энд оруулж эрх олгоно.</p>
@@ -1135,6 +1163,106 @@ window.viewOrderHistory = async function(orderId) {
 };
 
 
+let currentCompanySettings = {};
+
+function applyCompanySettings(settings = {}) {
+  currentCompanySettings = settings;
+  const fields = {
+    settingCompanyName: settings.companyName || "Монгол металл хийц",
+    settingTagline: settings.tagline || "Чанартай хийц, бат бөх суурилуулалт",
+    settingPhone: settings.phone || "",
+    settingAddress: settings.address || "",
+    settingPriceWindow: settings.prices?.["Металл цонх"] ?? 420000,
+    settingPriceDoor: settings.prices?.["Металл хаалга"] ?? 840000,
+    settingPriceGlass: settings.prices?.["Шилэн фасад"] ?? 550000,
+    settingPricePlastic: settings.prices?.["Хуванцар хаалт"] ?? 160000,
+    settingPriceMetalFacade: settings.prices?.["Металл фасад"] ?? "",
+    settingWarrantyMonths: settings.warrantyMonths ?? 24
+  };
+  Object.entries(fields).forEach(([id,value]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  });
+  const installation = document.getElementById("settingInstallationIncluded");
+  const vat = document.getElementById("settingVatIncluded");
+  if (installation) installation.checked = settings.installationIncluded !== false;
+  if (vat) vat.checked = settings.vatIncluded === true;
+
+  PRODUCT_PRICE_DEFAULTS["Металл цонх"] = Number(fields.settingPriceWindow) || 0;
+  PRODUCT_PRICE_DEFAULTS["Металл хаалга"] = Number(fields.settingPriceDoor) || 0;
+  PRODUCT_PRICE_DEFAULTS["Шилэн фасад"] = Number(fields.settingPriceGlass) || 0;
+  PRODUCT_PRICE_DEFAULTS["Хуванцар хаалт"] = Number(fields.settingPricePlastic) || 0;
+  const metalFacadePrice = Number(fields.settingPriceMetalFacade);
+  if (metalFacadePrice > 0) PRODUCT_PRICE_DEFAULTS["Металл фасад"] = metalFacadePrice;
+  else delete PRODUCT_PRICE_DEFAULTS["Металл фасад"];
+}
+
+async function loadCompanySettings() {
+  if (currentUserRole !== "admin") return;
+  const message = document.getElementById("companySettingsMessage");
+  if (message) message.textContent = "Тохиргоо ачаалж байна...";
+  const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+  if (sessionError || !session) {
+    if (message) message.textContent = "Нэвтрэх мэдээлэл олдсонгүй.";
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from("company_settings")
+    .select("settings")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  if (error) {
+    if (message) message.textContent = "Алдаа: " + error.message;
+    return;
+  }
+  applyCompanySettings(data?.settings || {});
+  if (message) message.textContent = data ? "Хадгалсан тохиргоо ачаалагдлаа." : "Анхны тохиргоо. Өөрийн мэдээллээ оруулаад хадгална уу.";
+}
+
+async function saveCompanySettings() {
+  if (currentUserRole !== "admin") return alert("Зөвхөн админ тохиргоо өөрчилнө.");
+  const message = document.getElementById("companySettingsMessage");
+  const read = id => document.getElementById(id)?.value?.trim() || "";
+  const numeric = (id, label, optional = false) => {
+    const raw = read(id);
+    if (optional && !raw) return null;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) throw new Error(label + " үнэ 0-ээс багагүй тоо байх ёстой.");
+    return value;
+  };
+  try {
+    const settings = {
+      companyName: read("settingCompanyName") || "Монгол металл хийц",
+      tagline: read("settingTagline") || "Чанартай хийц, бат бөх суурилуулалт",
+      phone: read("settingPhone"),
+      address: read("settingAddress"),
+      prices: {
+        "Металл цонх": numeric("settingPriceWindow","Металл цонхны"),
+        "Металл хаалга": numeric("settingPriceDoor","Металл хаалганы"),
+        "Шилэн фасад": numeric("settingPriceGlass","Шилэн фасадын"),
+        "Хуванцар хаалт": numeric("settingPricePlastic","Хуванцар хаалтын")
+      },
+      warrantyMonths: numeric("settingWarrantyMonths","Баталгаат хугацааны"),
+      installationIncluded: !!document.getElementById("settingInstallationIncluded")?.checked,
+      vatIncluded: !!document.getElementById("settingVatIncluded")?.checked
+    };
+    const facadePrice = numeric("settingPriceMetalFacade","Металл фасадын",true);
+    if (facadePrice !== null) settings.prices["Металл фасад"] = facadePrice;
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !session) throw new Error("Нэвтрэх хугацаа дууссан байна. Дахин нэвтэрнэ үү.");
+    const { error } = await supabaseClient.from("company_settings").upsert({
+      user_id: session.user.id,
+      settings,
+      updated_at: new Date().toISOString()
+    }, { onConflict:"user_id" });
+    if (error) throw error;
+    applyCompanySettings(settings);
+    if (message) message.textContent = "✅ Компанийн тохиргоо амжилттай хадгалагдлаа.";
+  } catch (error) {
+    if (message) message.textContent = "Алдаа: " + error.message;
+  }
+}
+
 async function staffApi(action, payload = {}) {
   let { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
   if (sessionError) throw new Error("Нэвтрэх мэдээллийг шалгаж чадсангүй. Дахин нэвтэрнэ үү.");
@@ -1232,7 +1360,7 @@ function showDashboardPage(page) {
   if (page === "orders") loadOrders();
   if (page === "customers") loadCustomers();
   if (page === "finance" && currentUserRole === "admin") loadFinance();
-  if (page === "settings" && currentUserRole === "admin") loadStaff();
+  if (page === "settings" && currentUserRole === "admin") { loadStaff(); loadCompanySettings(); }
 }
 
 function localDateString(date = new Date()) {
@@ -2113,6 +2241,7 @@ function showCustomerDetails(index) {
     document.getElementById("financeNav").style.display = "block";
     document.getElementById("financeSection").style.display = "block";
     document.getElementById("staffSection").style.display = "block";
+    document.getElementById("companySettingsSection").style.display = "block";
     document.getElementById("overviewFinanceQuick").style.display = "inline-block";
   } else {
     document.getElementById("adminSettingsNav").style.display = "none";
