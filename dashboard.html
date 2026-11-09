@@ -1175,6 +1175,16 @@ window.viewOrderDetails = async function(orderId) {
   if(o.error || !o.data) return alert("Захиалгын мэдээлэл олдсонгүй: "+(o.error?.message||""));
   if(h.error) return alert("Түүх уншихад алдаа гарлаа: "+h.error.message);
   const order=o.data, history=h.data||[];
+  let actorDirectory = {};
+  const actorIds = [...new Set(history.map(item => item.actor_user_id).filter(Boolean))];
+  if (actorIds.length) {
+    try {
+      const actorResult = await staffApi("actor-names", { userIds: actorIds });
+      actorDirectory = actorResult.actors || {};
+    } catch (actorError) {
+      console.warn("Түүхийн үйлдэгчийн нэр ачаалж чадсангүй:", actorError);
+    }
+  }
   const money=v => v==null || v==="" ? "—" : Number(v).toLocaleString("mn-MN")+" ₮";
   const date=v => { const d=new Date(v); return v && !Number.isNaN(d.getTime()) ? d.toLocaleString("mn-MN") : "—"; };
   const source=order.order_source==="messenger" || (!order.order_source && order.messenger_sender_id) ? "💬 Messenger" : "🏢 Биечлэн ирсэн";
@@ -1184,7 +1194,11 @@ window.viewOrderDetails = async function(orderId) {
   const labels={customer_name:"Харилцагч",phone:"Утас",product:"Бүтээгдэхүүн",size:"Хэмжээ",quantity:"Тоо ширхэг",area_per_unit:"Нэгж талбай",unit_price:"1 м² үнэ",price:"Нийт үнэ",unpaid_balance:"Төлөгдөөгүй үлдэгдэл",payment_amount:"Төлсөн дүн",payment_category:"Төлбөрийн төрөл",status:"Төлөв"};
   const render=v=>{ if(!v||typeof v!=="object") return "—"; return Object.keys(labels).filter(k=>k in v).map(k=>"<div style='padding:3px 0;'><strong>"+labels[k]+":</strong> "+(v[k]==null?"—":["unit_price","price","unpaid_balance","payment_amount"].includes(k)?money(v[k]):escapeHTML(typeof v[k]==="object"?JSON.stringify(v[k]):v[k]))+"</div>").join("")||"—"; };
   const eventNames={created:"Захиалга үүсгэсэн",updated:"Мэдээлэл өөрчилсөн",deleted:"Захиалга устгасан",baseline:"Өмнөх захиалгын эхний бүртгэл",payment_received:"Үлдэгдэл төлбөр хүлээн авсан",status_changed:"Төлөв өөрчилсөн"};
-  const timeline=history.length?history.map(x=>"<article style='border:1px solid #e2e8f0;border-radius:9px;padding:12px;margin-bottom:9px;'><strong>"+(eventNames[x.event_type]||escapeHTML(x.event_type||"Үйлдэл"))+"</strong><div style='font-size:12px;color:#64748b;margin:5px 0 9px;'>"+date(x.created_at)+" · "+(x.actor_user_id?"Админ / ажилтан":"Систем / өмнөх бүртгэл")+"</div>"+(x.old_values?"<div style='background:#fff7ed;padding:9px;border-radius:7px;margin-bottom:7px;'><strong>Өмнөх</strong>"+render(x.old_values)+"</div>":"")+(x.new_values?"<div style='background:#f0fdf4;padding:9px;border-radius:7px;'><strong>Шинэ</strong>"+render(x.new_values)+"</div>":"")+"</article>").join(""):"<p style='padding:11px;background:#f8fafc;border-radius:8px;color:#64748b;'>Өөрчлөлтийн түүх одоогоор байхгүй.</p>";
+  const timeline=history.length?history.map(x=>{
+    const actor=actorDirectory[x.actor_user_id];
+    const actorLabel=actor ? (actor.name ? actor.name+" · "+actor.email : actor.email || "Бүртгэлтэй хэрэглэгч") : (x.actor_user_id ? "Хэрэглэгчийн мэдээлэл олдсонгүй" : "Систем / өмнөх бүртгэл");
+    return "<article style='border:1px solid #e2e8f0;border-radius:9px;padding:12px;margin-bottom:9px;'><strong>"+(eventNames[x.event_type]||escapeHTML(x.event_type||"Үйлдэл"))+"</strong><div style='font-size:12px;color:#64748b;margin:5px 0 9px;'>"+date(x.created_at)+" · 👤 "+escapeHTML(actorLabel)+"</div>"+(x.old_values?"<div style='background:#fff7ed;padding:9px;border-radius:7px;margin-bottom:7px;'><strong>Өмнөх</strong>"+render(x.old_values)+"</div>":"")+(x.new_values?"<div style='background:#f0fdf4;padding:9px;border-radius:7px;'><strong>Шинэ</strong>"+render(x.new_values)+"</div>":"")+"</article>";
+  }).join(""):"<p style='padding:11px;background:#f8fafc;border-radius:8px;color:#64748b;'>Өөрчлөлтийн түүх одоогоор байхгүй.</p>";
   let modal=document.getElementById("orderDetailsHistoryModal");
   if(!modal){modal=document.createElement("div");modal.id="orderDetailsHistoryModal";document.body.appendChild(modal);}
   modal.style.cssText="position:fixed;inset:0;z-index:100001;background:rgba(15,23,42,.65);display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow-y:auto;";
