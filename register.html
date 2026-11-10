@@ -6,21 +6,37 @@
   <title>Ажилтан бүртгүүлэх — Mongol Metal AI</title>
   <style>
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:#f1f5f9;font-family:Arial,sans-serif;color:#111827}
-    .card{width:100%;max-width:430px;background:white;padding:28px;border-radius:16px;box-shadow:0 8px 30px rgba(15,23,42,.08)}
-    h1{font-size:24px;margin:0 0 8px}
-    p{color:#64748b;line-height:1.55}
-    label{display:block;margin:16px 0 6px;font-weight:600}
-    input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px}
-    button{width:100%;margin-top:20px;padding:13px;background:#2563eb;color:white;border:0;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer}
-    #message{margin-top:14px;font-size:14px}
-    a{color:#2563eb}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:22px;background:linear-gradient(145deg,#eff6ff 0%,#f8fafc 48%,#eef2ff 100%);font-family:Arial,sans-serif;color:#0f172a}
+    .card{width:100%;max-width:480px;max-height:calc(100vh - 44px);overflow-y:auto;background:#fff;padding:32px;border:1px solid #e2e8f0;border-radius:20px;box-shadow:0 24px 70px rgba(15,23,42,.12)}
+    .brand{display:inline-flex;align-items:center;gap:9px;margin-bottom:18px;color:#2563eb;font-size:11px;font-weight:800;letter-spacing:1.2px}
+    .brand-mark{width:29px;height:29px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;background:#eff6ff;font-size:16px}
+    h1{font-size:25px;line-height:1.3;margin:0 0 8px}
+    .intro{color:#64748b;line-height:1.6;font-size:14px;margin:0 0 23px}
+    label{display:block;margin:16px 0 7px;color:#334155;font-size:13px;font-weight:700}
+    input{display:block;width:100%;height:48px;padding:0 13px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#0f172a;font-size:16px;outline:none;transition:border-color .15s,box-shadow .15s}
+    input::placeholder{color:#94a3b8}
+    input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.13)}
+    .password-wrap{position:relative;display:flex}
+    .password-wrap input{padding-right:76px}
+    .toggle-password{position:absolute;right:5px;top:5px;width:auto;min-width:64px;height:38px;margin:0;padding:0 7px;border:0;border-radius:7px;background:transparent;color:#475569;font-size:13px;font-weight:700;cursor:pointer}
+    .toggle-password:hover{background:#f1f5f9;color:#1d4ed8}
+    .submit-button{width:100%;min-height:49px;margin-top:24px;padding:12px 16px;background:#2563eb;color:#fff;border:0;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;transition:background .15s}
+    .submit-button:hover:not(:disabled){background:#1d4ed8}
+    .submit-button:disabled{opacity:.65;cursor:wait}
+    #message{margin-top:15px;padding:0;color:#b91c1c;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+    #message:empty{display:none}
+    #message.success{padding:11px 12px;border-radius:9px;background:#f0fdf4;color:#166534}
+    .back-link{display:block;margin-top:21px;padding-top:17px;border-top:1px solid #e2e8f0;color:#2563eb;text-align:center;text-decoration:none;font-size:14px;font-weight:600}
+    .back-link:hover{text-decoration:underline}
+    button:focus-visible,a:focus-visible{outline:3px solid rgba(37,99,235,.25);outline-offset:2px}
+    @media(max-width:480px){body{padding:12px}.card{max-height:calc(100vh - 24px);padding:25px 21px;border-radius:17px}h1{font-size:23px}}
   </style>
 </head>
 <body>
   <main class="card">
-    <h1>Ажилтан бүртгүүлэх</h1>
-    <p>Ажилтны мэдээллээ бөглөж бүртгүүлнэ. Дараа нь админ таны имэйлээр системийн эрх олгоно.</p>
+    <div class="brand"><span class="brand-mark">✦</span> MONGOL METAL AI</div>
+    <h1>Ажилтны бүртгэл үүсгэх</h1>
+    <p class="intro">Мэдээллээ үнэн зөв бөглөнө үү. Бүртгэл үүссэний дараа админ таны имэйлд системийн эрх олгоно.</p>
     <form id="registerForm">
       <label for="fullName">Овог, нэр</label>
       <input id="fullName" type="text" autocomplete="name" maxlength="120" placeholder="Овог нэрээ бүтнээр бичнэ үү" required>
@@ -29,13 +45,16 @@
       <label for="position">Албан тушаал</label>
       <input id="position" type="text" autocomplete="organization-title" maxlength="100" placeholder="Жишээ: Угсралтын ажилтан" required>
       <label for="email">Имэйл хаяг</label>
-      <input id="email" type="email" autocomplete="email" required>
-      <label for="password">Нууц үг (дор хаяж 8 тэмдэгт)</label>
-      <input id="password" type="password" autocomplete="new-password" minlength="8" required>
-      <button type="submit" id="registerButton">Бүртгүүлэх</button>
+      <input id="email" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="И-мэйл хаягаа оруулна уу" required>
+      <label for="password">Нууц үг</label>
+      <div class="password-wrap">
+        <input id="password" type="password" autocomplete="new-password" minlength="8" placeholder="Дор хаяж 8 тэмдэгт" required>
+        <button type="button" class="toggle-password" id="togglePassword" aria-label="Нууц үг харах" aria-pressed="false">👁 Харах</button>
+      </div>
+      <button type="submit" class="submit-button" id="registerButton">Бүртгүүлэх</button>
     </form>
     <div id="message" role="status"></div>
-    <p style="margin-top:18px;"><a href="index.html">Нэвтрэх хуудас руу буцах</a></p>
+    <a class="back-link" href="index.html">← Нэвтрэх хуудас руу буцах</a>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -43,6 +62,16 @@
       "https://sqywsxbaknjznvohnsim.supabase.co",
       "sb_publishable_CHG1wlFZf2L7n9m99QXMZA_TdWJRXs_"
     );
+    const passwordInput = document.getElementById("password");
+    const togglePassword = document.getElementById("togglePassword");
+    togglePassword.addEventListener("click", () => {
+      const showPassword = passwordInput.type === "password";
+      passwordInput.type = showPassword ? "text" : "password";
+      togglePassword.textContent = showPassword ? "🙈 Нуух" : "👁 Харах";
+      togglePassword.setAttribute("aria-pressed", String(showPassword));
+      togglePassword.setAttribute("aria-label", showPassword ? "Нууц үг нуух" : "Нууц үг харах");
+    });
+
     document.getElementById("registerForm").addEventListener("submit", async event => {
       event.preventDefault();
       const button = document.getElementById("registerButton");
@@ -61,6 +90,7 @@
       button.disabled = true;
       button.textContent = "Бүртгэж байна...";
       message.textContent = "";
+      message.className = "";
       try {
         const { data, error } = await supabaseClient.auth.signUp({
           email,
@@ -70,10 +100,15 @@
           }
         });
         if (error) throw error;
+        message.className = "success";
         message.textContent = data.session
           ? "Бүртгэл үүслээ. Админ таны имэйлд ажилтны эрх олгосны дараа нэвтэрнэ үү."
           : "Бүртгэл үүслээ. Имэйлээ шалгаж баталгаажуулаад админд имэйл хаягаа мэдэгдэнэ үү.";
         document.getElementById("registerForm").reset();
+        passwordInput.type = "password";
+        togglePassword.textContent = "👁 Харах";
+        togglePassword.setAttribute("aria-pressed", "false");
+        togglePassword.setAttribute("aria-label", "Нууц үг харах");
       } catch (error) {
         message.textContent = "Алдаа: " + error.message;
       } finally {
