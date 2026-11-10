@@ -62,24 +62,18 @@ export default async function handler(req, res) {
         .eq("user_id", ownerUserId).in("actor_user_id", requestedIds);
       if (historyError) throw historyError;
       const allowedIds = [...new Set((historyRows || []).map(row => row.actor_user_id).filter(Boolean))];
+      if (!allowedIds.length) return res.status(200).json({ success: true, actors: {} });
+      // Read actor details from this company's own member directory.
+      const { data: members, error: membersError } = await supabase
+        .from("admin_users").select("user_id, full_name, email")
+        .eq("owner_user_id", ownerUserId).in("user_id", allowedIds);
+      if (membersError) throw membersError;
       const actors = {};
-      const unresolvedIds = new Set(allowedIds);
-      // Resolve in one paginated Auth lookup so the history view does not depend
-      // on individual getUserById responses for each actor.
-      for (let page = 1; page <= 20 && unresolvedIds.size; page++) {
-        const { data, error: usersError } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
-        if (usersError) throw usersError;
-        const users = data?.users || [];
-        for (const actor of users) {
-          if (!unresolvedIds.has(actor.id)) continue;
-          const metadata = actor.user_metadata || {};
-          actors[actor.id] = {
-            name: String(metadata.full_name || [metadata.last_name, metadata.first_name].filter(Boolean).join(" ") || metadata.name || metadata.display_name || "").trim(),
-            email: actor.email || ""
-          };
-          unresolvedIds.delete(actor.id);
-        }
-        if (users.length < 1000) break;
+      for (const member of members || []) {
+        actors[member.user_id] = {
+          name: String(member.full_name || "").trim(),
+          email: String(member.email || "").trim()
+        };
       }
       return res.status(200).json({ success: true, actors });
     }
@@ -235,6 +229,10 @@ export default async function handler(req, res) {
         user_metadata: { ...existingMetadata, full_name: cleanFullName, phone: cleanPhone, position: cleanPosition }
       });
       if (updateError) throw updateError;
+      const { error: directoryError } = await supabase.from("admin_users")
+        .update({ full_name: cleanFullName, email: targetData.user.email || null })
+        .eq("user_id", userId).eq("role", "employee").eq("owner_user_id", ownerUserId);
+      if (directoryError) throw directoryError;
       return res.status(200).json({ success: true, message: "Ажилтны мэдээлэл амжилттай шинэчлэгдлээ." });
     }
 
@@ -255,8 +253,10 @@ export default async function handler(req, res) {
       if (existing?.role === "admin") {
         return res.status(409).json({ error: "Энэ хэрэглэгч аль хэдийн админ эрхтэй байна." });
       }
+      const targetMetadata = target.user_metadata || {};
+      const targetName = String(targetMetadata.full_name || targetMetadata.name || targetMetadata.display_name || [targetMetadata.last_name, targetMetadata.first_name].filter(Boolean).join(" ") || "").trim();
       const { error } = await supabase.from("admin_users").upsert(
-        { user_id: target.id, role: "employee", owner_user_id: ownerUserId },
+        { user_id: target.id, role: "employee", owner_user_id: ownerUserId, full_name: targetName || null, email: target.email || null },
         { onConflict: "user_id" }
       );
       if (error) throw error;
