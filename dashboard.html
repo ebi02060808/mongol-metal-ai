@@ -1274,7 +1274,7 @@ window.viewOrderDetails = async function(orderId) {
   const categoryNames={all:"Бүгд",order:"Захиалга",production:"Үйлдвэрлэл",installation:"Угсралт",payment:"Төлбөр"};
   const timeline=history.length?history.map((x,index)=>{
     const actor=actorDirectory[x.actor_user_id];
-    const actorLabel=actor ? (actor.name ? actor.name+(actor.email?" · "+actor.email:"") : actor.email || "Бүртгэлтэй хэрэглэгч") : (x.actor_user_id ? "Хэрэглэгчийн мэдээлэл олдсонгүй" : "Систем / өмнөх бүртгэл");
+    const actorLabel=x.actor_user_id===currentOwnerUserId ? "Админ" : actor ? (actor.name ? actor.name+(actor.email?" · "+actor.email:"") : actor.email || "Бүртгэлтэй хэрэглэгч") : (x.actor_user_id ? "Хэрэглэгчийн мэдээлэл олдсонгүй" : "Систем / өмнөх бүртгэл");
     const category=categoryOf(x.event_type);
     const title=eventNames[x.event_type]||escapeHTML(x.event_type||"Үйлдэл");
     const searchable=[title,actorLabel,date(x.created_at),JSON.stringify(x.old_values||{}),JSON.stringify(x.new_values||{})].join(" ").toLocaleLowerCase("mn-MN");
