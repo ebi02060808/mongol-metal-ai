@@ -44,10 +44,12 @@ async function findAuthUserByEmail(email) {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST хүсэлт шаардлагатай." });
+  let diagnosticStage = "Хүсэлт эхлүүлж байна";
   try {
     const { action, email, userId, userIds, fullName, phone, position, canViewAllOrders, canCreateOrders, orderId, assignedTo } = req.body || {};
 
     if (action === "actor-names") {
+      diagnosticStage = "Нэвтрэх эрх шалгаж байна";
       const auth = await requireMember(req);
       if (auth.error) return res.status(auth.status).json({ error: auth.error });
       const ownerUserId = auth.member.owner_user_id || auth.user.id;
@@ -57,6 +59,7 @@ export default async function handler(req, res) {
       if (!requestedIds.length) return res.status(200).json({ success: true, actors: {} });
 
       // Only resolve users who actually appear in this company's own order history.
+      diagnosticStage = "Захиалгын түүхээс үйлдэгчийн ID шалгаж байна";
       const { data: historyRows, error: historyError } = await supabase
         .from("order_history").select("actor_user_id")
         .eq("user_id", ownerUserId).in("actor_user_id", requestedIds);
@@ -64,6 +67,7 @@ export default async function handler(req, res) {
       const allowedIds = [...new Set((historyRows || []).map(row => row.actor_user_id).filter(Boolean))];
       if (!allowedIds.length) return res.status(200).json({ success: true, actors: {} });
       // Read actor details from this company's own member directory.
+      diagnosticStage = "Компанийн ажилтны нэрийн бүртгэл уншиж байна";
       const { data: members, error: membersError } = await supabase
         .from("admin_users").select("user_id, full_name, email")
         .eq("owner_user_id", ownerUserId).in("user_id", allowedIds);
@@ -279,6 +283,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Үйлдэл буруу байна." });
   } catch (error) {
     console.error("manage-staff error:", error);
+    if (req.body?.action === "actor-names") {
+      const safeMessage = String(error?.message || "Тодорхойгүй серверийн алдаа").replace(/[\\r\\n]+/g, " ").slice(0, 240);
+      return res.status(500).json({
+        error: "Нэр таних үйлдэл алдаа гаргалаа.",
+        diagnostic: { stage: diagnosticStage, code: String(error?.code || "unknown").slice(0, 40), message: safeMessage }
+      });
+    }
     return res.status(500).json({ error: "Ажилтны эрх удирдахад серверийн алдаа гарлаа." });
   }
 }
