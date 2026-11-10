@@ -217,6 +217,84 @@
       text-align: center;
     }
 
+
+    .login-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.58);
+      padding: 20px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-modal.open { display: flex; }
+
+    .login-box {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.22);
+      position: relative;
+    }
+
+    .login-box h2 { margin-bottom: 8px; font-size: 24px; }
+    .login-box .login-hint { color: #64748b; margin-bottom: 22px; font-size: 14px; }
+    .login-field { margin-bottom: 16px; }
+    .login-field label { display: block; margin-bottom: 7px; font-weight: 600; font-size: 14px; }
+    .login-field input {
+      width: 100%;
+      height: 46px;
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+      padding: 0 12px;
+      font-size: 16px;
+      outline: none;
+    }
+    .login-field input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .password-wrap { display: flex; position: relative; }
+    .password-wrap input { padding-right: 52px; }
+    .toggle-password {
+      position: absolute;
+      right: 5px;
+      top: 4px;
+      width: 40px;
+      height: 38px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      cursor: pointer;
+      color: #475569;
+      font-size: 20px;
+    }
+    .login-submit {
+      width: 100%;
+      min-height: 46px;
+      border: 0;
+      border-radius: 9px;
+      background: #2563eb;
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .login-submit:disabled { opacity: .65; cursor: wait; }
+    .login-close {
+      position: absolute;
+      right: 14px;
+      top: 12px;
+      border: 0;
+      background: transparent;
+      font-size: 25px;
+      color: #64748b;
+      cursor: pointer;
+    }
+    .login-message { min-height: 20px; margin-top: 12px; color: #dc2626; font-size: 14px; }
+
     @media (max-width: 800px) {
       nav a:not(.login):not(.register-link) {
         display: none;
@@ -367,6 +445,30 @@
 <footer>
   © 2026 Mongol Metal AI — Монгол бизнесүүдэд зориулсан AI автоматжуулалт
 </footer>
+
+<div class="login-modal" id="loginModal" aria-hidden="true">
+  <div class="login-box" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <button type="button" class="login-close" id="loginClose" aria-label="Хаах">×</button>
+    <h2 id="loginTitle">Системд нэвтрэх</h2>
+    <p class="login-hint">Бүртгэлтэй и-мэйл болон нууц үгээ оруулна уу.</p>
+    <form id="loginForm">
+      <div class="login-field">
+        <label for="loginEmail">И-мэйл хаяг</label>
+        <input id="loginEmail" type="email" autocomplete="username" required placeholder="name@example.com">
+      </div>
+      <div class="login-field">
+        <label for="loginPassword">Нууц үг</label>
+        <div class="password-wrap">
+          <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Нууц үгээ оруулна уу">
+          <button type="button" class="toggle-password" id="togglePassword" aria-label="Нууц үг харах" aria-pressed="false">👁</button>
+        </div>
+      </div>
+      <button type="submit" class="login-submit" id="loginSubmit">Нэвтрэх</button>
+      <p class="login-message" id="loginMessage" role="alert"></p>
+    </form>
+  </div>
+</div>
+
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -378,41 +480,77 @@ const SUPABASE_URL = "https://sqywsxbaknjznvohnsim.supabase.co";  const SUPABASE
     SUPABASE_PUBLISHABLE_KEY
   );
 
-async function loginUser() {
-  const email = prompt("И-мэйл хаягаа оруулна уу:");
-  if (!email) return;
 
-  const password = prompt("Нууц үгээ оруулна уу:");
-  if (!password) return;
+const loginModal = document.getElementById("loginModal");
+const loginForm = document.getElementById("loginForm");
+const loginEmail = document.getElementById("loginEmail");
+const loginPassword = document.getElementById("loginPassword");
+const loginMessage = document.getElementById("loginMessage");
+const loginSubmit = document.getElementById("loginSubmit");
+const togglePassword = document.getElementById("togglePassword");
+
+function openLogin() {
+  loginModal.classList.add("open");
+  loginModal.setAttribute("aria-hidden", "false");
+  loginMessage.textContent = "";
+  setTimeout(() => loginEmail.focus(), 0);
+}
+
+function closeLogin() {
+  loginModal.classList.remove("open");
+  loginModal.setAttribute("aria-hidden", "true");
+  loginForm.reset();
+  loginPassword.type = "password";
+  togglePassword.setAttribute("aria-pressed", "false");
+  togglePassword.setAttribute("aria-label", "Нууц үг харах");
+}
+
+document.getElementById("loginLink").addEventListener("click", function(event) {
+  event.preventDefault();
+  openLogin();
+});
+
+document.getElementById("loginClose").addEventListener("click", closeLogin);
+loginModal.addEventListener("click", function(event) {
+  if (event.target === loginModal) closeLogin();
+});
+document.addEventListener("keydown", function(event) {
+  if (event.key === "Escape" && loginModal.classList.contains("open")) closeLogin();
+});
+
+togglePassword.addEventListener("click", function() {
+  const isHidden = loginPassword.type === "password";
+  loginPassword.type = isHidden ? "text" : "password";
+  togglePassword.setAttribute("aria-pressed", String(isHidden));
+  togglePassword.setAttribute("aria-label", isHidden ? "Нууц үг нуух" : "Нууц үг харах");
+});
+
+loginForm.addEventListener("submit", async function(event) {
+  event.preventDefault();
+  loginMessage.textContent = "";
+  loginSubmit.disabled = true;
+  loginSubmit.textContent = "Нэвтэрч байна...";
 
   try {
-    const { data, error } =
-      await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
+    const { error } = await supabaseClient.auth.signInWithPassword({
+      email: loginEmail.value.trim(),
+      password: loginPassword.value
+    });
 
     if (error) {
-      alert("SUPABASE ERROR: " + error.message);
+      loginMessage.textContent = "Нэвтрэхэд алдаа гарлаа. И-мэйл эсвэл нууц үгээ шалгана уу.";
       return;
     }
 
-    alert("АМЖИЛТТАЙ НЭВТЭРЛЭЭ! 🎉");
     window.location.href = "dashboard.html";
-
   } catch (err) {
-    alert("JAVASCRIPT ERROR: " + err.message);
+    loginMessage.textContent = "Холболтын алдаа гарлаа. Дахин оролдоно уу.";
+  } finally {
+    loginSubmit.disabled = false;
+    loginSubmit.textContent = "Нэвтрэх";
   }
-}
+});
 
-const loginLink = document.getElementById("loginLink");
-
-if (loginLink) {
-  loginLink.addEventListener("click", function(event) {
-    event.preventDefault();
-    loginUser();
-  });
-}
 </script>
 
 </body>
