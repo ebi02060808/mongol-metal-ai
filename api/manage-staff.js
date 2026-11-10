@@ -45,7 +45,7 @@ async function findAuthUserByEmail(email) {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST хүсэлт шаардлагатай." });
   try {
-    const { action, email, userId, userIds, fullName, phone, position, canViewAllOrders } = req.body || {};
+    const { action, email, userId, userIds, fullName, phone, position, canViewAllOrders, canCreateOrders } = req.body || {};
 
     if (action === "actor-names") {
       const auth = await requireMember(req);
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
 
     if (action === "list") {
       const { data: employees, error } = await supabase
-        .from("admin_users").select("user_id, created_at, can_view_all_orders")
+        .from("admin_users").select("user_id, created_at, can_view_all_orders, can_create_orders")
         .eq("role", "employee").eq("owner_user_id", ownerUserId).order("created_at", { ascending: false });
       if (error) throw error;
       const result = [];
@@ -97,7 +97,8 @@ export default async function handler(req, res) {
           phone: String(metadata.phone || "").trim(),
           position: String(metadata.position || "").trim(),
           created_at: employee.created_at,
-          can_view_all_orders: employee.can_view_all_orders === true
+          can_view_all_orders: employee.can_view_all_orders === true,
+          can_create_orders: employee.can_create_orders === true
         });
       }
       return res.status(200).json({ success: true, employees: result });
@@ -124,6 +125,29 @@ export default async function handler(req, res) {
         message: canViewAllOrders
           ? "Ажилтанд компанийн бүх захиалгыг харах эрх олголоо."
           : "Ажилтан зөвхөн өөрт оноосон захиалгаа харна."
+      });
+    }
+
+    if (action === "update-create-permission") {
+      if (typeof userId !== "string" || !/^[0-9a-f-]{36}$/i.test(userId) || typeof canCreateOrders !== "boolean") {
+        return res.status(400).json({ error: "Ажилтан болон захиалга үүсгэх эрхийн утга буруу байна." });
+      }
+      const { data: employee, error: employeeError } = await supabase
+        .from("admin_users").select("user_id")
+        .eq("user_id", userId).eq("role", "employee").eq("owner_user_id", ownerUserId)
+        .maybeSingle();
+      if (employeeError) throw employeeError;
+      if (!employee) return res.status(404).json({ error: "Танай байгууллагын ажилтан олдсонгүй." });
+      const { error: updateError } = await supabase
+        .from("admin_users")
+        .update({ can_create_orders: canCreateOrders })
+        .eq("user_id", userId).eq("role", "employee").eq("owner_user_id", ownerUserId);
+      if (updateError) throw updateError;
+      return res.status(200).json({
+        success: true,
+        message: canCreateOrders
+          ? "Ажилтанд шинэ захиалга үүсгэх эрх олголоо."
+          : "Ажилтны шинэ захиалга үүсгэх эрхийг хаалаа."
       });
     }
 
