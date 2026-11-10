@@ -107,7 +107,7 @@ export default async function handler(req, res) {
     }
 
     if (action === "assign-order") {
-      const validOrderId = (typeof orderId === "number" && Number.isInteger(orderId) && orderId > 0) || (typeof orderId === "string" && /^\\d+$/.test(orderId));
+      const validOrderId = (typeof orderId === "number" && Number.isInteger(orderId) && orderId > 0) || (typeof orderId === "string" && /^\d+$/.test(orderId));
       if (!validOrderId || (assignedTo !== null && (typeof assignedTo !== "string" || !/^[0-9a-f-]{36}$/i.test(assignedTo)))) {
         return res.status(400).json({ error: "Захиалга эсвэл ажилтны мэдээлэл буруу байна." });
       }
