@@ -63,16 +63,23 @@ export default async function handler(req, res) {
       if (historyError) throw historyError;
       const allowedIds = [...new Set((historyRows || []).map(row => row.actor_user_id).filter(Boolean))];
       const actors = {};
-      for (const actorId of allowedIds) {
-        const { data, error: userError } = await supabase.auth.admin.getUserById(actorId);
-        const actor = data?.user;
-        if (!userError && actor) {
+      const unresolvedIds = new Set(allowedIds);
+      // Resolve in one paginated Auth lookup so the history view does not depend
+      // on individual getUserById responses for each actor.
+      for (let page = 1; page <= 20 && unresolvedIds.size; page++) {
+        const { data, error: usersError } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+        if (usersError) throw usersError;
+        const users = data?.users || [];
+        for (const actor of users) {
+          if (!unresolvedIds.has(actor.id)) continue;
           const metadata = actor.user_metadata || {};
-          actors[actorId] = {
+          actors[actor.id] = {
             name: String(metadata.full_name || [metadata.last_name, metadata.first_name].filter(Boolean).join(" ") || metadata.name || metadata.display_name || "").trim(),
             email: actor.email || ""
           };
+          unresolvedIds.delete(actor.id);
         }
+        if (users.length < 1000) break;
       }
       return res.status(200).json({ success: true, actors });
     }
