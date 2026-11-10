@@ -83,7 +83,7 @@ export default async function handler(req, res) {
 
     if (action === "list") {
       const { data: employees, error } = await supabase
-        .from("admin_users").select("user_id, created_at, can_view_all_orders, can_create_orders")
+        .from("admin_users").select("user_id, created_at, can_view_all_orders, can_create_orders, can_update_production_status, can_update_installation_status")
         .eq("role", "employee").eq("owner_user_id", ownerUserId).order("created_at", { ascending: false });
       if (error) throw error;
       const result = [];
@@ -98,7 +98,9 @@ export default async function handler(req, res) {
           position: String(metadata.position || "").trim(),
           created_at: employee.created_at,
           can_view_all_orders: employee.can_view_all_orders === true,
-          can_create_orders: employee.can_create_orders === true
+          can_create_orders: employee.can_create_orders === true,
+          can_update_production_status: employee.can_update_production_status === true,
+          can_update_installation_status: employee.can_update_installation_status === true
         });
       }
       return res.status(200).json({ success: true, employees: result });
@@ -148,6 +150,32 @@ export default async function handler(req, res) {
         message: canCreateOrders
           ? "Ажилтанд шинэ захиалга үүсгэх эрх олголоо."
           : "Ажилтны шинэ захиалга үүсгэх эрхийг хаалаа."
+      });
+    }
+
+    if (action === "update-work-permission") {
+      if (typeof userId !== "string" || !/^[0-9a-f-]{36}$/i.test(userId) ||
+          !["production", "installation"].includes(String(req.body?.workType)) ||
+          typeof req.body?.enabled !== "boolean") {
+        return res.status(400).json({ error: "Ажилтны эрхийн мэдээлэл буруу байна." });
+      }
+      const { data: employee, error: employeeError } = await supabase
+        .from("admin_users").select("user_id")
+        .eq("user_id", userId).eq("role", "employee").eq("owner_user_id", ownerUserId)
+        .maybeSingle();
+      if (employeeError) throw employeeError;
+      if (!employee) return res.status(404).json({ error: "Танай байгууллагын ажилтан олдсонгүй." });
+      const column = req.body.workType === "production"
+        ? "can_update_production_status" : "can_update_installation_status";
+      const { error: updateError } = await supabase
+        .from("admin_users").update({ [column]: req.body.enabled })
+        .eq("user_id", userId).eq("role", "employee").eq("owner_user_id", ownerUserId);
+      if (updateError) throw updateError;
+      return res.status(200).json({
+        success: true,
+        message: req.body.workType === "production"
+          ? (req.body.enabled ? "Үйлдвэрлэлийн явц шинэчлэх эрх олголоо." : "Үйлдвэрлэлийн явц шинэчлэх эрхийг хаалаа.")
+          : (req.body.enabled ? "Угсралтын явц шинэчлэх эрх олголоо." : "Угсралтын явц шинэчлэх эрхийг хаалаа.")
       });
     }
 
