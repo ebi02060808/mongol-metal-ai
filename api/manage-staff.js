@@ -45,7 +45,7 @@ async function findAuthUserByEmail(email) {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST хүсэлт шаардлагатай." });
   try {
-    const { action, email, userId, userIds, fullName, phone, position, canViewAllOrders, canCreateOrders } = req.body || {};
+    const { action, email, userId, userIds, fullName, phone, position, canViewAllOrders, canCreateOrders, orderId, assignedTo } = req.body || {};
 
     if (action === "actor-names") {
       const auth = await requireMember(req);
@@ -104,6 +104,27 @@ export default async function handler(req, res) {
         });
       }
       return res.status(200).json({ success: true, employees: result });
+    }
+
+    if (action === "assign-order") {
+      const validOrderId = (typeof orderId === "number" && Number.isInteger(orderId) && orderId > 0) || (typeof orderId === "string" && /^\\d+$/.test(orderId));
+      if (!validOrderId || (assignedTo !== null && (typeof assignedTo !== "string" || !/^[0-9a-f-]{36}$/i.test(assignedTo)))) {
+        return res.status(400).json({ error: "Захиалга эсвэл ажилтны мэдээлэл буруу байна." });
+      }
+      if (assignedTo) {
+        const { data: employee, error: employeeError } = await supabase.from("admin_users").select("user_id")
+          .eq("user_id", assignedTo).eq("role", "employee").eq("owner_user_id", ownerUserId).maybeSingle();
+        if (employeeError) throw employeeError;
+        if (!employee) return res.status(404).json({ error: "Танай байгууллагын ажилтан олдсонгүй." });
+      }
+      const { data: order, error: orderError } = await supabase.from("orders").select("id")
+        .eq("id", orderId).eq("user_id", ownerUserId).maybeSingle();
+      if (orderError) throw orderError;
+      if (!order) return res.status(404).json({ error: "Захиалга олдсонгүй." });
+      const { error: updateError } = await supabase.from("orders").update({ assigned_to: assignedTo })
+        .eq("id", orderId).eq("user_id", ownerUserId);
+      if (updateError) throw updateError;
+      return res.status(200).json({ success: true, message: assignedTo ? "Захиалгыг ажилтанд оноолоо." : "Захиалгын ажилтан оноолтыг цуцаллаа." });
     }
 
     if (action === "update-order-visibility") {
