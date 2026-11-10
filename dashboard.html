@@ -197,8 +197,8 @@
         <div class="section" style="margin-top:18px;">
           <h2>⚡ Шуурхай үйлдэл</h2>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button type="button" onclick="showDashboardPage('orders');document.getElementById('customerName')?.focus();" style="padding:11px 15px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer;">＋ Шинэ захиалга</button>
-            <button type="button" onclick="showDashboardPage('orders');document.getElementById('quoteCustomerName')?.focus();" style="padding:11px 15px;border:0;border-radius:8px;background:#0f766e;color:white;cursor:pointer;">🧾 Үнийн санал</button>
+            <button id="overviewCreateOrderQuick" type="button" onclick="showDashboardPage('orders');document.getElementById('customerName')?.focus();" style="padding:11px 15px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer;">＋ Шинэ захиалга</button>
+            <button id="overviewQuoteQuick" type="button" onclick="showDashboardPage('orders');document.getElementById('quoteCustomerName')?.focus();" style="padding:11px 15px;border:0;border-radius:8px;background:#0f766e;color:white;cursor:pointer;">🧾 Үнийн санал</button>
             <button type="button" onclick="showDashboardPage('customers')" style="padding:11px 15px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;cursor:pointer;">👥 Харилцагчид</button>
             <button type="button" onclick="showDashboardPage('messenger')" style="padding:11px 15px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;cursor:pointer;">💬 Messenger</button>
             <button id="overviewFinanceQuick" type="button" onclick="showDashboardPage('finance')" style="display:none;padding:11px 15px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;cursor:pointer;">💰 Санхүү</button>
@@ -207,7 +207,7 @@
       </div>
 
       <div class="page-section" id="ordersPage">
-     <div class="section">
+     <div class="section" id="newOrderSection">
   <h2>📦 Шинэ захиалга</h2>
   <input type="text" id="customerName" placeholder="Харилцагчийн нэр" required>
   <input type="text" id="phone" placeholder="Утасны дугаар" required>
@@ -408,6 +408,7 @@
 let currentQuote = null;
 let currentUserRole = null;
 let currentOwnerUserId = null;
+let currentUserCanCreateOrders = false;
 let currentOrderView = "active";
 let currentOrderDateFilter = "";
 let currentOrderUnpaidOnly = false;
@@ -645,6 +646,7 @@ async function downloadQuotePDF() {
 }
 
 async function sendQuotePDFMessenger() {
+  if (!currentUserCanCreateOrders) return alert("Захиалга үүсгэх эрх шаардлагатай.");
   if (!currentQuote) return alert("Эхлээд үнийн санал тооцоолно уу.");
   const button = document.getElementById("sendQuoteMessengerButton");
   if (button) { button.disabled = true; button.textContent = "Илгээж байна..."; }
@@ -727,6 +729,7 @@ async function sendQuotePDFMessenger() {
 }
 
 async function convertQuoteToOrder() {
+  if (!currentUserCanCreateOrders) return alert("Захиалга үүсгэх эрх шаардлагатай.");
   if (!currentQuote) return alert("Эхлээд үнийн санал тооцоолно уу.");
   const button = document.getElementById("convertQuoteButton");
   if (button) { button.disabled = true; button.textContent = "Хадгалж байна..."; }
@@ -829,6 +832,7 @@ function updateOrderTotalPreview() {
 
 
 async function addOrder() {
+  if (!currentUserCanCreateOrders) return alert("Захиалга үүсгэх эрх шаардлагатай.");
   const button = document.getElementById("saveOrderButton");
   const message = document.getElementById("orderMessage");
   if (button) { button.disabled = true; button.textContent = "Хадгалж байна..."; }
@@ -1037,7 +1041,7 @@ async function loadOrders() {
                  </td>
                 <td style="padding:11px 10px;white-space:nowrap;">${new Date(order.created_at).toLocaleDateString("mn-MN")}</td>
                 <td style="padding:11px 10px;">
-                  ${currentUserRole !== "admin" && ["Баталгаажсан", "Дууссан"].includes(normalizedStatus)
+                  ${currentUserRole !== "admin"
                     ? "<span style='display:inline-block;padding:7px 10px;border-radius:7px;background:" + statusColor.background + ";color:" + statusColor.color + ";font-weight:700;'>" + escapeHTML(normalizedStatus) + "</span>"
                     : `<select style="min-width:125px;padding:7px 9px;border:1px solid ${statusColor.border};border-radius:7px;background:${statusColor.background};color:${statusColor.color};font-weight:700;" onchange="updateOrderStatus('${order.id}', this.value)">
                     <option value="Шинэ" ${(status === "Шинэ" || status.startsWith("Шинэ захиалга")) ? "selected" : ""}>Шинэ</option>
@@ -1049,7 +1053,7 @@ async function loadOrders() {
                 <td style="padding:11px 10px;white-space:nowrap;">
                   <button style="padding:6px 8px;margin:2px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;color:#1d4ed8;cursor:pointer;" onclick="viewOrderDetails('${order.id}')">Дэлгэрэнгүй / Түүх</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="viewOrderPhotos('${order.id}')">Зураг</button>
-                  <button style="padding:6px 8px;margin:2px;" onclick="editOrder('${order.id}')">Засах</button>
+                  <button style="padding:6px 8px;margin:2px;display:${currentUserRole === "admin" ? "inline-block" : "none"};" onclick="editOrder('${order.id}')">Засах</button>
 ${currentUserRole === "admin" ? `                  <button style="padding:6px 8px;margin:2px;" onclick="deleteOrder('${order.id}')">Устгах</button>` : ""}
                 </td>
               </tr>`;
@@ -1432,11 +1436,34 @@ window.loadStaff = async function() {
       "<div style='display:block;width:100%;margin:2px 0 7px;padding:0;'>" +
       "<button type='button' aria-label='Ажилтны мэдээлэл засах' title='Ажилтны мэдээлэл засах' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.editStaff(this.dataset.userId)' style='display:inline-block!important;box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:24px!important;min-width:24px!important;height:24px!important;padding:0!important;margin:0!important;border:1px solid #93c5fd!important;border-radius:5px!important;background:#eff6ff!important;color:#1d4ed8!important;font-size:14px!important;line-height:1!important;cursor:pointer!important;'>✎</button></div>" +
       "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_view_all_orders ? "checked" : "") + " onchange='window.setStaffOrderVisibility(this.dataset.userId,this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Компанийн бүх захиалгыг харах</strong><br><span style='color:#64748b;'>Идэвхгүй бол зөвхөн өөрт оноосон захиалга харагдана. Энэ эрх нь засварлах эрх өгөхгүй.</span></span></label>" +
+      "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_create_orders ? "checked" : "") + " onchange='window.setStaffCreatePermission(this.dataset.userId,this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Шинэ захиалга үүсгэх</strong><br><span style='color:#64748b;'>Идэвхтэй үед шинэ захиалга, үнийн санал үүсгэнэ. Өмнөх захиалгыг засах эрх өгөхгүй.</span></span></label>" +
       "<div style='display:block;width:100%;margin-bottom:4px;'>" +
       "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.removeStaff(this.dataset.userId)' style='display:inline-block;min-height:40px;padding:9px 14px;border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#991b1b;font-weight:600;cursor:pointer;'>Эрх цуцлах</button></div></div>"
     ).join("");
   } catch(error) {
     list.textContent = "Алдаа: " + error.message;
+  }
+};
+
+window.setStaffCreatePermission = async function(userId, enabled, checkbox) {
+  if (currentUserRole !== "admin") {
+    if (checkbox) checkbox.checked = !enabled;
+    return alert("Админы эрх шаардлагатай.");
+  }
+  if (checkbox) checkbox.disabled = true;
+  try {
+    const result = await staffApi("update-create-permission", { userId, canCreateOrders: enabled === true });
+    const label = checkbox?.closest("label");
+    if (label) {
+      label.style.borderColor = enabled ? "#86efac" : "#e2e8f0";
+      label.style.background = enabled ? "#f0fdf4" : "#f8fafc";
+    }
+    alert(result.message);
+  } catch (error) {
+    if (checkbox) checkbox.checked = !enabled;
+    alert("Эрх хадгалахад алдаа гарлаа: " + error.message);
+  } finally {
+    if (checkbox) checkbox.disabled = false;
   }
 };
 
@@ -2227,6 +2254,7 @@ async function createOrderQuotePdf(order) {
 }
 
 async function updateOrderStatus(orderId, newStatus) {
+  if (currentUserRole !== "admin") { alert("Захиалгын төлөв өөрчлөх эрх зөвхөн админд байна."); await loadOrders(); return; }
   if (currentUserRole !== "admin" && ["Баталгаажсан", "Дууссан"].includes(newStatus)) {
     alert("Энэ төлөвийг зөвхөн админ өөрчлөх боломжтой.");
     await loadOrders();
@@ -2344,6 +2372,7 @@ async function updateOrderStatus(orderId, newStatus) {
 }
 
 window.editOrder = async function(orderId) {
+  if (currentUserRole !== "admin") return alert("Захиалга засах эрх зөвхөн админд байна.");
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
     alert("Та эхлээд нэвтэрнэ үү.");
@@ -2624,7 +2653,7 @@ function showCustomerDetails(index) {
 
   const { data: admin, error } = await supabaseClient
     .from("admin_users")
-    .select("role, owner_user_id")
+    .select("role, owner_user_id, can_create_orders")
     .eq("user_id", session.user.id)
     .maybeSingle();
 
@@ -2636,6 +2665,11 @@ function showCustomerDetails(index) {
 
   currentUserRole = admin.role;
   currentOwnerUserId = admin.owner_user_id || session.user.id;
+  currentUserCanCreateOrders = admin.role === "admin" || admin.can_create_orders === true;
+  document.getElementById("newOrderSection").style.display = currentUserCanCreateOrders ? "block" : "none";
+  document.getElementById("quoteSection").style.display = currentUserCanCreateOrders ? "block" : "none";
+  document.getElementById("overviewCreateOrderQuick").style.display = currentUserCanCreateOrders ? "inline-block" : "none";
+  document.getElementById("overviewQuoteQuick").style.display = currentUserCanCreateOrders ? "inline-block" : "none";
   document.getElementById("userEmail").textContent =    session.user.email + (admin.role === "admin" ? " · Админ" : " · Ажилтан");
   if (admin.role === "admin") {
     document.getElementById("adminSettingsNav").style.display = "block";
