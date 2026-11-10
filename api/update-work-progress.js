@@ -24,7 +24,7 @@ const fields = {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST хүсэлт шаардлагатай." });
   try {
-    const token = (req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+    const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     if (!token) return res.status(401).json({ error: "Нэвтрэх эрх шаардлагатай." });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
