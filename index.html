@@ -379,15 +379,11 @@ const SUPABASE_URL = "https://sqywsxbaknjznvohnsim.supabase.co";  const SUPABASE
   );
 
 async function loginUser() {
-  alert("loginUser ажиллаж байна");
-
   const email = prompt("И-мэйл хаягаа оруулна уу:");
   if (!email) return;
 
   const password = prompt("Нууц үгээ оруулна уу:");
   if (!password) return;
-
-  alert("SUPABASE ДУУДАЖ БАЙНА");
 
   try {
     const { data, error } =
