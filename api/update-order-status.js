@@ -40,6 +40,7 @@ export default async function handler(req, res) {
 
     const ownerUserId = admin.owner_user_id || user.id;
     const isAdmin = admin.role === "admin";
+    if (!isAdmin) return res.status(403).json({ error: "Захиалгын төлөв, төлбөр болон дуусгалтын мэдээллийг зөвхөн админ өөрчилнө." });
     const { orderId, newStatus, confirmationIncome, completionExpense, remainingIncome, unpaidBalance } = req.body || {};
     const allowedStatuses = ["Шинэ", "Холбогдсон", "Үнийн санал", "Баталгаажсан", "Дууссан"];
     if (!orderId || !allowedStatuses.includes(newStatus)) {
