@@ -90,11 +90,14 @@ export default async function handler(req, res) {
 
     const { data: member, error: memberError } = await supabase
       .from("admin_users")
-      .select("role, owner_user_id")
+      .select("role, owner_user_id, can_create_orders")
       .eq("user_id", user.id)
       .maybeSingle();
     if (memberError || !member || !["admin", "employee"].includes(member.role)) {
       return res.status(403).json({ error: "Админ эсвэл ажилтны эрх шаардлагатай." });
+    }
+    if (member.role !== "admin" && member.can_create_orders !== true) {
+      return res.status(403).json({ error: "Үнийн санал захиалга болгох, Messenger-ээр илгээх захиалга үүсгэх эрхгүй байна." });
     }
 
     if (!process.env.PAGE_ACCESS_TOKEN) {
