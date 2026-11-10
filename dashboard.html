@@ -1248,7 +1248,10 @@ window.viewOrderDetails = async function(orderId) {
       const actorResult = await staffApi("actor-names", { userIds: actorIds });
       actorDirectory = actorResult.actors || {};
     } catch (actorError) {
-      actorLookupError = actorError?.message || "Нэрийн мэдээлэл татах үед тодорхойгүй алдаа гарлаа.";
+      const diagnostic = actorError?.diagnostic;
+      actorLookupError = diagnostic
+        ? (actorError.message + " · Алхам: " + diagnostic.stage + " · Код: " + diagnostic.code + " · " + diagnostic.message)
+        : (actorError?.message || "Нэрийн мэдээлэл татах үед тодорхойгүй алдаа гарлаа.");
       console.warn("Түүхийн үйлдэгчийн нэр ачаалж чадсангүй:", actorError);
     }
     if (!actorLookupError && !Object.keys(actorDirectory).length) {
@@ -1502,7 +1505,11 @@ async function staffApi(action, payload = {}) {
     }
     ({ response, result } = await sendRequest(refreshed.data.session.access_token));
   }
-  if (!response.ok || !result.success) throw new Error(result.error || "Ажилтны эрхийн үйлдэл амжилтгүй.");
+  if (!response.ok || !result.success) {
+    const failure = new Error(result.error || "Ажилтны эрхийн үйлдэл амжилтгүй.");
+    if (result.diagnostic) failure.diagnostic = result.diagnostic;
+    throw failure;
+  }
   return result;
 }
 
