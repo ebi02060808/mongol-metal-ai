@@ -947,11 +947,48 @@ async function addOrder() {
 }
 
 
+function renderWorkStatusCell(order, workType) {
+  const production = workType === "production";
+  const value = order[production ? "production_status" : "installation_status"] || "Хүлээгдэж байна";
+  const allowed = currentUserRole === "admin" || (order.assigned_to === currentUserId && (production ? currentUserCanUpdateProduction : currentUserCanUpdateInstallation));
+  const options = production ? ["Хүлээгдэж байна", "Эхлээгүй", "Явагдаж байна", "Дууссан"] : ["Хүлээгдэж байна", "Төлөвлөсөн", "Явагдаж байна", "Дууссан"];
+  if (!allowed) return "<span>" + escapeHTML(value) + "</span>";
+  return "<select data-previous-status=\"" + escapeHTML(value) + "\" style=\"width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:7px;\" onchange=\"updateWorkProgress(" + JSON.stringify(order.id) + ',\'' + workType + '\',this.value,this)\">' + options.map(v => "<option value=\"" + escapeHTML(v) + "\" " + (v === value ? "selected" : "") + ">" + escapeHTML(v) + "</option>").join("") + "</select>";
+}
+function renderOrderAssignee(order, employees) {
+  if (currentUserRole !== "admin") return "<span>" + (order.assigned_to === currentUserId ? "Танд оноосон" : (order.assigned_to ? "Оноолттой" : "Оноогоогүй")) + "</span>";
+  const options = '<option value="">Оноогоогүй</option>' + employees.map(person => '<option value="' + escapeHTML(person.user_id) + '" ' + (order.assigned_to === person.user_id ? 'selected' : '') + '>' + escapeHTML(person.full_name || person.email || "Ажилтан") + '</option>').join("");
+  return '<select style="width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:7px;" onchange="assignOrderToEmployee(' + JSON.stringify(order.id) + ',this.value,this)">' + options + '</select>';
+}
+window.updateWorkProgress = async function(orderId, workType, status, control) {
+  const previous = control?.dataset.previousStatus || "Хүлээгдэж байна";
+  if (control) control.disabled = true;
+  try {
+    let { data: { session }, error } = await supabaseClient.auth.getSession();
+    if (error || !session) throw new Error("Нэвтрэх хугацаа дууссан байна.");
+    const send = token => fetch("/api/update-work-progress", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify({ orderId, workType, status }) });
+    let response = await send(session.access_token);
+    if (response.status === 401) { const refreshed = await supabaseClient.auth.refreshSession(); if (refreshed.error || !refreshed.data.session) throw new Error("Дахин нэвтэрнэ үү."); response = await send(refreshed.data.session.access_token); }
+    const result = await response.json(); if (!response.ok || !result.success) throw new Error(result.error || "Төлөв шинэчилж чадсангүй.");
+    if (control) control.dataset.previousStatus = status;
+    const message = document.getElementById("ordersMessage"); if (message) message.textContent = "✅ " + result.message;
+  } catch (error) { if (control) control.value = previous; alert("Ажлын төлөв хадгалахад алдаа гарлаа: " + error.message); }
+  finally { if (control) control.disabled = false; }
+};
+window.assignOrderToEmployee = async function(orderId, assignedTo, control) {
+  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (control) control.disabled = true;
+  try { const result = await staffApi("assign-order", { orderId, assignedTo: assignedTo || null }); const message = document.getElementById("ordersMessage"); if (message) message.textContent = "✅ " + result.message; }
+  catch (error) { alert("Ажилтан онооход алдаа гарлаа: " + error.message); await loadOrders(); }
+  finally { if (control) control.disabled = false; }
+};
 async function loadOrders() {
   const { data: { session } } =
     await supabaseClient.auth.getSession();
 
   if (!session) return;
+  let orderStaff = [];
+  if (currentUserRole === "admin") { try { orderStaff = (await staffApi("list")).employees || []; } catch (staffError) { console.warn("Ажилтны жагсаалт ачаалсангүй:", staffError); } }
 
   const { data: orders, error } = await supabaseClient
     .from("orders")
@@ -987,6 +1024,9 @@ async function loadOrders() {
             <th style="padding:12px 10px;text-align:right;border-bottom:1px solid #cbd5e1;">Төлөгдөөгүй үлдэгдэл</th>
             <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Огноо</th>
             <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Төлөв</th>
+            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Хариуцсан ажилтан</th>
+            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Үйлдвэрлэл</th>
+            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Угсралт</th>
             <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Үйлдэл</th>
           </tr>
         </thead>
@@ -1053,6 +1093,9 @@ async function loadOrders() {
                     ${currentUserRole === "admin" ? `<option value="Баталгаажсан" ${status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option><option value="Дууссан" ${status === "Дууссан" ? "selected" : ""}>Дууссан</option>` : ""}
                   </select>`}
                 </td>
+                <td style="padding:11px 10px;min-width:150px;">${renderOrderAssignee(order, orderStaff)}</td>
+                <td style="padding:11px 10px;min-width:145px;">${renderWorkStatusCell(order, "production")}</td>
+                <td style="padding:11px 10px;min-width:145px;">${renderWorkStatusCell(order, "installation")}</td>
                 <td style="padding:11px 10px;white-space:nowrap;">
                   <button style="padding:6px 8px;margin:2px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;color:#1d4ed8;cursor:pointer;" onclick="viewOrderDetails('${order.id}')">Дэлгэрэнгүй / Түүх</button>
                   <button style="padding:6px 8px;margin:2px;" onclick="viewOrderPhotos('${order.id}')">Зураг</button>
