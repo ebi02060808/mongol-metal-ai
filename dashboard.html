@@ -409,6 +409,9 @@ let currentQuote = null;
 let currentUserRole = null;
 let currentOwnerUserId = null;
 let currentUserCanCreateOrders = false;
+let currentUserId = null;
+let currentUserCanUpdateProduction = false;
+let currentUserCanUpdateInstallation = false;
 let currentOrderView = "active";
 let currentOrderDateFilter = "";
 let currentOrderUnpaidOnly = false;
@@ -1437,6 +1440,8 @@ window.loadStaff = async function() {
       "<button type='button' aria-label='Ажилтны мэдээлэл засах' title='Ажилтны мэдээлэл засах' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.editStaff(this.dataset.userId)' style='display:inline-block!important;box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:24px!important;min-width:24px!important;height:24px!important;padding:0!important;margin:0!important;border:1px solid #93c5fd!important;border-radius:5px!important;background:#eff6ff!important;color:#1d4ed8!important;font-size:14px!important;line-height:1!important;cursor:pointer!important;'>✎</button></div>" +
       "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_view_all_orders ? "checked" : "") + " onchange='window.setStaffOrderVisibility(this.dataset.userId,this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Компанийн бүх захиалгыг харах</strong><br><span style='color:#64748b;'>Идэвхгүй бол зөвхөн өөрт оноосон захиалга харагдана. Энэ эрх нь засварлах эрх өгөхгүй.</span></span></label>" +
       "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_create_orders ? "checked" : "") + " onchange='window.setStaffCreatePermission(this.dataset.userId,this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Шинэ захиалга үүсгэх</strong><br><span style='color:#64748b;'>Идэвхтэй үед шинэ захиалга, үнийн санал үүсгэнэ. Өмнөх захиалгыг засах эрх өгөхгүй.</span></span></label>" +
+      "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_update_production_status ? "checked" : "") + " onchange='window.setStaffWorkPermission(this.dataset.userId,\"production\",this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Үйлдвэрлэлийн явц шинэчлэх</strong><br><span style='color:#64748b;'>Зөвхөн өөрт оноосон захиалгын үйлдвэрлэлийн төлөвийг өөрчилнө.</span></span></label>" +
+      "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_update_installation_status ? "checked" : "") + " onchange='window.setStaffWorkPermission(this.dataset.userId,\"installation\",this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Угсралтын явц шинэчлэх</strong><br><span style='color:#64748b;'>Зөвхөн өөрт оноосон захиалгын угсралтын төлөвийг өөрчилнө.</span></span></label>" +
       "<div style='display:block;width:100%;margin-bottom:4px;'>" +
       "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.removeStaff(this.dataset.userId)' style='display:inline-block;min-height:40px;padding:9px 14px;border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#991b1b;font-weight:600;cursor:pointer;'>Эрх цуцлах</button></div></div>"
     ).join("");
@@ -1462,6 +1467,29 @@ window.setStaffCreatePermission = async function(userId, enabled, checkbox) {
   } catch (error) {
     if (checkbox) checkbox.checked = !enabled;
     alert("Эрх хадгалахад алдаа гарлаа: " + error.message);
+  } finally {
+    if (checkbox) checkbox.disabled = false;
+  }
+};
+
+window.setStaffWorkPermission = async function(userId, workType, enabled, checkbox) {
+  if (currentUserRole !== "admin") {
+    if (checkbox) checkbox.checked = !enabled;
+    return alert("Админы эрх шаардлагатай.");
+  }
+  if (checkbox) checkbox.disabled = true;
+  try {
+    const result = await staffApi("update-work-permission", { userId, workType, enabled: enabled === true });
+    const label = checkbox?.closest("label");
+    if (label) {
+      label.style.borderColor = enabled ? "#86efac" : "#e2e8f0";
+      label.style.background = enabled ? "#f0fdf4" : "#f8fafc";
+    }
+    const message = document.getElementById("staffMessage");
+    if (message) message.textContent = "✅ " + result.message;
+  } catch (error) {
+    if (checkbox) checkbox.checked = !enabled;
+    alert("Ажлын эрх хадгалахад алдаа гарлаа: " + error.message);
   } finally {
     if (checkbox) checkbox.disabled = false;
   }
@@ -2653,7 +2681,7 @@ function showCustomerDetails(index) {
 
   const { data: admin, error } = await supabaseClient
     .from("admin_users")
-    .select("role, owner_user_id, can_create_orders")
+    .select("role, owner_user_id, can_create_orders, can_update_production_status, can_update_installation_status")
     .eq("user_id", session.user.id)
     .maybeSingle();
 
@@ -2664,8 +2692,11 @@ function showCustomerDetails(index) {
   }
 
   currentUserRole = admin.role;
+  currentUserId = session.user.id;
   currentOwnerUserId = admin.owner_user_id || session.user.id;
   currentUserCanCreateOrders = admin.role === "admin" || admin.can_create_orders === true;
+  currentUserCanUpdateProduction = admin.role === "admin" || admin.can_update_production_status === true;
+  currentUserCanUpdateInstallation = admin.role === "admin" || admin.can_update_installation_status === true;
   document.getElementById("newOrderSection").style.display = currentUserCanCreateOrders ? "block" : "none";
   document.getElementById("quoteSection").style.display = currentUserCanCreateOrders ? "block" : "none";
   document.getElementById("overviewCreateOrderQuick").style.display = currentUserCanCreateOrders ? "inline-block" : "none";
