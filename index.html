@@ -234,66 +234,110 @@
     .login-box {
       width: 100%;
       max-width: 420px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
       background: #fff;
-      border-radius: 16px;
-      padding: 28px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.22);
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 24px 70px rgba(15,23,42,.24);
       position: relative;
     }
 
-    .login-box h2 { margin-bottom: 8px; font-size: 24px; }
-    .login-box .login-hint { color: #64748b; margin-bottom: 22px; font-size: 14px; }
-    .login-field { margin-bottom: 16px; }
-    .login-field label { display: block; margin-bottom: 7px; font-weight: 600; font-size: 14px; }
+    .login-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #2563eb;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      margin-bottom: 14px;
+    }
+    .login-brand-mark {
+      width: 27px;
+      height: 27px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: #eff6ff;
+      font-size: 15px;
+    }
+    .login-box h2 { margin-bottom: 7px; font-size: 25px; line-height: 1.3; color: #0f172a; }
+    .login-box .login-hint { color: #64748b; margin-bottom: 25px; font-size: 14px; }
+    .login-field { margin-bottom: 18px; }
+    .login-field label { display: block; margin-bottom: 8px; color: #334155; font-weight: 700; font-size: 13px; }
     .login-field input {
       width: 100%;
-      height: 46px;
+      height: 49px;
       border: 1px solid #cbd5e1;
-      border-radius: 9px;
-      padding: 0 12px;
+      border-radius: 10px;
+      padding: 0 13px;
+      background: #fff;
+      color: #0f172a;
       font-size: 16px;
       outline: none;
+      transition: border-color .15s, box-shadow .15s;
     }
-    .login-field input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .login-field input::placeholder { color: #94a3b8; }
+    .login-field input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.13); }
     .password-wrap { display: flex; position: relative; }
-    .password-wrap input { padding-right: 52px; }
+    .password-wrap input { padding-right: 66px; }
     .toggle-password {
       position: absolute;
       right: 5px;
-      top: 4px;
-      width: 40px;
-      height: 38px;
+      top: 5px;
+      min-width: 54px;
+      height: 39px;
+      padding: 0 7px;
       border: 0;
       border-radius: 7px;
       background: transparent;
       cursor: pointer;
       color: #475569;
-      font-size: 20px;
+      font-size: 13px;
+      font-weight: 700;
     }
+    .toggle-password:hover { background: #f1f5f9; color: #1d4ed8; }
     .login-submit {
       width: 100%;
-      min-height: 46px;
+      min-height: 49px;
       border: 0;
-      border-radius: 9px;
+      border-radius: 10px;
       background: #2563eb;
       color: white;
       font-size: 16px;
       font-weight: 700;
       cursor: pointer;
-      margin-top: 4px;
+      margin-top: 3px;
+      transition: background .15s, transform .15s;
     }
+    .login-submit:hover:not(:disabled) { background: #1d4ed8; }
+    .login-submit:active:not(:disabled) { transform: translateY(1px); }
     .login-submit:disabled { opacity: .65; cursor: wait; }
     .login-close {
       position: absolute;
       right: 14px;
       top: 12px;
+      width: 34px;
+      height: 34px;
       border: 0;
+      border-radius: 8px;
       background: transparent;
       font-size: 25px;
+      line-height: 1;
       color: #64748b;
       cursor: pointer;
     }
-    .login-message { min-height: 20px; margin-top: 12px; color: #dc2626; font-size: 14px; }
+    .login-close:hover { background: #f1f5f9; color: #0f172a; }
+    .login-message { min-height: 20px; margin-top: 12px; color: #dc2626; font-size: 13px; }
+    .login-box button:focus-visible { outline: 3px solid rgba(37,99,235,.25); outline-offset: 2px; }
+
+    @media (max-width: 480px) {
+      .login-box { padding: 27px 22px; border-radius: 17px; }
+      .login-box h2 { font-size: 23px; }
+    }
 
     @media (max-width: 800px) {
       nav a:not(.login):not(.register-link) {
@@ -449,18 +493,19 @@
 <div class="login-modal" id="loginModal" aria-hidden="true">
   <div class="login-box" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
     <button type="button" class="login-close" id="loginClose" aria-label="Хаах">×</button>
-    <h2 id="loginTitle">Системд нэвтрэх</h2>
-    <p class="login-hint">Бүртгэлтэй и-мэйл болон нууц үгээ оруулна уу.</p>
+    <div class="login-brand"><span class="login-brand-mark">✦</span> MONGOL METAL AI</div>
+    <h2 id="loginTitle">Тавтай морил</h2>
+    <p class="login-hint">Бүртгэлтэй и-мэйл болон нууц үгээрээ нэвтэрнэ үү.</p>
     <form id="loginForm">
       <div class="login-field">
         <label for="loginEmail">И-мэйл хаяг</label>
-        <input id="loginEmail" type="email" autocomplete="username" required placeholder="name@example.com">
+        <input id="loginEmail" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" required placeholder="И-мэйл хаягаа оруулна уу">
       </div>
       <div class="login-field">
         <label for="loginPassword">Нууц үг</label>
         <div class="password-wrap">
           <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Нууц үгээ оруулна уу">
-          <button type="button" class="toggle-password" id="togglePassword" aria-label="Нууц үг харах" aria-pressed="false">👁</button>
+          <button type="button" class="toggle-password" id="togglePassword" aria-label="Нууц үг харах" aria-pressed="false">👁 Харах</button>
         </div>
       </div>
       <button type="submit" class="login-submit" id="loginSubmit">Нэвтрэх</button>
@@ -502,6 +547,7 @@ function closeLogin() {
   loginForm.reset();
   loginPassword.type = "password";
   togglePassword.setAttribute("aria-pressed", "false");
+  togglePassword.textContent = "👁 Харах";
   togglePassword.setAttribute("aria-label", "Нууц үг харах");
 }
 
@@ -522,6 +568,7 @@ togglePassword.addEventListener("click", function() {
   const isHidden = loginPassword.type === "password";
   loginPassword.type = isHidden ? "text" : "password";
   togglePassword.setAttribute("aria-pressed", String(isHidden));
+  togglePassword.textContent = isHidden ? "🙈 Нуух" : "👁 Харах";
   togglePassword.setAttribute("aria-label", isHidden ? "Нууц үг нуух" : "Нууц үг харах");
 });
 
