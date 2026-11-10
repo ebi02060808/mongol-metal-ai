@@ -439,11 +439,16 @@
     .card {
       min-height: 205px;
       padding: 27px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
       border-color: #e5eaf2;
       border-radius: 15px;
       box-shadow: 0 5px 18px rgba(15,23,42,.035);
       transition: transform .2s, box-shadow .2s, border-color .2s;
     }
+    .card h3 { min-height: 27px; }
+    .card p { max-width: 34ch; }
     .card:hover { transform: translateY(-4px); border-color: #bfdbfe; box-shadow: 0 14px 30px rgba(15,23,42,.08); }
     .icon {
       width: 48px; height: 48px;
@@ -539,46 +544,46 @@
 <section class="section" id="services">
 
   <div class="section-title">
-    <h2>Бизнесийн бүх харилцааг нэг дор</h2>
-    <p>Таны өдөр бүр хийдэг давтагдсан ажлуудыг AI автоматжуулна.</p>
+    <h2>Бизнесийн ажлаа нэг системээс удирд</h2>
+    <p>Харилцагчтай харилцахаас эхлээд захиалга, бүртгэл, хяналт хүртэлх ажлаа нэг дороос цэгцлээрэй.</p>
   </div>
 
   <div class="features">
 
     <div class="card">
       <div class="icon">🤖</div>
-      <h3>AI Chatbot</h3>
-      <p>Харилцагчийн асуултад AI автоматаар хариулна.</p>
+      <h3>AI туслах</h3>
+      <p>Түгээмэл асуултад автоматаар хариулах, харилцагчид мэдээлэл өгөхөд тусална.</p>
     </div>
 
     <div class="card">
       <div class="icon">💬</div>
-      <h3>Messenger автоматжуулалт</h3>
-      <p>Messenger-ийн харилцааг нэг системээс удирдана.</p>
+      <h3>Messenger удирдлага</h3>
+      <p>Ирсэн зурвас, харилцагчийн яриаг нэг цэгээс хянаж удирдана.</p>
     </div>
 
     <div class="card">
       <div class="icon">📣</div>
-      <h3>Comment → Messenger</h3>
-      <p>Сэтгэгдэлд автоматаар хариулж Messenger рүү шилжүүлнэ.</p>
+      <h3>Сэтгэгдлийн автомат хариу</h3>
+      <p>Постын сэтгэгдэлд хариу өгч, харилцагчийг Messenger рүү чиглүүлнэ.</p>
     </div>
 
     <div class="card">
       <div class="icon">📦</div>
-      <h3>Захиалга авах</h3>
-      <p>Захиалгын шаардлагатай мэдээллийг автоматаар цуглуулна.</p>
+      <h3>Захиалгын бүртгэл</h3>
+      <p>Захиалагчийн нэр, утас, бүтээгдэхүүн болон хэмжээг бүртгэнэ.</p>
     </div>
 
     <div class="card">
       <div class="icon">👥</div>
-      <h3>Харилцагчийн бүртгэл</h3>
-      <p>Харилцагчийн мэдээллийг системтэй хадгална.</p>
+      <h3>Харилцагчийн сан</h3>
+      <p>Харилцагчдын мэдээлэл, өмнөх захиалгыг эмх цэгцтэй хадгална.</p>
     </div>
 
     <div class="card">
       <div class="icon">📊</div>
-      <h3>Dashboard</h3>
-      <p>Захиалга, чат, харилцагчийг нэг самбараас хянана.</p>
+      <h3>Удирдлагын самбар</h3>
+      <p>Захиалга, харилцаа болон ажлын явцыг нэг дэлгэцээс хянана.</p>
     </div>
 
   </div>
