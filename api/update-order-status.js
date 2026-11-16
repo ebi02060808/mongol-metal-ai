@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     const productionStatus = order.production_status || workPending;
     const assemblyStatus = order.installation_status || workPending;
     const siteInstallationStatus = order.site_installation_status || workPending;
-    if (newStatus === "Дууссан" &&
+    if (newStatus === "Дууссан" && String(order.status || "") !== "Дууссан" &&
         [productionStatus, assemblyStatus, siteInstallationStatus].some(value => value !== "Дууссан")) {
       return res.status(409).json({
         error: "Захиалгыг дуусгахын өмнө үйлдвэрлэл, угсралт, суурилуулалтын гурван шат бүгд Дууссан байх шаардлагатай."
