@@ -73,11 +73,13 @@ export default async function handler(req, res) {
     if (workType === "production" && status !== pending && orderStatus !== "Баталгаажсан") {
       return res.status(409).json({ error: "Захиалга эхлээд Баталгаажсан төлөвтэй болох шаардлагатай." });
     }
-    if (workType === "assembly" && status !== pending && order.production_status !== "Дууссан") {
-      return res.status(409).json({ error: "Үйлдвэрлэл бүрэн Дууссаны дараа угсралтыг эхлүүлнэ." });
+    if (workType === "assembly" && status !== pending &&
+        (orderStatus !== "Баталгаажсан" || order.production_status !== "Дууссан")) {
+      return res.status(409).json({ error: "Захиалга Баталгаажсан бөгөөд үйлдвэрлэл бүрэн Дууссаны дараа угсралтыг эхлүүлнэ." });
     }
-    if (workType === "installation" && status !== pending && order.installation_status !== "Дууссан") {
-      return res.status(409).json({ error: "Угсралт бүрэн Дууссаны дараа суурилуулалтыг эхлүүлнэ." });
+    if (workType === "installation" && status !== pending &&
+        (orderStatus !== "Баталгаажсан" || order.installation_status !== "Дууссан")) {
+      return res.status(409).json({ error: "Захиалга Баталгаажсан бөгөөд угсралт бүрэн Дууссаны дараа суурилуулалтыг эхлүүлнэ." });
     }
     if (workType === "production" && status !== "Дууссан" &&
         ((order.installation_status || pending) !== pending || (order.site_installation_status || pending) !== pending)) {
