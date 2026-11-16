@@ -411,6 +411,7 @@ let currentOwnerUserId = null;
 let currentUserCanCreateOrders = false;
 let currentUserId = null;
 let currentUserCanUpdateProduction = false;
+let currentUserCanUpdateAssembly = false;
 let currentUserCanUpdateInstallation = false;
 let currentOrderView = "active";
 let currentOrderDateFilter = "";
@@ -948,12 +949,16 @@ async function addOrder() {
 
 
 function renderWorkStatusCell(order, workType) {
-  const production = workType === "production";
-  const value = order[production ? "production_status" : "installation_status"] || "Хүлээгдэж байна";
-  const allowed = currentUserRole === "admin" || (order.assigned_to === currentUserId && (production ? currentUserCanUpdateProduction : currentUserCanUpdateInstallation));
-  const options = production ? ["Хүлээгдэж байна", "Эхлээгүй", "Явагдаж байна", "Дууссан"] : ["Хүлээгдэж байна", "Төлөвлөсөн", "Явагдаж байна", "Дууссан"];
+  const config = {
+    production: { column: "production_status", allowed: currentUserCanUpdateProduction, options: ["Хүлээгдэж байна", "Эхлээгүй", "Явагдаж байна", "Дууссан"], ready: order.status === "Баталгаажсан", wait: "Захиалга Баталгаажсан болсны дараа" },
+    assembly: { column: "installation_status", allowed: currentUserCanUpdateAssembly, options: ["Хүлээгдэж байна", "Төлөвлөсөн", "Явагдаж байна", "Дууссан"], ready: order.production_status === "Дууссан", wait: "Үйлдвэрлэл Дууссаны дараа" },
+    installation: { column: "site_installation_status", allowed: currentUserCanUpdateInstallation, options: ["Хүлээгдэж байна", "Төлөвлөсөн", "Явагдаж байна", "Дууссан"], ready: order.installation_status === "Дууссан", wait: "Угсралт Дууссаны дараа" }
+  }[workType];
+  const value = order[config.column] || "Хүлээгдэж байна";
+  if (!config.ready && value === "Хүлээгдэж байна") return "<span title='" + config.wait + "' style='color:#94a3b8;font-size:12px;'>🔒 " + config.wait + "</span>";
+  const allowed = currentUserRole === "admin" || (order.assigned_to === currentUserId && config.allowed);
   if (!allowed) return "<span>" + escapeHTML(value) + "</span>";
-  return "<select data-previous-status=\"" + escapeHTML(value) + "\" style=\"width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:7px;\" onchange=\"updateWorkProgress(" + JSON.stringify(order.id) + ',\'' + workType + '\',this.value,this)\">' + options.map(v => "<option value=\"" + escapeHTML(v) + "\" " + (v === value ? "selected" : "") + ">" + escapeHTML(v) + "</option>").join("") + "</select>";
+  return "<select data-previous-status=\"" + escapeHTML(value) + "\" style=\"width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:7px;\" onchange=\"updateWorkProgress(" + JSON.stringify(order.id) + ',\'' + workType + '\',this.value,this)\">" + config.options.map(v => "<option value=\"" + escapeHTML(v) + "\" " + (v === value ? "selected" : "") + ">" + escapeHTML(v) + "</option>").join("") + "</select>";
 }
 function renderOrderAssignee(order, employees) {
   if (currentUserRole !== "admin") return "<span>" + (order.assigned_to === currentUserId ? "Танд оноосон" : (order.assigned_to ? "Оноолттой" : "Оноогоогүй")) + "</span>";
@@ -1027,6 +1032,7 @@ async function loadOrders() {
             <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Хариуцсан ажилтан</th>
             <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Үйлдвэрлэл</th>
             <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Угсралт</th>
+            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Суурилуулалт</th>
             <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Үйлдэл</th>
           </tr>
         </thead>
@@ -1057,6 +1063,7 @@ async function loadOrders() {
             const sourceLabel = orderSource === "messenger" ? "💬 Messenger" : "🏢 Биечлэн";
             const status = order.status || "Шинэ";
             const normalizedStatus = status.startsWith("Шинэ захиалга") ? "Шинэ" : status;
+            const canCompleteOrder = [order.production_status, order.installation_status, order.site_installation_status].every(value => value === "Дууссан");
             const unpaidAmount = order.unpaid_balance == null ? null : Number(order.unpaid_balance);
             const hasUnpaidBalance = normalizedStatus === "Дууссан" && unpaidAmount > 0;
             const missingUnpaidBalance = normalizedStatus === "Дууссан" && unpaidAmount == null;
@@ -1090,11 +1097,12 @@ async function loadOrders() {
                     <option value="Шинэ" ${(status === "Шинэ" || status.startsWith("Шинэ захиалга")) ? "selected" : ""}>Шинэ</option>
                     <option value="Холбогдсон" ${status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
                     <option value="Үнийн санал" ${status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
-                    ${currentUserRole === "admin" ? `<option value="Баталгаажсан" ${status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option><option value="Дууссан" ${status === "Дууссан" ? "selected" : ""}>Дууссан</option>` : ""}
+                    ${currentUserRole === "admin" ? `<option value="Баталгаажсан" ${status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option><option value="Дууссан" ${status === "Дууссан" ? "selected" : ""} ${!canCompleteOrder && status !== "Дууссан" ? "disabled" : ""}>Дууссан</option>` : ""}
                   </select>`}
                 </td>
                 <td style="padding:11px 10px;min-width:150px;">${renderOrderAssignee(order, orderStaff)}</td>
                 <td style="padding:11px 10px;min-width:145px;">${renderWorkStatusCell(order, "production")}</td>
+                <td style="padding:11px 10px;min-width:145px;">${renderWorkStatusCell(order, "assembly")}</td>
                 <td style="padding:11px 10px;min-width:145px;">${renderWorkStatusCell(order, "installation")}</td>
                 <td style="padding:11px 10px;white-space:nowrap;">
                   <button style="padding:6px 8px;margin:2px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;color:#1d4ed8;cursor:pointer;" onclick="viewOrderDetails('${order.id}')">Дэлгэрэнгүй / Түүх</button>
@@ -1264,14 +1272,14 @@ window.viewOrderDetails = async function(orderId) {
   const info=(k,v)=>"<div style='padding:11px;background:#f8fafc;border-radius:8px;min-width:0;'><small style='color:#64748b;'>"+k+"</small><div style='font-weight:700;margin-top:4px;overflow-wrap:anywhere;'>"+v+"</div></div>";
   const items=Array.isArray(order.quote_items)?order.quote_items:[];
   const products=items.length ? items.map((x,i)=>"<div style='padding:9px 0;border-bottom:1px solid #e2e8f0;'><strong>"+(i+1)+". "+escapeHTML(x.product_type||x.product||"Бүтээгдэхүүн")+"</strong><div style='font-size:13px;color:#475569;'>Хэмжээ: "+escapeHTML(x.width!=null && x.height!=null ? x.width+" × "+x.height+" м" : (x.area||"—")+" м²")+" · Тоо: "+escapeHTML(x.quantity??1)+" · Нэгж үнэ: "+money(x.unit_price)+"</div></div>").join("") : "<p style='color:#64748b;padding:10px 0;'>Нэмэлт бүтээгдэхүүний мөр бүртгэгдээгүй.</p>";
-  const labels={customer_name:"Харилцагч",phone:"Утас",product:"Бүтээгдэхүүн",size:"Хэмжээ",quantity:"Тоо ширхэг",area_per_unit:"Нэгж талбай",unit_price:"1 м² үнэ",price:"Нийт үнэ",unpaid_balance:"Төлөгдөөгүй үлдэгдэл",payment_amount:"Төлсөн дүн",payment_category:"Төлбөрийн төрөл",status:"Захиалгын төлөв",production_status:"Үйлдвэрлэлийн явц",installation_status:"Угсралтын явц"};
+  const labels={customer_name:"Харилцагч",phone:"Утас",product:"Бүтээгдэхүүн",size:"Хэмжээ",quantity:"Тоо ширхэг",area_per_unit:"Нэгж талбай",unit_price:"1 м² үнэ",price:"Нийт үнэ",unpaid_balance:"Төлөгдөөгүй үлдэгдэл",payment_amount:"Төлсөн дүн",payment_category:"Төлбөрийн төрөл",status:"Захиалгын төлөв",production_status:"Үйлдвэрлэлийн явц",installation_status:"Угсралтын явц",site_installation_status:"Суурилуулалтын явц"};
   const render=v=>{
     if(!v||typeof v!=="object") return "—";
     return Object.keys(labels).filter(k=>k in v).map(k=>"<div style='padding:3px 0;overflow-wrap:anywhere;'><strong>"+labels[k]+":</strong> "+(v[k]==null?"—":["unit_price","price","unpaid_balance","payment_amount"].includes(k)?money(v[k]):escapeHTML(typeof v[k]==="object"?JSON.stringify(v[k]):v[k]))+"</div>").join("")||"—";
   };
-  const eventNames={created:"Захиалга үүсгэсэн",updated:"Захиалгын мэдээлэл өөрчилсөн",deleted:"Захиалга устгасан",baseline:"Өмнөх захиалгын эхний бүртгэл",payment_received:"Төлбөр хүлээн авсан",status_changed:"Захиалгын төлөв өөрчилсөн",production_status_changed:"Үйлдвэрлэлийн явц өөрчилсөн",installation_status_changed:"Угсралтын явц өөрчилсөн"};
-  const categoryOf=type=>type==="production_status_changed"?"production":type==="installation_status_changed"?"installation":type==="payment_received"?"payment":"order";
-  const categoryNames={all:"Бүгд",order:"Захиалга",production:"Үйлдвэрлэл",installation:"Угсралт",payment:"Төлбөр"};
+  const eventNames={created:"Захиалга үүсгэсэн",updated:"Захиалгын мэдээлэл өөрчилсөн",deleted:"Захиалга устгасан",baseline:"Өмнөх захиалгын эхний бүртгэл",payment_received:"Төлбөр хүлээн авсан",status_changed:"Захиалгын төлөв өөрчилсөн",production_status_changed:"Үйлдвэрлэлийн явц өөрчилсөн",installation_status_changed:"Угсралтын явц өөрчилсөн",assembly_status_changed:"Угсралтын явц өөрчилсөн",site_installation_status_changed:"Суурилуулалтын явц өөрчилсөн"};
+  const categoryOf=type=>type==="production_status_changed"?"production":["installation_status_changed","assembly_status_changed"].includes(type)?"assembly":type==="site_installation_status_changed"?"installation":type==="payment_received"?"payment":"order";
+  const categoryNames={all:"Бүгд",order:"Захиалга",production:"Үйлдвэрлэл",assembly:"Угсралт",installation:"Суурилуулалт",payment:"Төлбөр"};
   const timeline=history.length?history.map((x,index)=>{
     const actor=actorDirectory[x.actor_user_id];
     const actorLabel=x.actor_user_id===currentOwnerUserId ? "Админ" : actor ? (actor.name ? actor.name+(actor.email?" · "+actor.email:"") : actor.email || "Бүртгэлтэй хэрэглэгч") : (x.actor_user_id ? "Хэрэглэгчийн мэдээлэл олдсонгүй" : "Систем / өмнөх бүртгэл");
@@ -1532,7 +1540,8 @@ window.loadStaff = async function() {
       "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_view_all_orders ? "checked" : "") + " onchange='window.setStaffOrderVisibility(this.dataset.userId,this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Компанийн бүх захиалгыг харах</strong><br><span style='color:#64748b;'>Идэвхгүй бол зөвхөн өөрт оноосон захиалга харагдана. Энэ эрх нь засварлах эрх өгөхгүй.</span></span></label>" +
       "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_create_orders ? "checked" : "") + " onchange='window.setStaffCreatePermission(this.dataset.userId,this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Шинэ захиалга үүсгэх</strong><br><span style='color:#64748b;'>Идэвхтэй үед шинэ захиалга, үнийн санал үүсгэнэ. Өмнөх захиалгыг засах эрх өгөхгүй.</span></span></label>" +
       "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_update_production_status ? "checked" : "") + " onchange='window.setStaffWorkPermission(this.dataset.userId,\"production\",this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Үйлдвэрлэлийн явц шинэчлэх</strong><br><span style='color:#64748b;'>Зөвхөн өөрт оноосон захиалгын үйлдвэрлэлийн төлөвийг өөрчилнө.</span></span></label>" +
-      "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_update_installation_status ? "checked" : "") + " onchange='window.setStaffWorkPermission(this.dataset.userId,\"installation\",this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Угсралтын явц шинэчлэх</strong><br><span style='color:#64748b;'>Зөвхөн өөрт оноосон захиалгын угсралтын төлөвийг өөрчилнө.</span></span></label>" +
+      "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_update_installation_status ? "checked" : "") + " onchange='window.setStaffWorkPermission(this.dataset.userId,\"assembly\",this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Угсралтын явц шинэчлэх</strong><br><span style='color:#64748b;'>Зөвхөн өөрт оноосон, үйлдвэрлэл дууссан захиалгын угсралтыг шинэчилнэ.</span></span></label>" +
+      "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_update_site_installation_status ? "checked" : "") + " onchange='window.setStaffWorkPermission(this.dataset.userId,\"installation\",this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Суурилуулалтын явц шинэчлэх</strong><br><span style='color:#64748b;'>Зөвхөн өөрт оноосон, угсралт дууссан захиалгын суурилуулалтыг шинэчилнэ.</span></span></label>" +
       "<div style='display:block;width:100%;margin-bottom:4px;'>" +
       "<button type='button' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.removeStaff(this.dataset.userId)' style='display:inline-block;min-height:40px;padding:9px 14px;border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#991b1b;font-weight:600;cursor:pointer;'>Эрх цуцлах</button></div></div>"
     ).join("");
@@ -2772,7 +2781,7 @@ function showCustomerDetails(index) {
 
   const { data: admin, error } = await supabaseClient
     .from("admin_users")
-    .select("role, owner_user_id, can_create_orders, can_update_production_status, can_update_installation_status")
+    .select("role, owner_user_id, can_create_orders, can_update_production_status, can_update_installation_status, can_update_site_installation_status")
     .eq("user_id", session.user.id)
     .maybeSingle();
 
@@ -2787,7 +2796,8 @@ function showCustomerDetails(index) {
   currentOwnerUserId = admin.owner_user_id || session.user.id;
   currentUserCanCreateOrders = admin.role === "admin" || admin.can_create_orders === true;
   currentUserCanUpdateProduction = admin.role === "admin" || admin.can_update_production_status === true;
-  currentUserCanUpdateInstallation = admin.role === "admin" || admin.can_update_installation_status === true;
+  currentUserCanUpdateAssembly = admin.role === "admin" || admin.can_update_installation_status === true;
+  currentUserCanUpdateInstallation = admin.role === "admin" || admin.can_update_site_installation_status === true;
   document.getElementById("newOrderSection").style.display = currentUserCanCreateOrders ? "block" : "none";
   document.getElementById("quoteSection").style.display = currentUserCanCreateOrders ? "block" : "none";
   document.getElementById("overviewCreateOrderQuick").style.display = currentUserCanCreateOrders ? "inline-block" : "none";
