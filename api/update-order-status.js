@@ -57,6 +57,23 @@ export default async function handler(req, res) {
     if (fetchError) return res.status(500).json({ error: fetchError.message });
     if (!order) return res.status(404).json({ error: "Захиалга олдсонгүй." });
 
+    const workPending = "Хүлээгдэж байна";
+    const productionStatus = order.production_status || workPending;
+    const assemblyStatus = order.installation_status || workPending;
+    const siteInstallationStatus = order.site_installation_status || workPending;
+    if (newStatus === "Дууссан" &&
+        [productionStatus, assemblyStatus, siteInstallationStatus].some(value => value !== "Дууссан")) {
+      return res.status(409).json({
+        error: "Захиалгыг дуусгахын өмнө үйлдвэрлэл, угсралт, суурилуулалтын гурван шат бүгд Дууссан байх шаардлагатай."
+      });
+    }
+    if (["Шинэ", "Холбогдсон", "Үнийн санал"].includes(newStatus) &&
+        [productionStatus, assemblyStatus, siteInstallationStatus].some(value => value !== workPending && value !== "Эхлээгүй" && value !== "Төлөвлөсөн")) {
+      return res.status(409).json({
+        error: "Ажлын явц эхэлсэн тул захиалгын төлөвийг буцаах боломжгүй. Админ ажлын дарааллыг шалгана уу."
+      });
+    }
+
     // Ижил төлөвийг дахин сонгоход Messenger-т давхар мэдэгдэл/үнийн санал илгээхгүй.
     const currentStatus = String(order.status || "Шинэ").startsWith("Шинэ захиалга")
       ? "Шинэ"
