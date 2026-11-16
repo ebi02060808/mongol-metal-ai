@@ -958,7 +958,8 @@ function renderWorkStatusCell(order, workType) {
   if (!config.ready) return "<span title='" + config.wait + "' style='color:#94a3b8;font-size:12px;'>" + escapeHTML(value) + " · 🔒 " + config.wait + "</span>";
   const allowed = currentUserRole === "admin" || (order.assigned_to === currentUserId && config.allowed);
   if (!allowed) return "<span>" + escapeHTML(value) + "</span>";
-  return "<select data-previous-status=\"" + escapeHTML(value) + "\" style=\"width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:7px;\" onchange=\"updateWorkProgress(" + JSON.stringify(order.id) + ',\'' + workType + '\',this.value,this)\">" + config.options.map(v => "<option value=\"" + escapeHTML(v) + "\" " + (v === value ? "selected" : "") + ">" + escapeHTML(v) + "</option>").join("") + "</select>";
+  const options = config.options.map(v => "<option value=\"" + escapeHTML(v) + "\" " + (v === value ? "selected" : "") + ">" + escapeHTML(v) + "</option>").join("");
+  return `<select data-previous-status="${escapeHTML(value)}" style="width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:7px;" onchange="updateWorkProgress(${JSON.stringify(order.id)},'${workType}',this.value,this)">${options}</select>`;
 }
 function renderOrderAssignee(order, employees) {
   if (currentUserRole !== "admin") return "<span>" + (order.assigned_to === currentUserId ? "Танд оноосон" : (order.assigned_to ? "Оноолттой" : "Оноогоогүй")) + "</span>";
