@@ -283,6 +283,7 @@ export default async function handler(req, res) {
       }
     }
 
+    const statusChangeStartedAt = new Date().toISOString();
     const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
       .update(newStatus === "Дууссан"
@@ -305,6 +306,33 @@ export default async function handler(req, res) {
       }
       if (updateError) return res.status(500).json({ error: updateError.message });
       return res.status(404).json({ error: "Захиалга олдсонгүй." });
+    }
+
+    // Service-key update нь trigger дотор auth.uid()-г хоосон болгодог тул
+    // яг энэ хүсэлтээр үүссэн түүхийн мөрөнд баталгаажсан нэвтэрсэн хэрэглэгчийг холбоно.
+    const { data: statusHistoryRows, error: statusHistoryLookupError } = await supabase
+      .from("order_history")
+      .select("id")
+      .eq("order_id", orderId)
+      .eq("user_id", ownerUserId)
+      .eq("event_type", "updated")
+      .is("actor_user_id", null)
+      .eq("old_values->>status", currentStatus)
+      .eq("new_values->>status", newStatus)
+      .gte("created_at", statusChangeStartedAt)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (statusHistoryLookupError) {
+      console.error("Order history actor lookup error:", statusHistoryLookupError);
+    } else if (statusHistoryRows?.[0]?.id) {
+      const { error: actorUpdateError } = await supabase
+        .from("order_history")
+        .update({ actor_user_id: user.id })
+        .eq("id", statusHistoryRows[0].id)
+        .eq("user_id", ownerUserId)
+        .is("actor_user_id", null);
+      if (actorUpdateError) console.error("Order history actor update error:", actorUpdateError);
     }
 
     if (newStatus !== "Үнийн санал" && updatedOrder.messenger_sender_id && pageToken) {
