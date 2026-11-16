@@ -951,8 +951,8 @@ async function addOrder() {
 function renderWorkStatusCell(order, workType) {
   const config = {
     production: { column: "production_status", allowed: currentUserCanUpdateProduction, options: ["Хүлээгдэж байна", "Эхлээгүй", "Явагдаж байна", "Дууссан"], ready: order.status === "Баталгаажсан", wait: "Захиалга Баталгаажсан болсны дараа" },
-    assembly: { column: "installation_status", allowed: currentUserCanUpdateAssembly, options: ["Хүлээгдэж байна", "Төлөвлөсөн", "Явагдаж байна", "Дууссан"], ready: order.production_status === "Дууссан", wait: "Үйлдвэрлэл Дууссаны дараа" },
-    installation: { column: "site_installation_status", allowed: currentUserCanUpdateInstallation, options: ["Хүлээгдэж байна", "Төлөвлөсөн", "Явагдаж байна", "Дууссан"], ready: order.installation_status === "Дууссан", wait: "Угсралт Дууссаны дараа" }
+    assembly: { column: "installation_status", allowed: currentUserCanUpdateAssembly, options: ["Хүлээгдэж байна", "Төлөвлөсөн", "Явагдаж байна", "Дууссан"], ready: order.status === "Баталгаажсан" && order.production_status === "Дууссан", wait: "Захиалга баталгаажиж, үйлдвэрлэл дууссаны дараа" },
+    installation: { column: "site_installation_status", allowed: currentUserCanUpdateInstallation, options: ["Хүлээгдэж байна", "Төлөвлөсөн", "Явагдаж байна", "Дууссан"], ready: order.status === "Баталгаажсан" && order.installation_status === "Дууссан", wait: "Захиалга баталгаажиж, угсралт дууссаны дараа" }
   }[workType];
   const value = order[config.column] || "Хүлээгдэж байна";
   if (!config.ready) return "<span title='" + config.wait + "' style='color:#94a3b8;font-size:12px;'>" + escapeHTML(value) + " · 🔒 " + config.wait + "</span>";
