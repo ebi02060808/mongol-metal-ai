@@ -2424,32 +2424,9 @@ async function updateOrderStatus(orderId, newStatus) {
     };
   }
 
-  let completionExpense = null;
   let remainingIncome = null;
   let unpaidBalance = null;
   if (newStatus === "Дууссан") {
-    const expenseText = prompt("Энэ захиалгад гарсан НИЙТ ЗАРЛАГЫН дүнг оруулна уу (₮):", "0");
-    if (expenseText === null) { await loadOrders(); return; }
-    const expenseAmount = Number(String(expenseText).replace(/,/g, "").trim());
-    if (!Number.isFinite(expenseAmount) || expenseAmount < 0 || expenseAmount > 100000000000) {
-      alert("Нийт зарлагын дүнг 0 эсвэл түүнээс их тоогоор оруулна уу.");
-      await loadOrders();
-      return;
-    }
-    if (expenseAmount > 0) {
-      const category = prompt("Зарлагын ангилал (жишээ: Материал, тээвэр, цалин):", "Захиалгын нийт зардал");
-      if (category === null) { await loadOrders(); return; }
-      if (!category.trim()) {
-        alert("Зарлагын ангиллыг оруулна уу.");
-        await loadOrders();
-        return;
-      }
-      const description = prompt("Юунд зарцуулсан бэ? (жишээ: профиль төмөр, будаг, гагнуурын ажлын хөлс)", "");
-      if (description === null) { await loadOrders(); return; }
-      completionExpense = { amount: expenseAmount, category: category.trim(), description: description.trim(), entryDate: localDateString() };
-    } else {
-      completionExpense = { amount: 0 };
-    }
     const remainingText = prompt("Захиалгын үлдэгдэл төлбөрөөс ОДОО бодитоор хүлээн авсан мөнгийг оруулна уу (₮). Бүрэн төлөгдсөн бол 0 гэж бичнэ үү:", "0");
     if (remainingText === null) { await loadOrders(); return; }
     const remainingAmount = Number(String(remainingText).replace(/,/g, "").trim());
