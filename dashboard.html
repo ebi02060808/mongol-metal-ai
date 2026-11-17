@@ -2467,7 +2467,7 @@ async function updateOrderStatus(orderId, newStatus) {
     const response = await fetch("/api/update-order-status", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session.access_token },
-      body: JSON.stringify({ orderId, newStatus, quotePdfBase64, confirmationIncome, completionExpense, remainingIncome, unpaidBalance })
+      body: JSON.stringify({ orderId, newStatus, quotePdfBase64, confirmationIncome, remainingIncome, unpaidBalance })
     });
     const result = await response.json();
     if (!response.ok || !result.success) {
