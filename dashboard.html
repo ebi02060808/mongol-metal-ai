@@ -151,7 +151,7 @@
       .welcome h1 { font-size:23px; }
       .section { padding:15px; }
     }    @media (max-width:380px) { .cards { grid-template-columns:1fr; } }
-   .app-dialog-overlay{position:fixed;inset:0;z-index:100500;background:rgba(15,23,42,.65);display:flex;align-items:center;justify-content:center;padding:16px}.app-dialog{width:100%;max-width:440px;background:white;border-radius:16px;padding:22px;box-shadow:0 20px 60px #0004}.app-dialog p{white-space:pre-line;color:#475569;margin:12px 0 18px}.app-dialog-button{padding:12px 18px;border:0;border-radius:9px;background:#2563eb;color:white;font-weight:700;width:100%}</style>
+   .app-dialog-overlay{position:fixed;inset:0;z-index:100500;background:rgba(15,23,42,.65);display:flex;align-items:center;justify-content:center;padding:16px}.app-dialog{width:100%;max-width:440px;background:white;border-radius:16px;padding:22px;box-shadow:0 20px 60px #0004}.app-dialog p{white-space:pre-line;color:#475569;margin:12px 0 18px}.app-dialog-button{padding:12px 18px;border:0;border-radius:9px;background:#2563eb;color:white;font-weight:700;width:100%}.app-dialog-actions{display:flex;gap:9px;margin-top:16px}.app-dialog-actions button{flex:1;padding:12px;border:0;border-radius:9px;font-weight:700;background:#2563eb;color:white}.app-dialog-actions .app-dialog-secondary{background:#e2e8f0;color:#334155}.app-dialog-input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font-size:17px}</style>
 </head>
 
 <body>
@@ -394,7 +394,10 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-  <script>function showAppNotice(message,title='Мэдэгдэл'){const overlay=document.createElement('div');overlay.className='app-dialog-overlay';const box=document.createElement('div');box.className='app-dialog';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=String(message||'');const b=document.createElement('button');b.type='button';b.className='app-dialog-button';b.textContent='Ойлголоо';b.onclick=()=>overlay.remove();box.append(h,p,b);overlay.append(box);overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};document.body.append(overlay);}
+  <script>function showAppConfirm(message,title='Баталгаажуулах'){return new Promise(resolve=>{const o=document.createElement('div');o.className='app-dialog-overlay';const m=document.createElement('div');m.className='app-dialog';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=message;const row=document.createElement('div');row.className='app-dialog-actions';const no=document.createElement('button');no.className='app-dialog-secondary';no.textContent='Болих';const yes=document.createElement('button');yes.className='app-dialog-primary';yes.textContent='Тийм, үргэлжлүүлэх';no.onclick=()=>{o.remove();resolve(false)};yes.onclick=()=>{o.remove();resolve(true)};row.append(no,yes);m.append(h,p,row);o.append(m);o.onclick=e=>{if(e.target===o){o.remove();resolve(false)}};document.body.append(o)})}
+function showAppInput(message,value='',title='Мэдээлэл оруулах'){return new Promise(resolve=>{const o=document.createElement('div');o.className='app-dialog-overlay';const m=document.createElement('div');m.className='app-dialog';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=message;const input=document.createElement('input');input.className='app-dialog-input';input.type='number';input.inputMode='decimal';input.value=value;const row=document.createElement('div');row.className='app-dialog-actions';const no=document.createElement('button');no.className='app-dialog-secondary';no.textContent='Болих';const yes=document.createElement('button');yes.className='app-dialog-primary';yes.textContent='Хадгалах';no.onclick=()=>{o.remove();resolve(null)};yes.onclick=()=>{o.remove();resolve(input.value)};row.append(no,yes);m.append(h,p,input,row);o.append(m);o.onclick=e=>{if(e.target===o){o.remove();resolve(null)}};document.body.append(o);input.focus()})}
+function showAppChoice(message,options,title='Сонголт хийх'){return new Promise(resolve=>{const o=document.createElement('div');o.className='app-dialog-overlay';const m=document.createElement('div');m.className='app-dialog';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=message;const row=document.createElement('div');row.className='app-dialog-actions';options.forEach(x=>{const b=document.createElement('button');b.className='app-dialog-primary';b.textContent=x.label;b.onclick=()=>{o.remove();resolve(x.value)};row.append(b)});m.append(h,p,row);o.append(m);o.onclick=e=>{if(e.target===o){o.remove();resolve(null)}};document.body.append(o)})}
+function showAppNotice(message,title='Мэдэгдэл'){const overlay=document.createElement('div');overlay.className='app-dialog-overlay';const box=document.createElement('div');box.className='app-dialog';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=String(message||'');const b=document.createElement('button');b.type='button';b.className='app-dialog-button';b.textContent='Ойлголоо';b.onclick=()=>overlay.remove();box.append(h,p,b);overlay.append(box);overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};document.body.append(overlay);}
 
     const SUPABASE_URL = "https://sqywsxbaknjznvohnsim.supabase.co";
 
@@ -1200,7 +1203,7 @@ window.editUnpaidBalance = async function(orderId, currentAmount) {
 
 window.markUnpaidBalancePaid = async function(orderId, currentAmount) {
   if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
-  if (!confirm("Харилцагч " + Number(currentAmount || 0).toLocaleString("mn-MN") + " ₮-ийн үлдэгдлээ бүрэн төлсөн гэж тэмдэглэж, орлогод бүртгэх үү?")) return;
+  if (!(await showAppConfirm("Харилцагч " + Number(currentAmount || 0).toLocaleString("mn-MN") + " ₮-ийн үлдэгдлээ бүрэн төлсөн гэж тэмдэглэж, орлогод бүртгэх үү?"))) return;
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) throw new Error("Та эхлээд нэвтэрнэ үү.");
@@ -1708,7 +1711,7 @@ window.addStaff = async function() {
 
 window.removeStaff = async function(userId) {
   if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
-  if (!confirm("Энэ ажилтны системд нэвтрэх эрхийг цуцлах уу?")) return;
+  if (!(await showAppConfirm("Энэ ажилтны системд нэвтрэх эрхийг цуцлах уу?","Ажилтны эрх цуцлах"))) return;
   try {
     const result = await staffApi("remove", {userId});
     document.getElementById("staffMessage").textContent = "✅ " + result.message;
@@ -2072,7 +2075,7 @@ window.saveFinanceEntry = async function() {
 
 window.deleteFinanceEntry = async function(id) {
   if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
-  if (!confirm("Энэ санхүүгийн бүртгэлийг устгах уу?")) return;
+  if (!(await showAppConfirm("Энэ санхүүгийн бүртгэлийг устгах уу?","Санхүүгийн бүртгэл устгах"))) return;
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return showAppNotice("Та эхлээд нэвтэрнэ үү.");
   const { error } = await supabaseClient.from("finance_entries").delete().eq("id",id).eq("user_id",session.user.id);
@@ -2707,7 +2710,7 @@ window.editOrder = async function(orderId) {
 
 window.deleteOrder = async function(orderId) {
   if (currentUserRole !== "admin") return showAppNotice("Захиалга устгах админы эрх шаардлагатай.");
-  if (!confirm("Энэ захиалгыг бүрмөсөн устгах уу?")) {
+  if (!(await showAppConfirm("Энэ захиалгыг бүрмөсөн устгах уу? Энэ үйлдлийг буцаах боломжгүй.","Захиалга устгах"))) {
     return;
   }
 
