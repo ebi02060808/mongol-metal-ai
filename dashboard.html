@@ -151,7 +151,7 @@
       .welcome h1 { font-size:23px; }
       .section { padding:15px; }
     }    @media (max-width:380px) { .cards { grid-template-columns:1fr; } }
-  </style>
+   .app-dialog-overlay{position:fixed;inset:0;z-index:100500;background:rgba(15,23,42,.65);display:flex;align-items:center;justify-content:center;padding:16px}.app-dialog{width:100%;max-width:440px;background:white;border-radius:16px;padding:22px;box-shadow:0 20px 60px #0004}.app-dialog p{white-space:pre-line;color:#475569;margin:12px 0 18px}.app-dialog-button{padding:12px 18px;border:0;border-radius:9px;background:#2563eb;color:white;font-weight:700;width:100%}</style>
 </head>
 
 <body>
@@ -394,7 +394,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-  <script>
+  <script>function showAppNotice(message,title='Мэдэгдэл'){const overlay=document.createElement('div');overlay.className='app-dialog-overlay';const box=document.createElement('div');box.className='app-dialog';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=String(message||'');const b=document.createElement('button');b.type='button';b.className='app-dialog-button';b.textContent='Ойлголоо';b.onclick=()=>overlay.remove();box.append(h,p,b);overlay.append(box);overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};document.body.append(overlay);}
 
     const SUPABASE_URL = "https://sqywsxbaknjznvohnsim.supabase.co";
 
@@ -472,7 +472,7 @@ function addOrderItemRow(containerId, initial = {}) {
   });
   row.querySelector(".remove-item-row").addEventListener("click", () => {
     if (container.querySelectorAll(".multi-order-item").length <= 1) {
-      alert("Дор хаяж нэг бүтээгдэхүүн үлдээнэ үү.");
+      showAppNotice("Дор хаяж нэг бүтээгдэхүүн үлдээнэ үү.");
       return;
     }    row.remove();
     updateAllItemPreviews(containerId);
@@ -610,12 +610,12 @@ function calculateQuote() {
     document.getElementById("pdfQuestion").style.display = "block";
     document.getElementById("quoteMessage").textContent = "Үнийн санал амжилттай тооцоологдлоо.";
   } catch (error) {
-    alert(error.message);
+    showAppNotice(error.message);
   }
 }
 
 async function downloadQuotePDF() {
-  if (!currentQuote) return alert("Эхлээд үнийн санал тооцоолно уу.");
+  if (!currentQuote) return showAppNotice("Эхлээд үнийн санал тооцоолно уу.");
   try {
     const items = currentQuote.items.map(item => ({
       product: item.product,
@@ -645,13 +645,13 @@ async function downloadQuotePDF() {
     document.getElementById("quoteMessage").textContent = "PDF файл татагдлаа. Үнийн санал Dashboard-д хэвээр байна.";
   } catch (error) {
     console.error("PDF үүсгэх алдаа:", error);
-    alert("PDF үүсгэхэд алдаа гарлаа: " + error.message);
+    showAppNotice("PDF үүсгэхэд алдаа гарлаа: " + error.message);
   }
 }
 
 async function sendQuotePDFMessenger() {
-  if (!currentUserCanCreateOrders) return alert("Захиалга үүсгэх эрх шаардлагатай.");
-  if (!currentQuote) return alert("Эхлээд үнийн санал тооцоолно уу.");
+  if (!currentUserCanCreateOrders) return showAppNotice("Захиалга үүсгэх эрх шаардлагатай.");
+  if (!currentQuote) return showAppNotice("Эхлээд үнийн санал тооцоолно уу.");
   const button = document.getElementById("sendQuoteMessengerButton");
   if (button) { button.disabled = true; button.textContent = "Илгээж байна..."; }
   try {
@@ -726,15 +726,15 @@ async function sendQuotePDFMessenger() {
   } catch (error) {
     console.error("Messenger PDF илгээх алдаа:", error);
     document.getElementById("quoteMessage").textContent = "Алдаа: " + error.message;
-    alert("Messenger-ээр PDF илгээхэд алдаа гарлаа: " + error.message);
+    showAppNotice("Messenger-ээр PDF илгээхэд алдаа гарлаа: " + error.message);
   } finally {
     if (button) { button.disabled = false; button.textContent = "Messenger-ээр илгээх"; }
   }
 }
 
 async function convertQuoteToOrder() {
-  if (!currentUserCanCreateOrders) return alert("Захиалга үүсгэх эрх шаардлагатай.");
-  if (!currentQuote) return alert("Эхлээд үнийн санал тооцоолно уу.");
+  if (!currentUserCanCreateOrders) return showAppNotice("Захиалга үүсгэх эрх шаардлагатай.");
+  if (!currentQuote) return showAppNotice("Эхлээд үнийн санал тооцоолно уу.");
   const button = document.getElementById("convertQuoteButton");
   if (button) { button.disabled = true; button.textContent = "Хадгалж байна..."; }
   try {
@@ -791,7 +791,7 @@ async function convertQuoteToOrder() {
     await Promise.all([loadOrders(), loadCustomers(), loadDashboardStats()]);
   } catch (error) {
     console.error("Үнийн саналыг захиалга болгох алдаа:", error);
-    alert("Захиалга үүсгэхэд алдаа гарлаа: " + error.message);
+    showAppNotice("Захиалга үүсгэхэд алдаа гарлаа: " + error.message);
   } finally {
     if (button) { button.disabled = false; button.textContent = "Үнийн саналыг захиалга болгох"; }
   }
@@ -836,7 +836,7 @@ function updateOrderTotalPreview() {
 
 
 async function addOrder() {
-  if (!currentUserCanCreateOrders) return alert("Захиалга үүсгэх эрх шаардлагатай.");
+  if (!currentUserCanCreateOrders) return showAppNotice("Захиалга үүсгэх эрх шаардлагатай.");
   const button = document.getElementById("saveOrderButton");
   const message = document.getElementById("orderMessage");
   if (button) { button.disabled = true; button.textContent = "Хадгалж байна..."; }
@@ -978,14 +978,14 @@ window.updateWorkProgress = async function(orderId, workType, status, control) {
     const result = await response.json(); if (!response.ok || !result.success) throw new Error(result.error || "Төлөв шинэчилж чадсангүй.");
     if (control) control.dataset.previousStatus = status;
     const message = document.getElementById("ordersMessage"); if (message) message.textContent = "✅ " + result.message;
-  } catch (error) { if (control) control.value = previous; alert("Ажлын төлөв хадгалахад алдаа гарлаа: " + error.message); }
+  } catch (error) { if (control) control.value = previous; showAppNotice("Ажлын төлөв хадгалахад алдаа гарлаа: " + error.message); }
   finally { if (control) control.disabled = false; }
 };
 window.assignOrderToEmployee = async function(orderId, assignedTo, control) {
-  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
   if (control) control.disabled = true;
   try { const result = await staffApi("assign-order", { orderId, assignedTo: assignedTo || null }); const message = document.getElementById("ordersMessage"); if (message) message.textContent = "✅ " + result.message; }
-  catch (error) { alert("Ажилтан онооход алдаа гарлаа: " + error.message); await loadOrders(); }
+  catch (error) { showAppNotice("Ажилтан онооход алдаа гарлаа: " + error.message); await loadOrders(); }
   finally { if (control) control.disabled = false; }
 };
 async function loadOrders() {
@@ -1172,12 +1172,12 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
 
 
 window.editUnpaidBalance = async function(orderId, currentAmount) {
-  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
   const value = prompt("Энэ захиалгын ОДОО ТӨЛӨГДӨӨГҮЙ үлдэгдлийг оруулна уу (₮). Бүрэн төлөгдсөн бол 0 гэж бичнэ үү:", String(currentAmount || 0));
   if (value === null) return;
   const amount = Number(String(value).replace(/,/g, "").trim());
   if (!Number.isFinite(amount) || amount < 0 || amount > 100000000000) {
-    alert("Үлдэгдлийн дүнг 0 эсвэл түүнээс их тоогоор зөв оруулна уу.");
+    showAppNotice("Үлдэгдлийн дүнг 0 эсвэл түүнээс их тоогоор зөв оруулна уу.");
     return;
   }
   try {
@@ -1190,16 +1190,16 @@ window.editUnpaidBalance = async function(orderId, currentAmount) {
     });
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Үлдэгдэл шинэчилж чадсангүй.");
-    alert(amount > 0 ? "Төлөгдөөгүй үлдэгдэл шинэчлэгдлээ." : "Төлөгдөөгүй үлдэгдэл 0₮ болж шинэчлэгдлээ.");
+    showAppNotice(amount > 0 ? "Төлөгдөөгүй үлдэгдэл шинэчлэгдлээ." : "Төлөгдөөгүй үлдэгдэл 0₮ болж шинэчлэгдлээ.");
     await loadOrders();
     if (currentUserRole === "admin") await loadFinance();
   } catch (error) {
-    alert("Алдаа: " + error.message);
+    showAppNotice("Алдаа: " + error.message);
   }
 };
 
 window.markUnpaidBalancePaid = async function(orderId, currentAmount) {
-  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
   if (!confirm("Харилцагч " + Number(currentAmount || 0).toLocaleString("mn-MN") + " ₮-ийн үлдэгдлээ бүрэн төлсөн гэж тэмдэглэж, орлогод бүртгэх үү?")) return;
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -1216,11 +1216,11 @@ window.markUnpaidBalancePaid = async function(orderId, currentAmount) {
     });
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Үлдэгдэл төлбөр бүртгэж чадсангүй.");
-    alert(result.message + (result.amount ? "\nОрлогод бүртгэсэн дүн: " + Number(result.amount).toLocaleString("mn-MN") + " ₮" : ""));
+    showAppNotice(result.message + (result.amount ? "\nОрлогод бүртгэсэн дүн: " + Number(result.amount).toLocaleString("mn-MN") + " ₮" : ""));
     await loadOrders();
     if (currentUserRole === "admin") await loadFinance();
   } catch (error) {
-    alert("Алдаа: " + error.message);
+    showAppNotice("Алдаа: " + error.message);
   }
 };
 
@@ -1241,13 +1241,13 @@ window.setOrderView = function(view) {
 
 window.viewOrderDetails = async function(orderId) {
   const { data: { session } } = await supabaseClient.auth.getSession();
-  if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
+  if (!session) return showAppNotice("Та эхлээд нэвтэрнэ үү.");
   const [o,h] = await Promise.all([
     supabaseClient.from("orders").select("*").eq("id",orderId).eq("user_id",currentOwnerUserId).single(),
     supabaseClient.from("order_history").select("event_type,old_values,new_values,actor_user_id,created_at").eq("order_id",orderId).eq("user_id",currentOwnerUserId).order("created_at",{ascending:false})
   ]);
-  if(o.error || !o.data) return alert("Захиалгын мэдээлэл олдсонгүй: "+(o.error?.message||""));
-  if(h.error) return alert("Түүх уншихад алдаа гарлаа: "+h.error.message);
+  if(o.error || !o.data) return showAppNotice("Захиалгын мэдээлэл олдсонгүй: "+(o.error?.message||""));
+  if(h.error) return showAppNotice("Түүх уншихад алдаа гарлаа: "+h.error.message);
   const order=o.data, history=h.data||[];
   let actorDirectory = {};
   let actorLookupError = "";
@@ -1334,12 +1334,12 @@ const eventNames={created:"Захиалга үүсгэсэн",updated:"Захи�
 
 window.viewOrderHistory = async function(orderId) {
   const { data: { session } } = await supabaseClient.auth.getSession();
-  if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
+  if (!session) return showAppNotice("Та эхлээд нэвтэрнэ үү.");
   const { data, error } = await supabaseClient.from("order_history")
     .select("event_type, old_values, new_values, actor_user_id, created_at")
     .eq("order_id", orderId).eq("user_id", currentOwnerUserId)
     .order("created_at", { ascending: false });
-  if (error) return alert("Түүх авахад алдаа гарлаа: " + error.message);
+  if (error) return showAppNotice("Түүх авахад алдаа гарлаа: " + error.message);
 
   const labels = { created:"Захиалга үүсгэсэн", updated:"Мэдээлэл өөрчилсөн", deleted:"Захиалга устгасан", baseline:"Өмнөх захиалгын эхний бүртгэл" };
   const fields = { customer_name:"Харилцагч", phone:"Утас", product:"Бүтээгдэхүүн", size:"Хэмжээ", quantity:"Тоо ширхэг", area_per_unit:"Нэгж талбай", unit_price:"1 м² үнэ", price:"Нийт үнэ", unpaid_balance:"Төлөгдөөгүй үлдэгдэл", payment_amount:"Төлсөн дүн", payment_category:"Төлбөрийн төрөл", status:"Төлөв" };
@@ -1435,7 +1435,7 @@ async function loadCompanySettings() {
 }
 
 async function saveCompanySettings() {
-  if (currentUserRole !== "admin") return alert("Зөвхөн админ тохиргоо өөрчилнө.");
+  if (currentUserRole !== "admin") return showAppNotice("Зөвхөн админ тохиргоо өөрчилнө.");
   const message = document.getElementById("companySettingsMessage");
   const read = id => document.getElementById(id)?.value?.trim() || "";
   const numeric = (id, label, optional = false) => {
@@ -1560,7 +1560,7 @@ window.loadStaff = async function() {
 window.setStaffCreatePermission = async function(userId, enabled, checkbox) {
   if (currentUserRole !== "admin") {
     if (checkbox) checkbox.checked = !enabled;
-    return alert("Админы эрх шаардлагатай.");
+    return showAppNotice("Админы эрх шаардлагатай.");
   }
   if (checkbox) checkbox.disabled = true;
   try {
@@ -1570,10 +1570,10 @@ window.setStaffCreatePermission = async function(userId, enabled, checkbox) {
       label.style.borderColor = enabled ? "#86efac" : "#e2e8f0";
       label.style.background = enabled ? "#f0fdf4" : "#f8fafc";
     }
-    alert(result.message);
+    showAppNotice(result.message);
   } catch (error) {
     if (checkbox) checkbox.checked = !enabled;
-    alert("Эрх хадгалахад алдаа гарлаа: " + error.message);
+    showAppNotice("Эрх хадгалахад алдаа гарлаа: " + error.message);
   } finally {
     if (checkbox) checkbox.disabled = false;
   }
@@ -1582,7 +1582,7 @@ window.setStaffCreatePermission = async function(userId, enabled, checkbox) {
 window.setStaffWorkPermission = async function(userId, workType, enabled, checkbox) {
   if (currentUserRole !== "admin") {
     if (checkbox) checkbox.checked = !enabled;
-    return alert("Админы эрх шаардлагатай.");
+    return showAppNotice("Админы эрх шаардлагатай.");
   }
   if (checkbox) checkbox.disabled = true;
   try {
@@ -1596,7 +1596,7 @@ window.setStaffWorkPermission = async function(userId, workType, enabled, checkb
     if (message) message.textContent = "✅ " + result.message;
   } catch (error) {
     if (checkbox) checkbox.checked = !enabled;
-    alert("Ажлын эрх хадгалахад алдаа гарлаа: " + error.message);
+    showAppNotice("Ажлын эрх хадгалахад алдаа гарлаа: " + error.message);
   } finally {
     if (checkbox) checkbox.disabled = false;
   }
@@ -1605,7 +1605,7 @@ window.setStaffWorkPermission = async function(userId, workType, enabled, checkb
 window.setStaffOrderVisibility = async function(userId, enabled, checkbox) {
   if (currentUserRole !== "admin") {
     if (checkbox) checkbox.checked = !enabled;
-    return alert("Админы эрх шаардлагатай.");
+    return showAppNotice("Админы эрх шаардлагатай.");
   }
   if (checkbox) checkbox.disabled = true;
   try {
@@ -1622,14 +1622,14 @@ window.setStaffOrderVisibility = async function(userId, enabled, checkbox) {
     if (message) message.textContent = "✅ " + result.message;
   } catch (error) {
     if (checkbox) checkbox.checked = !enabled;
-    alert("Эрхийг хадгалж чадсангүй: " + error.message);
+    showAppNotice("Эрхийг хадгалж чадсангүй: " + error.message);
   } finally {
     if (checkbox) checkbox.disabled = false;
   }
 };
 
 window.editStaff = async function(userId) {
-  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
   try {
     const result = await staffApi("list");
     const employee = (result.employees || []).find(item => item.user_id === userId);
@@ -1691,7 +1691,7 @@ window.editStaff = async function(userId) {
 };
 
 window.addStaff = async function() {
-  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
   const emailInput = document.getElementById("staffEmail");
   const message = document.getElementById("staffMessage");
   const email = emailInput.value.trim();
@@ -1707,7 +1707,7 @@ window.addStaff = async function() {
 };
 
 window.removeStaff = async function(userId) {
-  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
   if (!confirm("Энэ ажилтны системд нэвтрэх эрхийг цуцлах уу?")) return;
   try {
     const result = await staffApi("remove", {userId});
@@ -1729,14 +1729,14 @@ window.showDashboardPage = function(page) {
   };
   if (!Object.prototype.hasOwnProperty.call(pages, page)) return;
   if ((page === "finance" || page === "settings") && currentUserRole !== "admin") {
-    alert("Энэ хэсэгт админы эрх шаардлагатай.");
+    showAppNotice("Энэ хэсэгт админы эрх шаардлагатай.");
     return;
   }
 
   const target = document.getElementById(pages[page]);
   if (!target) {
     console.error("Dashboard хэсэг олдсонгүй:", pages[page]);
-    alert("Энэ цэсний хэсэг олдсонгүй. Хуудсыг дахин ачаална уу.");
+    showAppNotice("Энэ цэсний хэсэг олдсонгүй. Хуудсыг дахин ачаална уу.");
     return;
   }
 
@@ -1950,7 +1950,7 @@ async function loadFinance() {
 window.viewFinanceEntryDetails = function(id) {
   if (typeof currentFinanceReport === "undefined" || !currentFinanceReport) return;
   const entry = currentFinanceReport.entries.find(item => Number(item.id) === Number(id));
-  if (!entry) return alert("Санхүүгийн бүртгэл олдсонгүй.");
+  if (!entry) return showAppNotice("Санхүүгийн бүртгэл олдсонгүй.");
   const order = entry.order_id
     ? currentFinanceOrders.find(item => Number(item.id) === Number(entry.order_id))
     : null;
@@ -1984,7 +1984,7 @@ window.viewFinanceEntryDetails = function(id) {
 };
 
 window.addFinanceCostForOrder = function(orderId) {
-  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
   const type = document.getElementById("financeType");
   const order = document.getElementById("financeOrderId");
   const date = document.getElementById("financeDate");
@@ -2000,16 +2000,16 @@ window.addFinanceCostForOrder = function(orderId) {
 };
 
 window.markFinanceEntryPaid = async function(id) {
-  if(currentUserRole!=="admin") return alert("Админы эрх шаардлагатай.");
+  if(currentUserRole!=="admin") return showAppNotice("Админы эрх шаардлагатай.");
   const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session) return alert("Дахин нэвтэрнэ үү.");
+  if(!session) return showAppNotice("Дахин нэвтэрнэ үү.");
   const {error}=await supabaseClient.from("finance_entries").update({payment_status:"paid"}).eq("id",id).eq("user_id",session.user.id).eq("entry_type","expense");
-  if(error) return alert("Төлөв өөрчилж чадсангүй: "+error.message);
+  if(error) return showAppNotice("Төлөв өөрчилж чадсангүй: "+error.message);
   await loadFinance();
 };
 
 window.exportFinanceCSV = function() {
-  if(!currentFinanceReport) return alert("Эхлээд тайлан ачаална уу.");
+  if(!currentFinanceReport) return showAppNotice("Эхлээд тайлан ачаална уу.");
   const rows=[["Огноо","Төрөл","Ангилал","Дүн ₮","Харилцагч/нийлүүлэгч","Төлбөрийн хэлбэр","Төлөв","Төлөх хугацаа","Захиалгын дугаар","Тайлбар"],...currentFinanceReport.entries.map(e=>[e.entry_date,e.entry_type==="income"?"Орлого":"Зарлага",e.category,e.amount,e.counterparty||"",e.payment_method||"",e.payment_status==="unpaid"?"Төлөгдөөгүй":"Төлөгдсөн",e.due_date||"",e.order_id||"",e.description||""])];
   const csv="\uFEFF"+rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
@@ -2017,7 +2017,7 @@ window.exportFinanceCSV = function() {
 };
 
 window.exportFinancePDF = async function() {
-  if(!currentFinanceReport) return alert("Эхлээд тайлан ачаална уу.");
+  if(!currentFinanceReport) return showAppNotice("Эхлээд тайлан ачаална уу.");
   try {
     await ensureJsPdfLibrary();
     const font=await loadQuotePdfFont();
@@ -2037,13 +2037,13 @@ window.exportFinancePDF = async function() {
       x=14;vals.forEach((v,i)=>{doc.text(doc.splitTextToSize(String(v),widths[i]-2).slice(0,2),x,y);x+=widths[i];});y+=7;
     }
     doc.save("Mongol-Metal-Sanhuu-"+localDateString()+".pdf");
-  } catch(error){alert("PDF тайлан үүсгэхэд алдаа гарлаа: "+error.message);}
+  } catch(error){showAppNotice("PDF тайлан үүсгэхэд алдаа гарлаа: "+error.message);}
 }
 
 window.saveFinanceEntry = async function() {
-  if(currentUserRole!=="admin") return alert("Санхүүгийн бүртгэл хийх админы эрх шаардлагатай.");
+  if(currentUserRole!=="admin") return showAppNotice("Санхүүгийн бүртгэл хийх админы эрх шаардлагатай.");
   const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session) return alert("Та эхлээд нэвтэрнэ үү.");
+  if(!session) return showAppNotice("Та эхлээд нэвтэрнэ үү.");
   const type=document.getElementById("financeType").value;
   const amount=Number(document.getElementById("financeAmount").value);
   const category=document.getElementById("financeCategory").value.trim();
@@ -2071,12 +2071,12 @@ window.saveFinanceEntry = async function() {
 };
 
 window.deleteFinanceEntry = async function(id) {
-  if (currentUserRole !== "admin") return alert("Админы эрх шаардлагатай.");
+  if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
   if (!confirm("Энэ санхүүгийн бүртгэлийг устгах уу?")) return;
   const { data: { session } } = await supabaseClient.auth.getSession();
-  if (!session) return alert("Та эхлээд нэвтэрнэ үү.");
+  if (!session) return showAppNotice("Та эхлээд нэвтэрнэ үү.");
   const { error } = await supabaseClient.from("finance_entries").delete().eq("id",id).eq("user_id",session.user.id);
-  if (error) return alert("Устгахад алдаа гарлаа: " + error.message);
+  if (error) return showAppNotice("Устгахад алдаа гарлаа: " + error.message);
   await loadFinance();
 };
 
@@ -2086,7 +2086,7 @@ async function viewOrderPhotos(orderId) {
     await supabaseClient.auth.getSession();
 
   if (!session) {
-    alert("Та эхлээд нэвтэрнэ үү.");
+    showAppNotice("Та эхлээд нэвтэрнэ үү.");
     return;
   }
 
@@ -2425,9 +2425,9 @@ async function createOrderQuotePdf(order) {
 }
 
 async function updateOrderStatus(orderId, newStatus) {
-  if (currentUserRole !== "admin") { alert("Захиалгын төлөв өөрчлөх эрх зөвхөн админд байна."); await loadOrders(); return; }
+  if (currentUserRole !== "admin") { showAppNotice("Захиалгын төлөв өөрчлөх эрх зөвхөн админд байна."); await loadOrders(); return; }
   if (currentUserRole !== "admin" && ["Баталгаажсан", "Дууссан"].includes(newStatus)) {
-    alert("Энэ төлөвийг зөвхөн админ өөрчлөх боломжтой.");
+    showAppNotice("Энэ төлөвийг зөвхөн админ өөрчлөх боломжтой.");
     await loadOrders();
     return;
   }
@@ -2437,7 +2437,7 @@ async function updateOrderStatus(orderId, newStatus) {
     if (paymentType === null) { await loadOrders(); return; }
     const normalizedPaymentType = paymentType.trim() === "2" ? "full" : paymentType.trim() === "1" ? "deposit" : "";
     if (!normalizedPaymentType) {
-      alert("1 (Урьдчилгаа) эсвэл 2 (Бүтэн төлбөр) гэж сонгоно уу.");
+      showAppNotice("1 (Урьдчилгаа) эсвэл 2 (Бүтэн төлбөр) гэж сонгоно уу.");
       await loadOrders();
       return;
     }
@@ -2448,7 +2448,7 @@ async function updateOrderStatus(orderId, newStatus) {
     if (amountText === null) { await loadOrders(); return; }
     const amount = Number(String(amountText).replace(/,/g, "").trim());
     if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000) {
-      alert("Бодитоор хүлээн авсан орлогын дүнг 0-ээс их тоогоор оруулна уу.");
+      showAppNotice("Бодитоор хүлээн авсан орлогын дүнг 0-ээс их тоогоор оруулна уу.");
       await loadOrders();
       return;
     }
@@ -2466,7 +2466,7 @@ async function updateOrderStatus(orderId, newStatus) {
     const { data: completionOrder, error: completionOrderError } = await supabaseClient
       .from("orders").select("price").eq("id", orderId).eq("user_id", currentOwnerUserId).single();
     if (completionOrderError || !completionOrder || !Number.isFinite(Number(completionOrder.price)) || Number(completionOrder.price) < 0) {
-      alert("Захиалгын нийт үнийг уншиж чадсангүй. Үлдэгдлийг зөв тооцох боломжгүй байна.");
+      showAppNotice("Захиалгын нийт үнийг уншиж чадсангүй. Үлдэгдлийг зөв тооцох боломжгүй байна.");
       await loadOrders();
       return;
     }
@@ -2474,7 +2474,7 @@ async function updateOrderStatus(orderId, newStatus) {
     const { data: priorIncomeEntries, error: priorIncomeError } = await supabaseClient
       .from("finance_entries").select("amount").eq("order_id", orderId).eq("user_id", currentOwnerUserId).eq("entry_type", "income");
     if (priorIncomeError) {
-      alert("Өмнө бүртгэсэн орлогыг уншиж чадсангүй: " + priorIncomeError.message);
+      showAppNotice("Өмнө бүртгэсэн орлогыг уншиж чадсангүй: " + priorIncomeError.message);
       await loadOrders();
       return;
     }
@@ -2483,7 +2483,7 @@ async function updateOrderStatus(orderId, newStatus) {
     const totalPrice = Number(completionOrder.price);
     const outstandingBeforeCompletion = Math.max(0, totalPrice - totalReceived);
     if (totalReceived > totalPrice) {
-      alert("Бүртгэсэн орлогын нийлбэр захиалгын нийт үнээс их байна. Санхүүгийн бүртгэлээ шалгана уу.");
+      showAppNotice("Бүртгэсэн орлогын нийлбэр захиалгын нийт үнээс их байна. Санхүүгийн бүртгэлээ шалгана уу.");
       await loadOrders();
       return;
     }
@@ -2534,7 +2534,7 @@ async function updateOrderStatus(orderId, newStatus) {
       modal.querySelector("[data-save]").addEventListener("click", () => {
         const amount = Number(amountInput.value);
         if (!Number.isFinite(amount) || amount < 0 || amount > outstandingBeforeCompletion) {
-          alert("Нэмж авсан төлбөрийг 0-ээс " + money(outstandingBeforeCompletion) + " хүртэл оруулна уу.");
+          showAppNotice("Нэмж авсан төлбөрийг 0-ээс " + money(outstandingBeforeCompletion) + " хүртэл оруулна уу.");
           return;
         }
         close({ fullyPaid:false, amount });
@@ -2553,7 +2553,7 @@ async function updateOrderStatus(orderId, newStatus) {
   try {
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
     if (sessionError || !session) {
-      alert("Та эхлээд нэвтэрнэ үү.");
+      showAppNotice("Та эхлээд нэвтэрнэ үү.");
       return;
     }
     let quotePdfBase64 = null;
@@ -2570,23 +2570,23 @@ async function updateOrderStatus(orderId, newStatus) {
     });
     const result = await response.json();
     if (!response.ok || !result.success) {
-      alert("Алдаа: " + (result.error || "Төлөв шинэчилж чадсангүй."));
+      showAppNotice("Алдаа: " + (result.error || "Төлөв шинэчилж чадсангүй."));
       await loadOrders();
       return;
-    }    alert(result.message);
+    }    showAppNotice(result.message);
     await loadOrders();
     if (["Баталгаажсан", "Дууссан"].includes(newStatus) && currentUserRole === "admin") await loadFinance();
   } catch (err) {
-    alert("Алдаа: " + err.message);
+    showAppNotice("Алдаа: " + err.message);
     await loadOrders();
   }
 }
 
 window.editOrder = async function(orderId) {
-  if (currentUserRole !== "admin") return alert("Захиалга засах эрх зөвхөн админд байна.");
+  if (currentUserRole !== "admin") return showAppNotice("Захиалга засах эрх зөвхөн админд байна.");
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
-    alert("Та эхлээд нэвтэрнэ үү.");
+    showAppNotice("Та эхлээд нэвтэрнэ үү.");
     return;
   }
 
@@ -2598,7 +2598,7 @@ window.editOrder = async function(orderId) {
     .single();
 
   if (fetchError || !order) {
-    alert("Захиалга олдсонгүй.");
+    showAppNotice("Захиалга олдсонгүй.");
     return;
   }
 
@@ -2691,7 +2691,7 @@ window.editOrder = async function(orderId) {
       if (error) throw error;
       document.removeEventListener("keydown", onEscape);
       closeModal();
-      alert("Захиалга амжилттай засагдлаа!");
+      showAppNotice("Захиалга амжилттай засагдлаа!");
       await Promise.all([loadOrders(), loadCustomers(), loadDashboardStats()]);
     } catch (error) {
       message.style.color = "#b91c1c";
@@ -2706,7 +2706,7 @@ window.editOrder = async function(orderId) {
 
 
 window.deleteOrder = async function(orderId) {
-  if (currentUserRole !== "admin") return alert("Захиалга устгах админы эрх шаардлагатай.");
+  if (currentUserRole !== "admin") return showAppNotice("Захиалга устгах админы эрх шаардлагатай.");
   if (!confirm("Энэ захиалгыг бүрмөсөн устгах уу?")) {
     return;
   }
@@ -2715,7 +2715,7 @@ window.deleteOrder = async function(orderId) {
     await supabaseClient.auth.getSession();
 
   if (!session) {
-    alert("Та эхлээд нэвтэрнэ үү.");
+    showAppNotice("Та эхлээд нэвтэрнэ үү.");
     return;
   }
 
@@ -2727,15 +2727,15 @@ window.deleteOrder = async function(orderId) {
     .select("id");
 
   if (error) {
-    alert("Устгахад алдаа гарлаа: " + error.message);    return;
+    showAppNotice("Устгахад алдаа гарлаа: " + error.message);    return;
   }
 
   if (!data || data.length === 0) {
-    alert("Устгагдсангүй. Захиалгын ID таарахгүй эсвэл DELETE эрх байхгүй байна.");
+    showAppNotice("Устгагдсангүй. Захиалгын ID таарахгүй эсвэл DELETE эрх байхгүй байна.");
     return;
   }
 
-  alert("✅ Захиалга амжилттай устгагдлаа!");
+  showAppNotice("✅ Захиалга амжилттай устгагдлаа!");
 
   await loadOrders();
   await loadCustomers();
@@ -2869,7 +2869,7 @@ function showCustomerDetails(index) {
     .maybeSingle();
 
   if (error || !admin || !["admin", "employee"].includes(admin.role)) {
-    alert("Танд системд нэвтрэх эрх байхгүй байна.");
+    showAppNotice("Танд системд нэвтрэх эрх байхгүй байна.");
     window.location.href = "index.html";
     return false;
   }
