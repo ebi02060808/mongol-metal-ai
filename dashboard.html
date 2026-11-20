@@ -2488,10 +2488,16 @@ async function updateOrderStatus(orderId, newStatus) {
       return;
     }
 
-    const fullyPaid = outstandingBeforeCompletion === 0 ||
-      confirm("Захиалгын өмнө бүртгэсэн орлого: " + totalReceived.toLocaleString("mn-MN") +
-        " ₮\nОдоо төлөх үлдэгдэл: " + outstandingBeforeCompletion.toLocaleString("mn-MN") +
-        " ₮\n\nҮлдэгдэл төлбөрийг харилцагч бүрэн төлсөн үү?\n\nOK — Бүрэн төлсөн\nCancel — Төлөгдөөгүй үлдэгдэлтэй");
+    const paymentAnswer = outstandingBeforeCompletion === 0 ? "1" : prompt(
+      "Захиалгын нийт үнэ: " + totalPrice.toLocaleString("mn-MN") + " ₮\n" +
+      "Өмнө бүртгэсэн орлого: " + totalReceived.toLocaleString("mn-MN") + " ₮\n" +
+      "Төлөх үлдэгдэл: " + outstandingBeforeCompletion.toLocaleString("mn-MN") + " ₮\n\n" +
+      "Үлдэгдэл төлбөрийг харилцагч бүрэн төлсөн үү?\n1 — Тийм, бүрэн төлсөн\n2 — Үгүй, үлдэгдэлтэй\n0 — Болих",
+      "1"
+    );
+    if (paymentAnswer === null || !["0", "1", "2"].includes(paymentAnswer.trim())) { await loadOrders(); return; }
+    if (paymentAnswer.trim() === "0") { await loadOrders(); return; }
+    const fullyPaid = paymentAnswer.trim() === "1";
     if (fullyPaid) {
       remainingIncome = {
         amount: outstandingBeforeCompletion,
