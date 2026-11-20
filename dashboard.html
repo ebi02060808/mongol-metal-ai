@@ -1176,7 +1176,7 @@ ${currentUserRole === "admin" ? `                  <button style="padding:6px 8p
 
 window.editUnpaidBalance = async function(orderId, currentAmount) {
   if (currentUserRole !== "admin") return showAppNotice("Админы эрх шаардлагатай.");
-  const value = prompt("Энэ захиалгын ОДОО ТӨЛӨГДӨӨГҮЙ үлдэгдлийг оруулна уу (₮). Бүрэн төлөгдсөн бол 0 гэж бичнэ үү:", String(currentAmount || 0));
+  const value = await showAppInput("Одоогоор төлөгдөөгүй үлдэгдлийн дүнг оруулна уу. Бүрэн төлөгдсөн бол 0 оруулна.", String(currentAmount || 0), "Үлдэгдэл засах");
   if (value === null) return;
   const amount = Number(String(value).replace(/,/g, "").trim());
   if (!Number.isFinite(amount) || amount < 0 || amount > 100000000000) {
@@ -2436,18 +2436,15 @@ async function updateOrderStatus(orderId, newStatus) {
   }
   let confirmationIncome = null;
   if (newStatus === "Баталгаажсан") {
-    const paymentType = prompt("Төлбөрийн төрлийг сонгоно уу:\n1 — Урьдчилгаа\n2 — Бүтэн төлбөр", "1");
+    const paymentType = await showAppChoice("Захиалгын төлбөрийн төрлийг сонгоно уу.",[{label:"Урьдчилгаа төлбөр",value:"deposit"},{label:"Бүтэн төлбөр",value:"full"},{label:"Болих",value:null}],"Төлбөрийн төрөл");
     if (paymentType === null) { await loadOrders(); return; }
-    const normalizedPaymentType = paymentType.trim() === "2" ? "full" : paymentType.trim() === "1" ? "deposit" : "";
+    const normalizedPaymentType = paymentType;
     if (!normalizedPaymentType) {
       showAppNotice("1 (Урьдчилгаа) эсвэл 2 (Бүтэн төлбөр) гэж сонгоно уу.");
       await loadOrders();
       return;
     }
-    const amountText = prompt(
-      (normalizedPaymentType === "deposit" ? "Хүлээн авсан УРЬДЧИЛГАА" : "Хүлээн авсан БҮТЭН ТӨЛБӨР") + " мөнгөн дүнг оруулна уу (₮):",
-      ""
-    );
+    const amountText = await showAppInput((normalizedPaymentType === "deposit" ? "Хүлээн авсан урьдчилгаа" : "Хүлээн авсан бүтэн төлбөр") + " мөнгөн дүнг оруулна уу (₮).", "", "Төлбөр бүртгэх");
     if (amountText === null) { await loadOrders(); return; }
     const amount = Number(String(amountText).replace(/,/g, "").trim());
     if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000) {
