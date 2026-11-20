@@ -2463,27 +2463,62 @@ async function updateOrderStatus(orderId, newStatus) {
   let remainingIncome = null;
   let unpaidBalance = null;
   if (newStatus === "Дууссан") {
-    const remainingText = prompt("Захиалгын үлдэгдэл төлбөрөөс ОДОО бодитоор хүлээн авсан мөнгийг оруулна уу (₮). Бүрэн төлөгдсөн бол 0 гэж бичнэ үү:", "0");
-    if (remainingText === null) { await loadOrders(); return; }
-    const remainingAmount = Number(String(remainingText).replace(/,/g, "").trim());
-    if (!Number.isFinite(remainingAmount) || remainingAmount < 0 || remainingAmount > 100000000000) {
-      alert("Үлдэгдэл орлогын дүнг 0 эсвэл түүнээс их тоогоор оруулна уу.");
+    const { data: completionOrder, error: completionOrderError } = await supabaseClient
+      .from("orders").select("price").eq("id", orderId).eq("user_id", currentOwnerUserId).single();
+    if (completionOrderError || !completionOrder || !Number.isFinite(Number(completionOrder.price)) || Number(completionOrder.price) < 0) {
+      alert("Захиалгын нийт үнийг уншиж чадсангүй. Үлдэгдлийг зөв тооцох боломжгүй байна.");
       await loadOrders();
       return;
     }
-    remainingIncome = {
-      amount: remainingAmount,
-      description: "Захиалгын үлдэгдэл төлбөр",
-      entryDate: localDateString()
-    };
 
-    const unpaidText = prompt("Захиалгын дараа ҮЛДСЭН ТӨЛӨГДӨӨГҮЙ ЗӨРҮҮ / АВЛАГЫН дүнг гараар оруулна уу (₮). Төлбөрийн үлдэгдэлгүй бол 0 гэж бичнэ үү:", "0");
-    if (unpaidText === null) { await loadOrders(); return; }
-    unpaidBalance = Number(String(unpaidText).replace(/,/g, "").trim());
-    if (!Number.isFinite(unpaidBalance) || unpaidBalance < 0 || unpaidBalance > 100000000000) {
-      alert("Төлөгдөөгүй үлдэгдлийн дүнг 0 эсвэл түүнээс их тоогоор оруулна уу.");
+    const { data: priorIncomeEntries, error: priorIncomeError } = await supabaseClient
+      .from("finance_entries").select("amount").eq("order_id", orderId).eq("user_id", currentOwnerUserId).eq("entry_type", "income");
+    if (priorIncomeError) {
+      alert("Өмнө бүртгэсэн орлогыг уншиж чадсангүй: " + priorIncomeError.message);
       await loadOrders();
       return;
+    }
+
+    const totalReceived = (priorIncomeEntries || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    const totalPrice = Number(completionOrder.price);
+    const outstandingBeforeCompletion = Math.max(0, totalPrice - totalReceived);
+    if (totalReceived > totalPrice) {
+      alert("Бүртгэсэн орлогын нийлбэр захиалгын нийт үнээс их байна. Санхүүгийн бүртгэлээ шалгана уу.");
+      await loadOrders();
+      return;
+    }
+
+    const fullyPaid = outstandingBeforeCompletion === 0 ||
+      confirm("Захиалгын өмнө бүртгэсэн орлого: " + totalReceived.toLocaleString("mn-MN") +
+        " ₮\nОдоо төлөх үлдэгдэл: " + outstandingBeforeCompletion.toLocaleString("mn-MN") +
+        " ₮\n\nҮлдэгдэл төлбөрийг харилцагч бүрэн төлсөн үү?\n\nOK — Бүрэн төлсөн\nCancel — Төлөгдөөгүй үлдэгдэлтэй");
+    if (fullyPaid) {
+      remainingIncome = {
+        amount: outstandingBeforeCompletion,
+        description: "Захиалгын үлдэгдэл төлбөр",
+        entryDate: localDateString()
+      };
+      unpaidBalance = 0;
+    } else {
+      const remainingText = prompt(
+        "Одоо бодитоор нэмж авсан төлбөрийг оруулна уу (₮).\nТооцсон үлдэгдэл: " +
+        outstandingBeforeCompletion.toLocaleString("mn-MN") + " ₮",
+        "0"
+      );
+      if (remainingText === null) { await loadOrders(); return; }
+      const remainingAmount = Number(String(remainingText).replace(/,/g, "").trim());
+      if (!Number.isFinite(remainingAmount) || remainingAmount < 0 || remainingAmount > outstandingBeforeCompletion) {
+        alert("Нэмж авсан төлбөрийг 0-ээс " + outstandingBeforeCompletion.toLocaleString("mn-MN") + " ₮ хүртэл оруулна уу.");
+        await loadOrders();
+        return;
+      }
+      remainingIncome = {
+        amount: remainingAmount,
+        description: "Захиалгын үлдэгдэл төлбөр",
+        entryDate: localDateString()
+      };
+      unpaidBalance = outstandingBeforeCompletion - remainingAmount;
+      alert("Төлөгдөөгүй үлдэгдэл: " + unpaidBalance.toLocaleString("mn-MN") + " ₮");
     }
   }
 
