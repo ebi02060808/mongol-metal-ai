@@ -204,6 +204,36 @@ export default async function handler(req, res) {
       }
     }
 
+    // Дуусгах үеийн үлдэгдлийг захиалгын нийт үнэ болон өмнө бүртгэсэн бүх орлогоос сервер дээр дахин тооцно.
+    if (newStatus === "Дууссан") {
+      const totalPrice = Number(order.price);
+      if (!Number.isFinite(totalPrice) || totalPrice < 0) {
+        return res.status(400).json({ error: "Захиалгын нийт үнэ буруу тул үлдэгдэл тооцож чадсангүй." });
+      }
+      const { data: priorIncomeRows, error: priorIncomeRowsError } = await supabase
+        .from("finance_entries")
+        .select("amount")
+        .eq("user_id", ownerUserId)
+        .eq("order_id", orderId)
+        .eq("entry_type", "income");
+      if (priorIncomeRowsError) {
+        return res.status(500).json({ error: "Өмнөх орлогын бүртгэлийг шалгаж чадсангүй: " + priorIncomeRowsError.message });
+      }
+      const totalReceivedBeforeCompletion = (priorIncomeRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+      const expectedOutstanding = Math.max(0, totalPrice - totalReceivedBeforeCompletion);
+      const receivedNow = Number(remainingIncome?.amount ?? 0);
+      const unpaidNow = Number(unpaidBalance);
+      if (totalReceivedBeforeCompletion > totalPrice ||
+          !Number.isFinite(receivedNow) || receivedNow < 0 ||
+          !Number.isFinite(unpaidNow) || unpaidNow < 0 ||
+          Math.abs((receivedNow + unpaidNow) - expectedOutstanding) > 0.01) {
+        return res.status(400).json({
+          error: "Үлдэгдлийн тооцоо зөрүүтэй байна. Захиалгын үнэ болон өмнө бүртгэсэн орлогыг шалгаад дахин оролдоно уу.",
+          expectedOutstanding
+        });
+      }
+    }
+
     // Дууссан үед бодитоор авсан үлдэгдэл төлбөрийг тусдаа орлогоор бүртгэнэ.
     let remainingIncomeEntryId = null;
     let remainingIncomeAlreadyRecorded = false;
