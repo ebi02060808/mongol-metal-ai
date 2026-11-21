@@ -364,6 +364,39 @@
       *, *::before, *::after { transition-duration: .01ms !important; }
     }
 
+
+    /* DASHBOARD_TABLE_POLISH_V1 */
+    .section table {
+      border: 1px solid #e5eaf2;
+      border-radius: 11px;
+      border-spacing: 0;
+      background: #fff;
+      font-size: 13px;
+    }
+    .section table th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      text-align: left;
+      border-bottom: 1px solid #dbe3ee;
+    }
+    .section table th,
+    .section table td {
+      padding: 11px 13px;
+      border-bottom: 1px solid #edf1f6;
+      vertical-align: middle;
+    }
+    .section table tbody tr:last-child td { border-bottom: 0; }
+    .section table tbody tr:hover { background: #f8fbff; }
+    .section table td { color: #334155; }
+    .section table button { border-radius: 8px; }
+    .section table a { color: #1d4ed8; font-weight: 600; }
+    @media (max-width: 600px) {
+      .section table { font-size: 12px; }
+      .section table th,
+      .section table td { padding: 10px 11px; }
+    }
+
 </style>
 </head>
 
