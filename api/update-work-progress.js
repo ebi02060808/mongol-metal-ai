@@ -70,6 +70,9 @@ export default async function handler(req, res) {
     const oldStatus = order[config.column] || "Хүлээгдэж байна";
     const pending = "Хүлээгдэж байна";
     const orderStatus = String(order.status || "Шинэ");
+    if (orderStatus === "Дууссан") {
+      return res.status(409).json({ error: "Дууссан захиалгын ажлын явцыг дахин өөрчлөх боломжгүй." });
+    }
     if (workType === "production" && status !== pending && orderStatus !== "Баталгаажсан") {
       return res.status(409).json({ error: "Захиалга эхлээд Баталгаажсан төлөвтэй болох шаардлагатай." });
     }
