@@ -1088,6 +1088,7 @@ window.updateWorkProgress = async function(orderId, workType, status, control) {
     const result = await response.json(); if (!response.ok || !result.success) throw new Error(result.error || "Төлөв шинэчилж чадсангүй.");
     if (control) control.dataset.previousStatus = status;
     const message = document.getElementById("ordersMessage"); if (message) message.textContent = "✅ " + result.message;
+    await loadOrders();
   } catch (error) { if (control) control.value = previous; showAppNotice(friendlyErrorMessage(error,"Ажлын төлөв хадгалж чадсангүй.")); }
   finally { if (control) control.disabled = false; }
 };
