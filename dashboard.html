@@ -151,7 +151,58 @@
       .welcome h1 { font-size:23px; }
       .section { padding:15px; }
     }    @media (max-width:380px) { .cards { grid-template-columns:1fr; } }
-   .app-dialog-overlay{position:fixed;inset:0;z-index:100500;background:rgba(15,23,42,.65);display:flex;align-items:center;justify-content:center;padding:16px}.app-dialog{width:100%;max-width:440px;background:white;border-radius:16px;padding:22px;box-shadow:0 20px 60px #0004}.app-dialog p{white-space:pre-line;color:#475569;margin:12px 0 18px}.app-dialog-button{padding:12px 18px;border:0;border-radius:9px;background:#2563eb;color:white;font-weight:700;width:100%}.app-dialog-actions{display:flex;gap:9px;margin-top:16px}.app-dialog-actions button{flex:1;padding:12px;border:0;border-radius:9px;font-weight:700;background:#2563eb;color:white}.app-dialog-actions .app-dialog-secondary{background:#e2e8f0;color:#334155}.app-dialog-input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font-size:17px}</style>
+   .app-dialog-overlay{position:fixed;inset:0;z-index:100500;background:rgba(15,23,42,.65);display:flex;align-items:center;justify-content:center;padding:16px}.app-dialog{width:100%;max-width:440px;background:white;border-radius:16px;padding:22px;box-shadow:0 20px 60px #0004}.app-dialog p{white-space:pre-line;color:#475569;margin:12px 0 18px}.app-dialog-button{padding:12px 18px;border:0;border-radius:9px;background:#2563eb;color:white;font-weight:700;width:100%}.app-dialog-actions{display:flex;gap:9px;margin-top:16px}.app-dialog-actions button{flex:1;padding:12px;border:0;border-radius:9px;font-weight:700;background:#2563eb;color:white}.app-dialog-actions .app-dialog-secondary{background:#e2e8f0;color:#334155}.app-dialog-input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font-size:17px}
+    /* RESPONSIVE_LAYOUT_V2 */
+    html { -webkit-text-size-adjust: 100%; }
+    body { min-width: 320px; }
+    img, video, canvas, svg { max-width: 100%; }
+    input, select, textarea { max-width: 100%; }
+    button, input, select, textarea { font: inherit; }
+    button { touch-action: manipulation; }
+    .main, .section, .page-section { min-width: 0; }
+    .section { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    .section table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .section table th, .section table td { white-space: nowrap; }
+    @media (min-width: 1200px) {
+      .main { padding: 32px; }
+      .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    @media (min-width: 601px) and (max-width: 1199px) {
+      .container { align-items: stretch; }
+      .sidebar { width: 190px; }
+      .main { padding: 22px; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+      .section { padding: 20px; }
+    }
+    @media (max-width: 600px) {
+      .header { min-height: 62px; height: auto; padding: 12px 15px; gap: 10px; }
+      .logo { font-size: 18px; }
+      .logout { padding: 9px 13px; min-height: 40px; }
+      .container { display: block; min-height: calc(100vh - 62px); }
+      .sidebar { width: 100%; max-width: 100%; }
+      .main { width: 100%; padding: 14px; }
+      .welcome h1 { font-size: 23px; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .card { min-width: 0; padding: 14px; overflow-wrap: anywhere; }
+      .card .number { font-size: clamp(19px, 5vw, 25px); }
+      .section { width: 100%; max-width: 100%; padding: 14px; border-radius: 10px; }
+      .section input, .section select, .section textarea { width: 100%; min-height: 42px; }
+      .section button { min-height: 40px; }
+      .app-dialog { max-height: calc(100dvh - 32px); overflow-y: auto; }
+    }
+    @media (max-width: 380px) {
+      .header { padding: 10px 12px; }
+      .logo { font-size: 16px; }
+      .main { padding: 10px; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .card { padding: 11px; }
+      .card h3 { font-size: 12px; }
+      .card .number { font-size: 19px; }
+      .section { padding: 11px; }
+    }
+
+</style>
 </head>
 
 <body>
