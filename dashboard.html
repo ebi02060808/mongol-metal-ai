@@ -394,10 +394,96 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-  <script>function showAppConfirm(message,title='Баталгаажуулах'){return new Promise(resolve=>{const o=document.createElement('div');o.className='app-dialog-overlay';const m=document.createElement('div');m.className='app-dialog';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=message;const row=document.createElement('div');row.className='app-dialog-actions';const no=document.createElement('button');no.className='app-dialog-secondary';no.textContent='Болих';const yes=document.createElement('button');yes.className='app-dialog-primary';yes.textContent='Тийм, үргэлжлүүлэх';no.onclick=()=>{o.remove();resolve(false)};yes.onclick=()=>{o.remove();resolve(true)};row.append(no,yes);m.append(h,p,row);o.append(m);o.onclick=e=>{if(e.target===o){o.remove();resolve(false)}};document.body.append(o)})}
-function showAppInput(message,value='',title='Мэдээлэл оруулах'){return new Promise(resolve=>{const o=document.createElement('div');o.className='app-dialog-overlay';const m=document.createElement('div');m.className='app-dialog';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=message;const input=document.createElement('input');input.className='app-dialog-input';input.type='number';input.inputMode='decimal';input.value=value;const row=document.createElement('div');row.className='app-dialog-actions';const no=document.createElement('button');no.className='app-dialog-secondary';no.textContent='Болих';const yes=document.createElement('button');yes.className='app-dialog-primary';yes.textContent='Хадгалах';no.onclick=()=>{o.remove();resolve(null)};yes.onclick=()=>{o.remove();resolve(input.value)};row.append(no,yes);m.append(h,p,input,row);o.append(m);o.onclick=e=>{if(e.target===o){o.remove();resolve(null)}};document.body.append(o);input.focus()})}
-function showAppChoice(message,options,title='Сонголт хийх'){return new Promise(resolve=>{const o=document.createElement('div');o.className='app-dialog-overlay';const m=document.createElement('div');m.className='app-dialog';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=message;const row=document.createElement('div');row.className='app-dialog-actions';options.forEach(x=>{const b=document.createElement('button');b.className='app-dialog-primary';b.textContent=x.label;b.onclick=()=>{o.remove();resolve(x.value)};row.append(b)});m.append(h,p,row);o.append(m);o.onclick=e=>{if(e.target===o){o.remove();resolve(null)}};document.body.append(o)})}
-function showAppNotice(message,title='Мэдэгдэл'){const overlay=document.createElement('div');overlay.className='app-dialog-overlay';const box=document.createElement('div');box.className='app-dialog';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=String(message||'');const b=document.createElement('button');b.type='button';b.className='app-dialog-button';b.textContent='Ойлголоо';b.onclick=()=>overlay.remove();box.append(h,p,b);overlay.append(box);overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};document.body.append(overlay);}
+  <script>
+function createAppDialog(title,message){
+  const overlay=document.createElement("div");
+  overlay.className="app-dialog-overlay";
+  overlay.setAttribute("role","presentation");
+  const box=document.createElement("div");
+  box.className="app-dialog";
+  box.setAttribute("role","dialog");
+  box.setAttribute("aria-modal","true");
+  box.setAttribute("aria-label",title);
+  box.tabIndex=-1;
+  const heading=document.createElement("h3");
+  heading.textContent=title;
+  const paragraph=document.createElement("p");
+  paragraph.textContent=String(message??"");
+  box.append(heading,paragraph);
+  overlay.append(box);
+  const close=()=>{
+    document.removeEventListener("keydown",onKeyDown);
+    overlay.remove();
+  };
+  const onKeyDown=event=>{
+    if(event.key==="Escape"){
+      event.preventDefault();
+      close();
+      if(typeof overlay.__cancel==="function") overlay.__cancel();
+    }
+  };
+  document.addEventListener("keydown",onKeyDown);
+  overlay.addEventListener("click",event=>{
+    if(event.target===overlay && typeof overlay.__cancel==="function"){
+      close();
+      overlay.__cancel();
+    }
+  });
+  document.body.append(overlay);
+  box.focus();
+  return {overlay,box,close};
+}
+function showAppConfirm(message,title="Баталгаажуулах"){
+  return new Promise(resolve=>{
+    const dialog=createAppDialog(title,message);
+    const row=document.createElement("div");row.className="app-dialog-actions";
+    const no=document.createElement("button");no.type="button";no.className="app-dialog-secondary";no.textContent="Болих";
+    const yes=document.createElement("button");yes.type="button";yes.className="app-dialog-primary";yes.textContent="Тийм, үргэлжлүүлэх";
+    let settled=false;
+    const finish=value=>{if(settled)return;settled=true;dialog.close();resolve(value);};
+    dialog.overlay.__cancel=()=>finish(false);
+    no.onclick=()=>finish(false);yes.onclick=()=>finish(true);
+    row.append(no,yes);dialog.box.append(row);no.focus();
+  });
+}
+function showAppInput(message,value="",title="Мэдээлэл оруулах"){
+  return new Promise(resolve=>{
+    const dialog=createAppDialog(title,message);
+    const input=document.createElement("input");input.className="app-dialog-input";input.type="number";input.inputMode="decimal";input.step="any";input.value=value;
+    const row=document.createElement("div");row.className="app-dialog-actions";
+    const no=document.createElement("button");no.type="button";no.className="app-dialog-secondary";no.textContent="Болих";
+    const yes=document.createElement("button");yes.type="button";yes.className="app-dialog-primary";yes.textContent="Хадгалах";
+    let settled=false;
+    const finish=result=>{if(settled)return;settled=true;dialog.close();resolve(result);};
+    dialog.overlay.__cancel=()=>finish(null);
+    no.onclick=()=>finish(null);yes.onclick=()=>finish(input.value);
+    input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();finish(input.value);}});
+    row.append(no,yes);dialog.box.append(input,row);input.focus();
+  });
+}
+function showAppChoice(message,options,title="Сонголт хийх"){
+  return new Promise(resolve=>{
+    const dialog=createAppDialog(title,message);
+    const row=document.createElement("div");row.className="app-dialog-actions";
+    let settled=false;
+    const finish=value=>{if(settled)return;settled=true;dialog.close();resolve(value);};
+    dialog.overlay.__cancel=()=>finish(null);
+    options.forEach(option=>{
+      const button=document.createElement("button");button.type="button";button.className="app-dialog-primary";button.textContent=option.label;
+      button.onclick=()=>finish(option.value);row.append(button);
+    });
+    dialog.box.append(row);
+  });
+}
+function showAppNotice(message,title="Мэдэгдэл"){
+  const dialog=createAppDialog(title,message);
+  const button=document.createElement("button");button.type="button";button.className="app-dialog-button";button.textContent="Ойлголоо";
+  let dismissed=false;
+  const dismiss=()=>{if(dismissed)return;dismissed=true;dialog.close();};
+  dialog.overlay.__cancel=dismiss;
+  button.onclick=dismiss;dialog.box.append(button);button.focus();
+}
+</script>
 
     const SUPABASE_URL = "https://sqywsxbaknjznvohnsim.supabase.co";
 
@@ -2490,9 +2576,14 @@ async function updateOrderStatus(orderId, newStatus) {
 
     const paymentChoice = await new Promise(resolve => {
       const overlay = document.createElement("div");
-      overlay.style.cssText = "position:fixed;inset:0;z-index:100002;background:rgba(15,23,42,.65);display:flex;align-items:center;justify-content:center;padding:16px;";
+      overlay.className = "app-dialog-overlay";
+      overlay.setAttribute("role","presentation");
       const modal = document.createElement("div");
-      modal.style.cssText = "width:100%;max-width:440px;background:#fff;border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25);";
+      modal.className = "app-dialog";
+      modal.setAttribute("role","dialog");
+      modal.setAttribute("aria-modal","true");
+      modal.setAttribute("aria-label","Захиалгын төлбөр баталгаажуулах");
+      modal.tabIndex = -1;
       const money = value => Number(value).toLocaleString("mn-MN") + " ₮";
       modal.innerHTML = "<h3 style='margin:0 0 8px;color:#0f172a;font-size:20px;'>Захиалгын төлбөр баталгаажуулах</h3>" +
         "<p style='margin:0 0 14px;color:#64748b;'>Захиалгыг дуусгахаас өмнө төлбөрийн мэдээллийг баталгаажуулна уу.</p>" +
@@ -2513,7 +2604,10 @@ async function updateOrderStatus(orderId, newStatus) {
         "<button type='button' data-back style='padding:12px;border:1px solid #cbd5e1;border-radius:9px;background:white;'>Буцах</button></div></div>";
       overlay.appendChild(modal);
       document.body.appendChild(overlay);
-      const close = value => { overlay.remove(); resolve(value); };
+      let paymentDialogClosed = false;
+      const close = value => { if (paymentDialogClosed) return; paymentDialogClosed = true; document.removeEventListener("keydown", onPaymentDialogKeyDown); overlay.remove(); resolve(value); };
+      const onPaymentDialogKeyDown = event => { if (event.key === "Escape") { event.preventDefault(); close(null); } };
+      document.addEventListener("keydown", onPaymentDialogKeyDown);
       modal.querySelector("[data-paid]").addEventListener("click", () => close({ fullyPaid:true, amount:outstandingBeforeCompletion }));
       modal.querySelector("[data-unpaid]").addEventListener("click", () => {
         modal.querySelector("[data-choice-buttons]").style.display = "none";
@@ -2540,6 +2634,7 @@ async function updateOrderStatus(orderId, newStatus) {
         close({ fullyPaid:false, amount });
       });
       overlay.addEventListener("click", event => { if (event.target === overlay) close(null); });
+      modal.focus();
     });
     if (!paymentChoice) { await loadOrders(); return; }
     remainingIncome = {
