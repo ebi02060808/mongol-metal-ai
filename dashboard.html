@@ -2552,7 +2552,40 @@ async function updateOrderStatus(orderId, newStatus) {
       await loadOrders();
       return;
     }
-    const amountText = await showAppInput((normalizedPaymentType === "deposit" ? "Хүлээн авсан урьдчилгаа" : "Хүлээн авсан бүтэн төлбөр") + " мөнгөн дүнг оруулна уу (₮).", "", "Төлбөр бүртгэх");
+    let suggestedAmount = "";
+    if (normalizedPaymentType === "full") {
+      const { data: confirmationOrder, error: confirmationOrderError } = await supabaseClient
+        .from("orders").select("price").eq("id", orderId).eq("user_id", currentOwnerUserId).single();
+      if (confirmationOrderError || !confirmationOrder ||
+          !Number.isFinite(Number(confirmationOrder.price)) || Number(confirmationOrder.price) <= 0) {
+        showAppNotice("Захиалгын нийт үнийг уншиж чадсангүй. Дахин оролдоно уу.");
+        await loadOrders();
+        return;
+      }
+      const { data: existingIncomeRows, error: existingIncomeError } = await supabaseClient
+        .from("finance_entries").select("amount").eq("order_id", orderId)
+        .eq("user_id", currentOwnerUserId).eq("entry_type", "income");
+      if (existingIncomeError) {
+        showAppNotice(friendlyErrorMessage(existingIncomeError, "Өмнө бүртгэсэн төлбөрийг шалгаж чадсангүй."));
+        await loadOrders();
+        return;
+      }
+      const alreadyReceived = (existingIncomeRows || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+      const orderTotal = Number(confirmationOrder.price);
+      if (alreadyReceived >= orderTotal) {
+        showAppNotice("Энэ захиалгын нийт үнэ өмнө нь бүрэн орлогод бүртгэгдсэн байна.");
+        await loadOrders();
+        return;
+      }
+      suggestedAmount = String(Math.round(orderTotal - alreadyReceived));
+    }
+    const amountText = await showAppInput(
+      normalizedPaymentType === "deposit"
+        ? "Хүлээн авсан урьдчилгаа мөнгөн дүнг оруулна уу (₮)."
+        : "Бүтэн төлбөрийн үлдэгдэл дүнг автоматаар тооцлоо. Шаардлагатай бол засаж оруулна уу (₮).",
+      suggestedAmount,
+      "Төлбөр бүртгэх"
+    );
     if (amountText === null) { await loadOrders(); return; }
     const amount = Number(String(amountText).replace(/,/g, "").trim());
     if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000) {
