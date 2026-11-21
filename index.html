@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f8fc">
+  <meta name="description" content="Mongol Metal AI — Facebook Messenger, харилцагч, захиалга болон бизнесийн ажлаа нэг системээс удирдах шийдэл.">
   <title>Mongol Metal AI</title>
 
   <style>
@@ -493,7 +495,16 @@
       .card { min-height: 190px; padding: 21px; }
       .cta { width: 88%; margin: 18px auto 55px; padding: 43px 20px; }
     }
+    /* Хүртээмж ба жижиг дэлгэцийн нарийвчилсан тохируулга */
+    a:focus-visible, button:focus-visible {
+      outline: 3px solid rgba(37,99,235,.35);
+      outline-offset: 3px;
+    }
     @media (max-width: 520px) {
+      header { flex-wrap: wrap; }
+      nav { margin-left: auto; }
+      nav .register-link, nav .login { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+      .logo { font-size: 18px; }
       .features { grid-template-columns: 1fr; }
       .card { min-height: auto; padding: 22px; }
       .step { align-items: flex-start; padding: 19px; gap: 14px; }
@@ -501,6 +512,11 @@
       .badge { font-size: 12px; }
       .buttons { flex-direction: column; align-items: stretch; max-width: 290px; margin: auto; }
       .primary, .secondary { width: 100%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
 
   </style>
