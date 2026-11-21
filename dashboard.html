@@ -202,6 +202,74 @@
       .section { padding: 11px; }
     }
 
+
+    /* MOBILE_FORM_POLISH_V1 */
+    @media (max-width: 600px) {
+      .sidebar {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .sidebar::-webkit-scrollbar { display: none; }
+      .sidebar button { flex: 0 0 auto; white-space: nowrap; }
+      #newOrderSection > #customerName,
+      #newOrderSection > #phone {
+        display: block;
+        width: 100%;
+        min-height: 44px;
+        margin: 8px 0;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 9px;
+        background: #fff;
+        font-size: 16px;
+      }
+      .multi-order-item {
+        grid-template-columns: minmax(0, 1fr) !important;
+        min-width: 0;
+      }
+      .multi-order-item > * { min-width: 0; }
+      .multi-order-item input,
+      .multi-order-item select {
+        width: 100% !important;
+        min-height: 46px;
+        font-size: 16px;
+      }
+      #saveOrderButton {
+        display: block;
+        width: 100%;
+        min-height: 48px;
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 10px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      #orderTotalPreview { font-size: 18px; }
+      #newOrderSection h2,
+      #quoteSection h2 { font-size: 21px; }
+    }
+    @media (min-width: 601px) {
+      #saveOrderButton {
+        min-height: 44px;
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 9px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    }
+
 </style>
 </head>
 
