@@ -2265,7 +2265,7 @@ async function viewOrderPhotos(orderId) {
   } catch (error) {
     const photoList = document.getElementById("orderPhotoList");
     if (photoList) {
-      photoList.textContent = error.message;
+      photoList.textContent = friendlyErrorMessage(error,"Захиалгын зургийг ачаалж чадсангүй.");
     }
   }
 }
