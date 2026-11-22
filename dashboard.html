@@ -479,6 +479,43 @@
       #orderDetailsHistoryModal > section[role="dialog"] > div[style*="grid-template-columns"] > div { padding: 9px !important; }
     }
 
+
+    /* MOBILE_TOUCH_ACCESSIBILITY_V1 */
+    @media (max-width: 600px) {
+      input:not([type="checkbox"]):not([type="radio"]),
+      select,
+      textarea {
+        min-height: 44px;
+        font-size: 16px !important;
+        line-height: 1.35;
+      }
+      button,
+      [role="button"] {
+        min-height: 44px;
+        touch-action: manipulation;
+      }
+      input[type="checkbox"],
+      input[type="radio"] {
+        min-width: 20px;
+        min-height: 20px;
+        accent-color: #2563eb;
+      }
+      select {
+        padding-top: 9px;
+        padding-bottom: 9px;
+      }
+      button:active,
+      [role="button"]:active {
+        transform: scale(.985);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      button,
+      [role="button"] {
+        transition: none !important;
+      }
+    }
+
 </style>
 </head>
 
