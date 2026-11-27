@@ -1684,6 +1684,7 @@ window.editUnpaidBalance = async function(orderId, currentAmount) {
     showAppNotice(amount > 0 ? "Төлөгдөөгүй үлдэгдэл шинэчлэгдлээ." : "Төлөгдөөгүй үлдэгдэл 0₮ болж шинэчлэгдлээ.");
     await loadOrders();
     if (currentUserRole === "admin") await loadFinance();
+    if (document.querySelector("#orderDetailsHistoryModal [role='dialog']")?.dataset.orderId===String(orderId)) await window.viewOrderDetails(orderId);
   } catch (error) {
     showAppNotice(friendlyErrorMessage(error));
   }
@@ -1710,6 +1711,7 @@ window.markUnpaidBalancePaid = async function(orderId, currentAmount) {
     showAppNotice(result.message + (result.amount ? "\nОрлогод бүртгэсэн дүн: " + Number(result.amount).toLocaleString("mn-MN") + " ₮" : ""));
     await loadOrders();
     if (currentUserRole === "admin") await loadFinance();
+    if (document.querySelector("#orderDetailsHistoryModal [role='dialog']")?.dataset.orderId===String(orderId)) await window.viewOrderDetails(orderId);
   } catch (error) {
     showAppNotice(friendlyErrorMessage(error));
   }
