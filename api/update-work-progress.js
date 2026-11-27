@@ -19,7 +19,7 @@ const fields = {
     permission: "can_update_installation_status",
     values: ["Хүлээгдэж байна", "Төлөвлөсөн", "Явагдаж байна", "Дууссан"],
     event: "assembly_status_changed",
-    label: "Угсралт"
+    label: "Суурилуулалт"
   },
   installation: {
     column: "site_installation_status",
@@ -87,10 +87,6 @@ export default async function handler(req, res) {
     if (workType === "production" && status !== "Дууссан" &&
         ((order.installation_status || pending) !== pending || (order.site_installation_status || pending) !== pending)) {
       return res.status(409).json({ error: "Дараагийн шат эхэлсэн тул үйлдвэрлэлийн төлөвийг буцаах боломжгүй." });
-    }
-    if (workType === "assembly" && status !== "Дууссан" &&
-        (order.site_installation_status || pending) !== pending) {
-      return res.status(409).json({ error: "Суурилуулалт эхэлсэн тул угсралтын төлөвийг буцаах боломжгүй." });
     }
     if (oldStatus === status) {
       return res.status(200).json({ success: true, message: "Төлөв өөрчлөгдөөгүй байна." });
