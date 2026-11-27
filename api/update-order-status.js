@@ -59,12 +59,14 @@ export default async function handler(req, res) {
 
     const workPending = "Хүлээгдэж байна";
     const productionStatus = order.production_status || workPending;
-    const assemblyStatus = order.installation_status || workPending;
-    const siteInstallationStatus = order.site_installation_status || workPending;
+    const installationStatus = order.installation_status || workPending;
+    // Одоогийн ажлын явц нь зөвхөн үйлдвэрлэл + суурилуулалт гэсэн хоёр шаттай.
+    // Хуучин site_installation_status багана нь өмнөх гурван шаттай хувилбарын үлдэгдэл тул
+    // захиалгыг дуусгах нөхцөлд тооцохгүй.
     if (newStatus === "Дууссан" && String(order.status || "") !== "Дууссан" &&
-        [productionStatus, assemblyStatus, siteInstallationStatus].some(value => value !== "Дууссан")) {
+        [productionStatus, installationStatus].some(value => value !== "Дууссан")) {
       return res.status(409).json({
-        error: "Захиалгыг дуусгахын өмнө үйлдвэрлэл, угсралт, суурилуулалтын гурван шат бүгд Дууссан байх шаардлагатай."
+        error: "Захиалгыг дуусгахын өмнө үйлдвэрлэл болон суурилуулалтын хоёр шат хоёулаа Дууссан байх шаардлагатай."
       });
     }
     if (["Шинэ", "Холбогдсон", "Үнийн санал"].includes(newStatus) &&
