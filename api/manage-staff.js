@@ -294,17 +294,26 @@ export default async function handler(req, res) {
         });
       }
       const { data: existing, error: existingError } = await supabase
-        .from("admin_users").select("role").eq("user_id", target.id).maybeSingle();
+        .from("admin_users").select("role, owner_user_id").eq("user_id", target.id).maybeSingle();
       if (existingError) throw existingError;
       if (existing?.role === "admin") {
         return res.status(409).json({ error: "Энэ хэрэглэгч аль хэдийн админ эрхтэй байна." });
       }
+      if (existing) {
+        return res.status(409).json({
+          error: existing.owner_user_id === ownerUserId
+            ? "Энэ ажилтан танай байгууллагад аль хэдийн бүртгэлтэй байна."
+            : "Энэ хэрэглэгч өөр байгууллагад бүртгэлтэй тул шилжүүлэх боломжгүй."
+        });
+      }
       const targetMetadata = target.user_metadata || {};
       const targetName = String(targetMetadata.full_name || targetMetadata.name || targetMetadata.display_name || [targetMetadata.last_name, targetMetadata.first_name].filter(Boolean).join(" ") || "").trim();
-      const { error } = await supabase.from("admin_users").upsert(
-        { user_id: target.id, role: "employee", owner_user_id: ownerUserId, full_name: targetName || null, email: target.email || null },
-        { onConflict: "user_id" }
+      const { error } = await supabase.from("admin_users").insert(
+        { user_id: target.id, role: "employee", owner_user_id: ownerUserId, full_name: targetName || null, email: target.email || null }
       );
+      if (error?.code === "23505") {
+        return res.status(409).json({ error: "Энэ хэрэглэгч аль хэдийн байгууллагын эрхтэй байна." });
+      }
       if (error) throw error;
       return res.status(200).json({ success: true, message: "Ажилтны эрх амжилттай олгогдлоо." });
     }
