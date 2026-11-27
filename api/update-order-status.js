@@ -177,6 +177,7 @@ export default async function handler(req, res) {
     // Баталгаажсан үед урьдчилгаа эсвэл бүтэн төлбөрийг тусдаа ангиллаар бүртгэнэ.
     let confirmationIncomeEntryId = null;
     let confirmationIncomeAlreadyRecorded = false;
+    let confirmationPaymentSummary = null;
     if (newStatus === "Баталгаажсан") {
       const amount = Number(confirmationIncome?.amount);
       const paymentType = confirmationIncome?.paymentType === "full" ? "full" : confirmationIncome?.paymentType === "deposit" ? "deposit" : "";
@@ -202,6 +203,32 @@ export default async function handler(req, res) {
         if (incomeInsertError) return res.status(500).json({ error: "Орлого бүртгэж чадсангүй. Захиалгын төлөв өөрчлөгдөөгүй: " + incomeInsertError.message });
         confirmationIncomeEntryId = insertedIncome.id;
       }
+
+      // Баталгаажсан үеийн төлсөн дүн, үлдэгдлийг тухайн захиалгад бүртгэсэн бүх бодит орлогоос тооцно.
+      const { data: confirmationIncomeRows, error: confirmationRowsError } = await supabase
+        .from("finance_entries")
+        .select("amount")
+        .eq("user_id", ownerUserId)
+        .eq("order_id", orderId)
+        .eq("entry_type", "income");
+      if (confirmationRowsError) {
+        if (confirmationIncomeEntryId) {
+          await supabase.from("finance_entries").delete().eq("id", confirmationIncomeEntryId).eq("user_id", ownerUserId);
+        }
+        return res.status(500).json({ error: "Баталгаажсан төлбөрийн мэдээллийг тооцож чадсангүй: " + confirmationRowsError.message });
+      }
+      const confirmedPaidAmount = (confirmationIncomeRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+      const confirmationTotalPrice = Number(order.price);
+      if (!Number.isFinite(confirmationTotalPrice) || confirmationTotalPrice < 0) {
+        if (confirmationIncomeEntryId) {
+          await supabase.from("finance_entries").delete().eq("id", confirmationIncomeEntryId).eq("user_id", ownerUserId);
+        }
+        return res.status(400).json({ error: "Захиалгын нийт үнэ буруу тул төлбөрийн үлдэгдэл тооцож чадсангүй." });
+      }
+      confirmationPaymentSummary = {
+        payment_amount: confirmedPaidAmount,
+        unpaid_balance: Math.max(0, confirmationTotalPrice - confirmedPaidAmount)
+      };
     }
 
     // Дуусгах үеийн үлдэгдлийг захиалгын нийт үнэ болон өмнө бүртгэсэн бүх орлогоос сервер дээр дахин тооцно.
@@ -269,7 +296,9 @@ export default async function handler(req, res) {
       .from("orders")
       .update(newStatus === "Дууссан"
         ? { status: newStatus, unpaid_balance: Number(unpaidBalance) }
-        : { status: newStatus })
+        : newStatus === "Баталгаажсан"
+          ? { status: newStatus, ...confirmationPaymentSummary }
+          : { status: newStatus })
       .eq("id", orderId)
       .eq("user_id", ownerUserId)
       .select("id, status, messenger_sender_id, messenger_order_number")
