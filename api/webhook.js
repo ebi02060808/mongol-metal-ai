@@ -890,7 +890,30 @@ if (hasImage) {
     await sendMessage(senderId, "📷 Зураг амжилттай хадгалагдлаа. Захиалгын дугаар: " + session.order_number);
   }
   if (!messageText) {
-    await repeatCurrentQuestion(senderId, session);
+    if (session.step === "completed") {
+      // Дууссан захиалгад зураг нэмж ирвэл PDF quick reply-г дахин харуулна.
+      // Messenger шинэ мессеж ирэхэд өмнөх quick reply-г арилгадаг.
+      const { data: latestQuote, error: latestQuoteError } = await supabase
+        .from("orders")
+        .select("id, quote_pdf_path")
+        .eq("messenger_sender_id", senderId)
+        .not("quote_pdf_path", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestQuoteError) {
+        console.error("PDF quick reply refresh lookup error:", latestQuoteError);
+      }
+
+      if (latestQuote?.quote_pdf_path) {
+        await sendQuotePdfQuestion(senderId, latestQuote.id);
+      } else {
+        await sendMessage(senderId, "📷 Зураг захиалгад тань хадгалагдлаа. PDF файл бэлэн болмогц авах боломжтой.");
+      }
+    } else {
+      await repeatCurrentQuestion(senderId, session);
+    }
     continue;
   }
 }
