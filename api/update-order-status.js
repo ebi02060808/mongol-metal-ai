@@ -404,6 +404,27 @@ export default async function handler(req, res) {
       if (actorUpdateError) console.error("Order history actor update error:", actorUpdateError);
     }
 
+    // Өмнө бүртгэсэн орлогын дүн/төрөл өөрчлөгдсөн бол төлбөрийн түүхэнд тусад нь тэмдэглэнэ.
+    if (confirmationIncomeUpdatedId && confirmationIncomePrevious) {
+      const { error: paymentHistoryError } = await supabase.from("order_history").insert({
+        order_id: orderId,
+        user_id: ownerUserId,
+        actor_user_id: user.id,
+        event_type: "payment_received",
+        old_values: {
+          amount: Number(confirmationIncomePrevious.amount),
+          category: confirmationIncomePrevious.category,
+          entry_date: confirmationIncomePrevious.entry_date
+        },
+        new_values: {
+          amount: Number(confirmationIncome?.amount),
+          category: confirmationIncome?.paymentType === "full" ? "Бүтэн төлбөрийн орлого" : "Урьдчилгаа орлого",
+          entry_date: confirmationIncome?.entryDate
+        }
+      });
+      if (paymentHistoryError) console.error("Payment update history insert error:", paymentHistoryError);
+    }
+
     if (newStatus !== "Үнийн санал" && updatedOrder.messenger_sender_id && pageToken) {
       const orderNumber = updatedOrder.messenger_order_number || "";
       const message = newStatus === "Баталгаажсан"
