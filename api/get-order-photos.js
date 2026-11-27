@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     // Админ эрх шалгах
     const { data: admin, error: adminError } = await supabase
       .from("admin_users")
-      .select("user_id, role, owner_user_id")
+      .select("user_id, role, owner_user_id, can_view_all_orders")
       .eq("user_id", userId)
       .in("role", ["admin", "employee"])
       .maybeSingle();
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     // Захиалга тухайн админд хамаарах эсэхийг шалгах
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, messenger_order_number")
+      .select("id, messenger_order_number, assigned_to")
       .eq("id", orderId)
       .eq("user_id", ownerUserId)
       .maybeSingle();
@@ -77,6 +77,18 @@ export default async function handler(req, res) {
       return res.status(404).json({
         success: false,
         message: "Захиалга олдсонгүй."
+      });
+    }
+
+    // Ажилтан зөвхөн өөрт оноосон захиалга эсвэл бүх захиалга харах эрхтэй үед зураг үзнэ.
+    if (
+      admin.role === "employee" &&
+      admin.can_view_all_orders !== true &&
+      order.assigned_to !== userId
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Энэ захиалгын зургийг үзэх эрхгүй байна."
       });
     }
 
