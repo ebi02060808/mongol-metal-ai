@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const accessToken = (req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+    const accessToken = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     if (!accessToken) {
       return res.status(401).json({ success: false, error: "Нэвтрэх эрх олдсонгүй." });
     }
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
 
     if (!Number.isSafeInteger(orderId) || orderId <= 0 ||
         !Number.isFinite(amount) || amount <= 0 || amount > 100000000000 ||
-        !/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)) {
+        !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
       return res.status(400).json({ success: false, error: "Захиалга, төлбөрийн дүн эсвэл огноо буруу байна." });
     }
 
