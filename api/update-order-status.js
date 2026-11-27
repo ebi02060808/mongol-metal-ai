@@ -425,6 +425,41 @@ export default async function handler(req, res) {
       if (paymentHistoryError) console.error("Payment update history insert error:", paymentHistoryError);
     }
 
+    // Шинээр хүлээн авсан урьдчилгаа эсвэл бүтэн төлбөрийг захиалгын түүхэнд бүртгэнэ.
+    if (confirmationIncomeEntryId) {
+      const paymentCategory = confirmationIncome?.paymentType === "full" ? "Бүтэн төлбөрийн орлого" : "Урьдчилгаа орлого";
+      const { error: newPaymentHistoryError } = await supabase.from("order_history").insert({
+        order_id: orderId,
+        user_id: ownerUserId,
+        actor_user_id: user.id,
+        event_type: "payment_received",
+        new_values: {
+          amount: Number(confirmationIncome?.amount),
+          category: paymentCategory,
+          entry_date: confirmationIncome?.entryDate,
+          description: confirmationIncome?.description || ""
+        }
+      });
+      if (newPaymentHistoryError) console.error("New confirmation payment history insert error:", newPaymentHistoryError);
+    }
+
+    // Дуусгах үед авсан үлдэгдэл төлбөрийг мөн тусдаа түүхийн үйл явдал болгоно.
+    if (remainingIncomeEntryId) {
+      const { error: remainingPaymentHistoryError } = await supabase.from("order_history").insert({
+        order_id: orderId,
+        user_id: ownerUserId,
+        actor_user_id: user.id,
+        event_type: "payment_received",
+        new_values: {
+          amount: Number(remainingIncome?.amount),
+          category: "Үлдэгдэл орлого",
+          entry_date: remainingIncome?.entryDate,
+          description: remainingIncome?.description || ""
+        }
+      });
+      if (remainingPaymentHistoryError) console.error("Remaining payment history insert error:", remainingPaymentHistoryError);
+    }
+
     if (newStatus !== "Үнийн санал" && updatedOrder.messenger_sender_id && pageToken) {
       const orderNumber = updatedOrder.messenger_order_number || "";
       const message = newStatus === "Баталгаажсан"
