@@ -1736,14 +1736,17 @@ window.setOrderView = function(view) {
 window.viewOrderDetails = async function(orderId) {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return showAppNotice("Та эхлээд нэвтэрнэ үү.");
-  const [o,h] = await Promise.all([
+  const [o,h,p] = await Promise.all([
     supabaseClient.from("orders").select("*").eq("id",orderId).eq("user_id",currentOwnerUserId).single(),
-    supabaseClient.from("order_history").select("event_type,old_values,new_values,actor_user_id,created_at").eq("order_id",orderId).eq("user_id",currentOwnerUserId).order("created_at",{ascending:false})
+    supabaseClient.from("order_history").select("event_type,old_values,new_values,actor_user_id,created_at").eq("order_id",orderId).eq("user_id",currentOwnerUserId).order("created_at",{ascending:false}),
+    supabaseClient.from("finance_entries").select("amount,category,entry_type").eq("order_id",orderId).eq("user_id",currentOwnerUserId).eq("entry_type","income")
   ]);
   if(o.error || !o.data) return showAppNotice("Захиалгын мэдээлэл олдсонгүй: "+(o.error?.message||""));
   if(h.error) return showAppNotice(friendlyErrorMessage(h.error,"Захиалгын түүхийг уншиж чадсангүй."));
+  if(p.error) return showAppNotice(friendlyErrorMessage(p.error,"Захиалгын төлбөрийн бүртгэлийг уншиж чадсангүй."));
   const order=o.data, history=h.data||[];
-  const orderPaidAmount = order.unpaid_balance == null ? null : Math.max(0, Number(order.price || 0) - Number(order.unpaid_balance));
+  // Төлсөн дүнг урьдчилгаа, бүтэн төлбөр, үлдэгдэл төлбөрийн бодит орлогын бүртгэлээс нийлбэрлэнэ.
+  const orderPaidAmount = (p.data||[]).reduce((sum,entry)=>sum+Number(entry.amount||0),0);
   let detailStaff = [];
   if (currentUserRole === "admin") {
     try { detailStaff = (await staffApi("list")).employees || []; }
