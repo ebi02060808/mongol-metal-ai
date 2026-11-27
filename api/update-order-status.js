@@ -226,7 +226,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Захиалгын нийт үнэ буруу тул төлбөрийн үлдэгдэл тооцож чадсангүй." });
       }
       confirmationPaymentSummary = {
-        payment_amount: confirmedPaidAmount,
         unpaid_balance: Math.max(0, confirmationTotalPrice - confirmedPaidAmount)
       };
     }
