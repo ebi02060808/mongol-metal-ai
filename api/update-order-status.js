@@ -297,7 +297,7 @@ export default async function handler(req, res) {
       .update(newStatus === "Дууссан"
         ? { status: newStatus, unpaid_balance: Number(unpaidBalance) }
         : newStatus === "Баталгаажсан"
-          ? { status: newStatus, ...confirmationPaymentSummary }
+          ? { status: newStatus, unpaid_balance: confirmationPaymentSummary.unpaid_balance }
           : { status: newStatus })
       .eq("id", orderId)
       .eq("user_id", ownerUserId)
