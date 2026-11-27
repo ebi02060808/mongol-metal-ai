@@ -33,14 +33,13 @@ export default async function handler(req, res) {
     if (authError || !user) return res.status(401).json({ error: "Нэвтрэлт хүчингүй байна." });
 
     const { data: admin, error: adminError } = await supabase
-      .from("admin_users").select("role, owner_user_id").eq("user_id", user.id).maybeSingle();
+      .from("admin_users").select("role, owner_user_id, can_confirm_orders, can_receive_payments, can_close_orders").eq("user_id", user.id).maybeSingle();
     if (adminError || !admin || !["admin", "employee"].includes(admin.role)) {
       return res.status(403).json({ error: "Ажилтны эсвэл админы эрх шаардлагатай." });
     }
 
     const ownerUserId = admin.owner_user_id || user.id;
     const isAdmin = admin.role === "admin";
-    if (!isAdmin) return res.status(403).json({ error: "Захиалгын төлөв, төлбөр болон дуусгалтын мэдээллийг зөвхөн админ өөрчилнө." });
     const { orderId, newStatus, confirmationIncome, remainingIncome, unpaidBalance } = req.body || {};
     const allowedStatuses = ["Шинэ", "Холбогдсон", "Үнийн санал", "Баталгаажсан", "Дууссан"];
     if (!orderId || !allowedStatuses.includes(newStatus)) {
@@ -80,6 +79,32 @@ export default async function handler(req, res) {
     const currentStatus = String(order.status || "Шинэ").startsWith("Шинэ захиалга")
       ? "Шинэ"
       : String(order.status || "Шинэ");
+
+    // Ажилтан зөвхөн өөрт хариуцуулсан захиалгын төлөвийг өөрчилнө.
+    // Админ батлах шаардлагагүй; сервер дээр тухайн ажилтны тусгай эрхийг шалгана.
+    if (!isAdmin) {
+      if (order.assigned_to !== user.id) {
+        return res.status(403).json({ error: "Зөвхөн өөрт хариуцуулсан захиалгын төлөвийг өөрчлөх боломжтой." });
+      }
+      if (currentStatus === "Дууссан") {
+        return res.status(403).json({ error: "Дууссан захиалгын төлөвийг ажилтан дахин өөрчлөх боломжгүй." });
+      }
+      if (currentStatus === "Баталгаажсан" && newStatus !== "Дууссан") {
+        return res.status(403).json({ error: "Баталгаажсан захиалгыг зөвхөн дуусгах шатанд шилжүүлж болно." });
+      }
+      const canConfirm = admin.can_confirm_orders === true;
+      const canReceivePayments = admin.can_receive_payments === true;
+      const canClose = admin.can_close_orders === true;
+      if (newStatus === "Баталгаажсан" && (!canConfirm || !canReceivePayments)) {
+        return res.status(403).json({ error: "Баталгаажуулахын тулд захиалга баталгаажуулах болон төлбөр хүлээн авах эрх шаардлагатай." });
+      }
+      if (newStatus === "Дууссан" && (!canClose || !canReceivePayments)) {
+        return res.status(403).json({ error: "Захиалга дуусгахын тулд дуусгах болон төлбөр хүлээн авах эрх шаардлагатай." });
+      }
+      if (!["Баталгаажсан", "Дууссан"].includes(newStatus) && !canConfirm) {
+        return res.status(403).json({ error: "Захиалгын төлөв өөрчлөх эрх олгогдоогүй байна." });
+      }
+    }
     if (req.body?.updateUnpaidBalanceOnly === true) {
       const amount = Number(unpaidBalance);
       if (!isAdmin) return res.status(403).json({ error: "Үлдэгдэл засах эрх зөвхөн админд байна." });
@@ -120,10 +145,6 @@ export default async function handler(req, res) {
           ? "Энэ захиалгын үлдэгдэл өмнө нь төлөгдсөн байна."
           : "Үлдэгдэл төлбөр орлогод бүртгэгдэж, захиалгын үлдэгдэл 0 боллоо."
       });
-    }
-
-    if (!isAdmin && (["Баталгаажсан", "Дууссан"].includes(newStatus) || ["Баталгаажсан", "Дууссан"].includes(currentStatus))) {
-      return res.status(403).json({ error: "Баталгаажуулах, дуусгах болон эдгээр төлөвтэй захиалгыг өөрчлөх эрх зөвхөн админд байна." });
     }
 
     if (currentStatus === newStatus) {
@@ -200,6 +221,9 @@ export default async function handler(req, res) {
         .eq("entry_type", "income")
         .in("category", ["Урьдчилгаа орлого", "Бүтэн төлбөрийн орлого"]);
       if (priorIncomeError) return res.status(500).json({ error: "Өмнөх орлогыг шалгаж чадсангүй: " + priorIncomeError.message });
+      if (!isAdmin && (priorIncomeRows || []).length > 0) {
+        return res.status(409).json({ error: "Энэ захиалгад баталгаажуулах төлбөр өмнө бүртгэгдсэн байна. Давхар өөрчлөлтөөс хамгаалж, админ санхүүгийн бүртгэлийг шалгана уу." });
+      }
       if ((priorIncomeRows || []).length > 1) {
         return res.status(409).json({ error: "Энэ захиалгад урьдчилгаа болон бүтэн төлбөрийн хоёр бүртгэл хоёулаа байна. Давхар тооцоо үүсгэхгүйн тулд админ санхүүгийн бүртгэлийг шалгана уу." });
       }
@@ -463,7 +487,7 @@ export default async function handler(req, res) {
     if (newStatus !== "Үнийн санал" && updatedOrder.messenger_sender_id && pageToken) {
       const orderNumber = updatedOrder.messenger_order_number || "";
       const message = newStatus === "Баталгаажсан"
-        ? "✅ Таны " + orderNumber + " дугаартай захиалгын төлбөрийг админ шалгаж баталгаажууллаа. Баярлалаа!"
+        ? "✅ Таны " + orderNumber + " дугаартай захиалгын төлбөр бүртгэгдэж, захиалга баталгаажлаа. Баярлалаа!"
         : "Таны " + orderNumber + " дугаартай захиалгын төлөв шинэчлэгдлээ: " + newStatus + ".";
 
       try {
