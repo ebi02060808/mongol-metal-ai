@@ -5,14 +5,14 @@ export default async function handler(req, res) {
 
   try {
     const authHeader = req.headers.authorization || "";
-    const token = authHeader.replace(/^Bearer\\s+/i, "");
+    const token = authHeader.replace(/^Bearer\s+/i, "");
     if (!token) {
       return res.status(401).json({ success: false, message: "Нэвтрэх эрх шаардлагатай." });
     }
 
     const orderIds = req.body?.orderIds;
     if (!Array.isArray(orderIds) || orderIds.length === 0 || orderIds.length > 200 ||
-        orderIds.some(id => !/^\\d+$/.test(String(id)))) {
+        orderIds.some(id => !/^\d+$/.test(String(id)))) {
       return res.status(400).json({ success: false, message: "Захиалгын жагсаалт буруу байна." });
     }
 
