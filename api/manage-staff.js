@@ -123,13 +123,49 @@ export default async function handler(req, res) {
         if (employeeError) throw employeeError;
         if (!employee) return res.status(404).json({ error: "Танай байгууллагын ажилтан олдсонгүй." });
       }
-      const { data: order, error: orderError } = await supabase.from("orders").select("id")
+      const { data: order, error: orderError } = await supabase.from("orders").select("id, assigned_to")
         .eq("id", orderId).eq("user_id", ownerUserId).maybeSingle();
       if (orderError) throw orderError;
       if (!order) return res.status(404).json({ error: "Захиалга олдсонгүй." });
+
+      const previousAssignee = order.assigned_to || null;
+      if (previousAssignee === (assignedTo || null)) {
+        return res.status(200).json({ success: true, message: "Хариуцсан ажилтан өөрчлөгдөөгүй байна." });
+      }
+
+      const resolveAssigneeLabel = async (id) => {
+        if (!id) return "Оноогоогүй";
+        const { data, error } = await supabase.auth.admin.getUserById(id);
+        if (error || !data?.user) {
+          console.error("Assignee name lookup failed:", error);
+          return "Бүртгэлтэй ажилтан";
+        }
+        const authUser = data.user;
+        const metadata = authUser.user_metadata || {};
+        const name = String(metadata.full_name || metadata.name || metadata.display_name ||
+          [metadata.last_name, metadata.first_name].filter(Boolean).join(" ") || "").trim();
+        return name ? name + (authUser.email ? " · " + authUser.email : "") : (authUser.email || "Бүртгэлтэй ажилтан");
+      };
+
+      const [previousAssigneeLabel, nextAssigneeLabel] = await Promise.all([
+        resolveAssigneeLabel(previousAssignee),
+        resolveAssigneeLabel(assignedTo || null)
+      ]);
+
       const { error: updateError } = await supabase.from("orders").update({ assigned_to: assignedTo })
         .eq("id", orderId).eq("user_id", ownerUserId);
       if (updateError) throw updateError;
+
+      const { error: historyError } = await supabase.from("order_history").insert({
+        order_id: Number(orderId),
+        user_id: ownerUserId,
+        actor_user_id: auth.user.id,
+        event_type: "updated",
+        old_values: { assigned_to_name: previousAssigneeLabel },
+        new_values: { assigned_to_name: nextAssigneeLabel }
+      });
+      if (historyError) console.error("Order assignment history insert failed:", historyError);
+
       return res.status(200).json({ success: true, message: assignedTo ? "Захиалгыг ажилтанд оноолоо." : "Захиалгын ажилтан оноолтыг цуцаллаа." });
     }
 
