@@ -88,7 +88,7 @@ export default async function handler(req, res) {
 
     if (action === "list") {
       const { data: employees, error } = await supabase
-        .from("admin_users").select("user_id, created_at, can_view_all_orders, can_create_orders, can_update_production_status, can_update_installation_status, can_update_site_installation_status")
+        .from("admin_users").select("user_id, created_at, can_view_all_orders, can_create_orders, can_update_production_status, can_update_installation_status, can_update_site_installation_status, can_edit_orders, can_confirm_orders, can_receive_payments, can_close_orders")
         .eq("role", "employee").eq("owner_user_id", ownerUserId).order("created_at", { ascending: false });
       if (error) throw error;
       const result = [];
@@ -106,7 +106,11 @@ export default async function handler(req, res) {
           can_create_orders: employee.can_create_orders === true,
           can_update_production_status: employee.can_update_production_status === true,
           can_update_installation_status: employee.can_update_installation_status === true,
-          can_update_site_installation_status: employee.can_update_site_installation_status === true
+          can_update_site_installation_status: employee.can_update_site_installation_status === true,
+          can_edit_orders: employee.can_edit_orders === true,
+          can_confirm_orders: employee.can_confirm_orders === true,
+          can_receive_payments: employee.can_receive_payments === true,
+          can_close_orders: employee.can_close_orders === true
         });
       }
       return res.status(200).json({ success: true, employees: result });
@@ -244,6 +248,45 @@ export default async function handler(req, res) {
           : req.body.workType === "assembly"
             ? (req.body.enabled ? "Угсралтын явц шинэчлэх эрх олголоо." : "Угсралтын явц шинэчлэх эрхийг хаалаа.")
             : (req.body.enabled ? "Суурилуулалтын явц шинэчлэх эрх олголоо." : "Суурилуулалтын явц шинэчлэх эрхийг хаалаа.")
+      });
+    }
+
+    if (action === "update-permission") {
+      const permissionColumns = {
+        can_edit_orders: "can_edit_orders",
+        can_confirm_orders: "can_confirm_orders",
+        can_receive_payments: "can_receive_payments",
+        can_close_orders: "can_close_orders"
+      };
+      const permission = String(req.body?.permission || "");
+      const enabled = req.body?.enabled;
+      if (typeof userId !== "string" || !/^[0-9a-f-]{36}$/i.test(userId) ||
+          !Object.prototype.hasOwnProperty.call(permissionColumns, permission) ||
+          typeof enabled !== "boolean") {
+        return res.status(400).json({ error: "Ажилтан болон эрхийн тохиргооны мэдээлэл буруу байна." });
+      }
+      const { data: employee, error: employeeError } = await supabase
+        .from("admin_users").select("user_id")
+        .eq("user_id", userId).eq("role", "employee").eq("owner_user_id", ownerUserId)
+        .maybeSingle();
+      if (employeeError) throw employeeError;
+      if (!employee) return res.status(404).json({ error: "Танай байгууллагын ажилтан олдсонгүй." });
+
+      const { error: updateError } = await supabase
+        .from("admin_users")
+        .update({ [permissionColumns[permission]]: enabled })
+        .eq("user_id", userId).eq("role", "employee").eq("owner_user_id", ownerUserId);
+      if (updateError) throw updateError;
+
+      const labels = {
+        can_edit_orders: "Захиалга засах",
+        can_confirm_orders: "Захиалга баталгаажуулах",
+        can_receive_payments: "Төлбөр хүлээн авах",
+        can_close_orders: "Захиалга хаах"
+      };
+      return res.status(200).json({
+        success: true,
+        message: "Ажилтны " + labels[permission] + " эрхийг " + (enabled ? "олголоо." : "цуцаллаа.")
       });
     }
 
