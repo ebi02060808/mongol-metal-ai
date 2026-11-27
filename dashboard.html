@@ -574,6 +574,9 @@
     <main class="main">
 
       <div class="page-section active" id="overviewPage">
+        <div class="page-refresh-bar" style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 12px;">
+          <button type="button" onclick="refreshDashboardPage('overview',this)" style="display:inline-flex;align-items:center;gap:7px;padding:9px 13px;min-height:40px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:700;cursor:pointer;">⟳ Дахин ачаалах</button>
+        </div>
         <div class="welcome">
           <h1>Тойм</h1>
           <p>Тавтай морилно уу, <strong id="userEmail">...</strong></p>
@@ -606,6 +609,9 @@
       </div>
 
       <div class="page-section" id="ordersPage">
+        <div class="page-refresh-bar" style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 12px;">
+          <button type="button" onclick="refreshDashboardPage('orders',this)" style="display:inline-flex;align-items:center;gap:7px;padding:9px 13px;min-height:40px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:700;cursor:pointer;">⟳ Дахин ачаалах</button>
+        </div>
      <div class="section" id="newOrderSection">
   <h2>📦 Шинэ захиалга</h2>
   <input type="text" id="customerName" placeholder="Харилцагчийн нэр" required>
@@ -670,6 +676,9 @@
 </div>
       </div>
       <div class="page-section" id="settingsPage">
+        <div class="page-refresh-bar" style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 12px;">
+          <button type="button" onclick="refreshDashboardPage('settings',this)" style="display:inline-flex;align-items:center;gap:7px;padding:9px 13px;min-height:40px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:700;cursor:pointer;">⟳ Дахин ачаалах</button>
+        </div>
       <div class="section" id="companySettingsSection" style="display:none;">
         <h2>🏢 Компанийн үндсэн тохиргоо</h2>
         <p style="color:#64748b;margin:6px 0 14px;">Энд хадгалсан мэдээлэл админы Dashboard болон үнийн саналын тооцоололд ашиглагдана. Хоосон утас, хаягийг заавал бөглөх шаардлагагүй.</p>
@@ -709,6 +718,9 @@
       </div>
       </div>
       <div class="page-section" id="financePage">
+        <div class="page-refresh-bar" style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 12px;">
+          <button type="button" onclick="refreshDashboardPage('finance',this)" style="display:inline-flex;align-items:center;gap:7px;padding:9px 13px;min-height:40px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:700;cursor:pointer;">⟳ Дахин ачаалах</button>
+        </div>
       <div class="section" id="financeSection" style="display:none;">
         <h2>💰 Орлого, зарлагын тайлан</h2>
         <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:12px 0;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
@@ -768,6 +780,9 @@
       </div>
       </div>
       <div class="page-section" id="customersPage">
+        <div class="page-refresh-bar" style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 12px;">
+          <button type="button" onclick="refreshDashboardPage('customers',this)" style="display:inline-flex;align-items:center;gap:7px;padding:9px 13px;min-height:40px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:700;cursor:pointer;">⟳ Дахин ачаалах</button>
+        </div>
         <div class="section">
           <h2>👥 Харилцагчид</h2>
           <p style="color:#64748b;margin-bottom:12px;">Нэр, утсаар хайж, харилцагчийн захиалгын түүхийг харах боломжтой.</p>
@@ -778,6 +793,9 @@
         </div>
       </div>
       <div class="page-section" id="messengerPage">
+        <div class="page-refresh-bar" style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 12px;">
+          <button type="button" onclick="refreshDashboardPage('messenger',this)" style="display:inline-flex;align-items:center;gap:7px;padding:9px 13px;min-height:40px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;font-weight:700;cursor:pointer;">⟳ Дахин ачаалах</button>
+        </div>
         <div class="section">
           <h2>💬 Messenger</h2>
           <p style="color:#475569;margin-bottom:12px;">Facebook Messenger-ийн webhook болон үнийн санал илгээх урсгал холбогдсон. Энэ хэсэг одоогоор шууд чат унших, хариу бичих inbox биш.</p>
@@ -2221,6 +2239,44 @@ window.removeStaff = async function(userId) {
     await loadStaff();
   } catch(error) {
     document.getElementById("staffMessage").textContent = friendlyErrorMessage(error,"Ажилтны мэдээллийг шинэчилж чадсангүй.");
+  }
+};
+
+window.refreshDashboardPage = async function(page, button) {
+  const loaders = {
+    overview: () => loadDashboardStats(),
+    orders: () => loadOrders(),
+    customers: () => loadCustomers(),
+    messenger: () => Promise.all([loadOrders(), loadCustomers(), loadDashboardStats()]),
+    finance: () => currentUserRole === "admin" ? loadFinance() : Promise.resolve(),
+    settings: () => currentUserRole === "admin"
+      ? Promise.all([loadStaff(), loadCompanySettings()])
+      : Promise.resolve()
+  };
+  if (!Object.prototype.hasOwnProperty.call(loaders, page)) return;
+  if ((page === "finance" || page === "settings") && currentUserRole !== "admin") {
+    showAppNotice("Энэ хэсэгт админы эрх шаардлагатай.");
+    return;
+  }
+  if (button) {
+    button.disabled = true;
+    button.dataset.originalText = button.dataset.originalText || button.textContent;
+    button.textContent = "⟳ Ачаалж байна...";
+    button.style.opacity = ".7";
+  }
+  try {
+    await loaders[page]();
+    if (page === "messenger") showAppNotice("Messenger-ээр ирсэн захиалга, харилцагч болон тоймын мэдээллийг шинэчиллээ.");
+    else showAppNotice("✅ Хэсгийн мэдээлэл шинэчлэгдлээ.");
+  } catch (error) {
+    console.error(page + " хэсгийг шинэчлэхэд алдаа:", error);
+    showAppNotice(friendlyErrorMessage(error, "Мэдээлэл шинэчилж чадсангүй. Дахин оролдоно уу."));
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = button.dataset.originalText || "⟳ Дахин ачаалах";
+      button.style.opacity = "1";
+    }
   }
 };
 
