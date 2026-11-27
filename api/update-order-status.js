@@ -70,7 +70,7 @@ export default async function handler(req, res) {
       });
     }
     if (["Шинэ", "Холбогдсон", "Үнийн санал"].includes(newStatus) &&
-        [productionStatus, assemblyStatus, siteInstallationStatus].some(value => value !== workPending && value !== "Эхлээгүй" && value !== "Төлөвлөсөн")) {
+        [productionStatus, installationStatus].some(value => value !== workPending && value !== "Эхлээгүй" && value !== "Төлөвлөсөн")) {
       return res.status(409).json({
         error: "Ажлын явц эхэлсэн тул захиалгын төлөвийг буцаах боломжгүй. Админ ажлын дарааллыг шалгана уу."
       });
