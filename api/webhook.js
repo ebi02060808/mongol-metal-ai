@@ -411,17 +411,23 @@ async function sendQuotePdfQuestion(senderId, orderId) {
       body: JSON.stringify({
         recipient: { id: senderId },
         message: {
-          text: "📄 Таны үнийн саналын PDF файл бэлэн боллоо. Messenger чатаар авах уу?",
-          quick_replies: [
-            { content_type: "text", title: "📄 PDF авах", payload: "GET_QUOTE_PDF:" + orderId },
-            { content_type: "text", title: "Үгүй, баярлалаа", payload: "DECLINE_QUOTE_PDF:" + orderId }
-          ]
+          attachment: {
+            type: "template",
+            payload: {
+              template_type: "button",
+              text: "📄 Таны үнийн саналын PDF файл бэлэн боллоо. Доорх товчоор хүссэн үедээ аваарай.",
+              buttons: [
+                { type: "postback", title: "📄 PDF авах", payload: "GET_QUOTE_PDF:" + orderId },
+                { type: "postback", title: "Үгүй, баярлалаа", payload: "DECLINE_QUOTE_PDF:" + orderId }
+              ]
+            }
+          }
         }
       })
     }
   );
   const result = await response.json();
-  if (!response.ok || result.error) throw new Error(result.error?.message || "PDF сонголтын асуулт илгээгдсэнгүй.");
+  if (!response.ok || result.error) throw new Error(result.error?.message || "PDF сонголтын товч илгээгдсэнгүй.");
   return result;
 }
 
