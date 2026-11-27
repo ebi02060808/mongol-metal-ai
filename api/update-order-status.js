@@ -178,6 +178,8 @@ export default async function handler(req, res) {
 
     // Баталгаажсан үед урьдчилгаа эсвэл бүтэн төлбөрийг тусдаа ангиллаар бүртгэнэ.
     let confirmationIncomeEntryId = null;
+    let confirmationIncomeUpdatedId = null;
+    let confirmationIncomePrevious = null;
     let confirmationIncomeAlreadyRecorded = false;
     let confirmationPaymentSummary = null;
     if (newStatus === "Баталгаажсан") {
@@ -189,18 +191,44 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Төлбөрийн төрөл, бодитоор авсан орлогын дүн эсвэл огноо буруу байна." });
       }
       const category = paymentType === "deposit" ? "Урьдчилгаа орлого" : "Бүтэн төлбөрийн орлого";
-      const { data: priorIncome, error: priorIncomeError } = await supabase
-        .from("finance_entries").select("id").eq("user_id", ownerUserId).eq("order_id", orderId)
-        .eq("entry_type", "income").eq("category", category).limit(1).maybeSingle();
+      const incomeDescription = category + ": " + (confirmationIncome.description || "Бодитоор хүлээн авсан төлбөр");
+      const { data: priorIncomeRows, error: priorIncomeError } = await supabase
+        .from("finance_entries")
+        .select("id, amount, category, description, entry_date")
+        .eq("user_id", ownerUserId)
+        .eq("order_id", orderId)
+        .eq("entry_type", "income")
+        .in("category", ["Урьдчилгаа орлого", "Бүтэн төлбөрийн орлого"]);
       if (priorIncomeError) return res.status(500).json({ error: "Өмнөх орлогыг шалгаж чадсангүй: " + priorIncomeError.message });
-      if (priorIncome) {
+      if ((priorIncomeRows || []).length > 1) {
+        return res.status(409).json({ error: "Энэ захиалгад урьдчилгаа болон бүтэн төлбөрийн хоёр бүртгэл хоёулаа байна. Давхар тооцоо үүсгэхгүйн тулд админ санхүүгийн бүртгэлийг шалгана уу." });
+      }
+      if (priorIncomeRows?.[0]) {
+        const priorIncome = priorIncomeRows[0];
+        confirmationIncomePrevious = {
+          id: priorIncome.id,
+          amount: priorIncome.amount,
+          category: priorIncome.category,
+          description: priorIncome.description,
+          entry_date: priorIncome.entry_date
+        };
+        const { data: updatedIncome, error: incomeUpdateError } = await supabase
+          .from("finance_entries")
+          .update({ amount, category, description: incomeDescription, entry_date: entryDate })
+          .eq("id", priorIncome.id)
+          .eq("user_id", ownerUserId)
+          .select("id")
+          .single();
+        if (incomeUpdateError || !updatedIncome) {
+          return res.status(500).json({ error: "Өмнөх орлогын бүртгэлийг шинэчилж чадсангүй: " + (incomeUpdateError?.message || "Бүртгэл олдсонгүй.") });
+        }
+        confirmationIncomeUpdatedId = updatedIncome.id;
         confirmationIncomeAlreadyRecorded = true;
       } else {
         const { data: insertedIncome, error: incomeInsertError } = await supabase
           .from("finance_entries").insert({
             user_id: ownerUserId, created_by: user.id, order_id: orderId, entry_type: "income",
-            amount, category, description: category + ": " + (confirmationIncome.description || "Бодитоор хүлээн авсан төлбөр"),
-            entry_date: entryDate
+            amount, category, description: incomeDescription, entry_date: entryDate
           }).select("id").single();
         if (incomeInsertError) return res.status(500).json({ error: "Орлого бүртгэж чадсангүй. Захиалгын төлөв өөрчлөгдөөгүй: " + incomeInsertError.message });
         confirmationIncomeEntryId = insertedIncome.id;
@@ -217,6 +245,17 @@ export default async function handler(req, res) {
         if (confirmationIncomeEntryId) {
           await supabase.from("finance_entries").delete().eq("id", confirmationIncomeEntryId).eq("user_id", ownerUserId);
         }
+        if (confirmationIncomeUpdatedId && confirmationIncomePrevious) {
+          await supabase.from("finance_entries")
+            .update({
+              amount: confirmationIncomePrevious.amount,
+              category: confirmationIncomePrevious.category,
+              description: confirmationIncomePrevious.description,
+              entry_date: confirmationIncomePrevious.entry_date
+            })
+            .eq("id", confirmationIncomeUpdatedId)
+            .eq("user_id", ownerUserId);
+        }
         return res.status(500).json({ error: "Баталгаажсан төлбөрийн мэдээллийг тооцож чадсангүй: " + confirmationRowsError.message });
       }
       const confirmedPaidAmount = (confirmationIncomeRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
@@ -224,6 +263,17 @@ export default async function handler(req, res) {
       if (!Number.isFinite(confirmationTotalPrice) || confirmationTotalPrice < 0) {
         if (confirmationIncomeEntryId) {
           await supabase.from("finance_entries").delete().eq("id", confirmationIncomeEntryId).eq("user_id", ownerUserId);
+        }
+        if (confirmationIncomeUpdatedId && confirmationIncomePrevious) {
+          await supabase.from("finance_entries")
+            .update({
+              amount: confirmationIncomePrevious.amount,
+              category: confirmationIncomePrevious.category,
+              description: confirmationIncomePrevious.description,
+              entry_date: confirmationIncomePrevious.entry_date
+            })
+            .eq("id", confirmationIncomeUpdatedId)
+            .eq("user_id", ownerUserId);
         }
         return res.status(400).json({ error: "Захиалгын нийт үнэ буруу тул төлбөрийн үлдэгдэл тооцож чадсангүй." });
       }
@@ -309,6 +359,17 @@ export default async function handler(req, res) {
       if (confirmationIncomeEntryId) {
         await supabase.from("finance_entries").delete().eq("id", confirmationIncomeEntryId).eq("user_id", ownerUserId);
       }
+      if (confirmationIncomeUpdatedId && confirmationIncomePrevious) {
+        await supabase.from("finance_entries")
+          .update({
+            amount: confirmationIncomePrevious.amount,
+            category: confirmationIncomePrevious.category,
+            description: confirmationIncomePrevious.description,
+            entry_date: confirmationIncomePrevious.entry_date
+          })
+          .eq("id", confirmationIncomeUpdatedId)
+          .eq("user_id", ownerUserId);
+      }
       if (remainingIncomeEntryId) {
         await supabase.from("finance_entries").delete().eq("id", remainingIncomeEntryId).eq("user_id", ownerUserId);
       }
@@ -369,11 +430,13 @@ export default async function handler(req, res) {
     }
 
     const completionMessage = newStatus === "Баталгаажсан"
-      ? (confirmationIncomeEntryId
-          ? "Захиалга баталгаажлаа. Урьдчилгаа/бүтэн төлбөрийн орлого тайланд бүртгэгдлээ."
-          : confirmationIncomeAlreadyRecorded
-            ? "Захиалга баталгаажлаа. Энэ захиалгын орлого өмнө бүртгэгдсэн тул давхар нэмсэнгүй."
-            : "Захиалга баталгаажлаа.")
+      ? (confirmationIncomeUpdatedId
+          ? "Захиалга баталгаажлаа. Өмнө бүртгэсэн урьдчилгаа/бүтэн төлбөрийн орлогын дүн шинэчлэгдлээ."
+          : confirmationIncomeEntryId
+            ? "Захиалга баталгаажлаа. Урьдчилгаа/бүтэн төлбөрийн орлого тайланд бүртгэгдлээ."
+            : confirmationIncomeAlreadyRecorded
+              ? "Захиалга баталгаажлаа. Энэ захиалгын орлого өмнө бүртгэгдсэн тул давхар нэмсэнгүй."
+              : "Захиалга баталгаажлаа.")
       : newStatus === "Дууссан"
         ? "Захиалга дууслаа. ＋ Зардал хэсгээр бүртгэсэн зардал, бодитоор авсан төлбөр болон гараар оруулсан төлөгдөөгүй авлагыг хадгаллаа."
         : "Захиалгын төлөв шинэчлэгдлээ.";
@@ -382,6 +445,7 @@ export default async function handler(req, res) {
       success: true,
       notificationSent: newStatus === "Үнийн санал" || Boolean(updatedOrder.messenger_sender_id && pageToken),
       incomeRecorded: Boolean(confirmationIncomeEntryId),
+      incomeUpdated: Boolean(confirmationIncomeUpdatedId),
       incomeAlreadyRecorded: confirmationIncomeAlreadyRecorded,
       remainingIncomeRecorded: Boolean(remainingIncomeEntryId),
       remainingIncomeAlreadyRecorded,
