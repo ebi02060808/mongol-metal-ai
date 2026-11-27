@@ -1567,9 +1567,9 @@ async function loadOrders() {
     console.warn("Зурагтай захиалгын тэмдэглэгээ ачаалсангүй:", photoStatusError);
   }
 
-  ordersList.innerHTML = \`
+  ordersList.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px;">
-      \${orders.map(order => {
+      ${orders.map(order => {
         const items = Array.isArray(order.quote_items) ? order.quote_items : [];
         const qty = items.length ? items.reduce((sum,item)=>sum+Number(item.quantity||1),0) : Number(order.quantity||1);
         const source = order.order_source === "messenger" || (!order.order_source && order.messenger_sender_id) ? "💬 Messenger" : "🏢 Биечлэн";
@@ -1583,27 +1583,27 @@ async function loadOrders() {
         const searchText = [order.customer_name,order.phone,order.messenger_order_number,order.product,order.size].filter(Boolean).join(" ");
         const product = order.product || (items[0]?.product_type) || "Бүтээгдэхүүн";
         const size = order.size || (items.length ? items.map(item => (item.width ?? "—")+" × "+(item.height ?? "—")+" м").join(", ") : "Хэмжээ тодорхойгүй");
-        return \`
-          <article role="button" tabindex="0" onclick="viewOrderDetails(\${JSON.stringify(order.id)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewOrderDetails(\${JSON.stringify(order.id)});}" data-order-search="\${escapeHTML(searchText)}" data-order-status="\${escapeHTML(normalizedStatus)}" data-order-source="\${order.order_source === "messenger" || (!order.order_source && order.messenger_sender_id) ? "messenger" : "in_person"}" data-order-archive="\${normalizedStatus === "Дууссан" ? "yes" : "no"}" data-order-date="\${escapeHTML(localDateString(new Date(order.created_at)))}" data-order-unpaid="\${hasUnpaid ? "yes" : "no"}" data-order-has-photo="\${photo ? "yes" : "no"}" style="border:1px solid #e2e8f0;border-left:4px solid \${hasUnpaid ? "#dc2626" : missingUnpaid ? "#f59e0b" : "#cbd5e1"};border-radius:12px;background:#fff;padding:13px;cursor:pointer;min-width:0;box-shadow:0 1px 2px rgba(15,23,42,.05);">
+        return `
+          <article role="button" tabindex="0" onclick="viewOrderDetails(${JSON.stringify(order.id)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewOrderDetails(${JSON.stringify(order.id)});}" data-order-search="${escapeHTML(searchText)}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-source="${order.order_source === "messenger" || (!order.order_source && order.messenger_sender_id) ? "messenger" : "in_person"}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" data-order-date="${escapeHTML(localDateString(new Date(order.created_at)))}" data-order-unpaid="${hasUnpaid ? "yes" : "no"}" data-order-has-photo="${photo ? "yes" : "no"}" style="border:1px solid #e2e8f0;border-left:4px solid ${hasUnpaid ? "#dc2626" : missingUnpaid ? "#f59e0b" : "#cbd5e1"};border-radius:12px;background:#fff;padding:13px;cursor:pointer;min-width:0;box-shadow:0 1px 2px rgba(15,23,42,.05);">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-              <strong style="font-size:14px;">#\${escapeHTML(order.id)} · \${escapeHTML(order.customer_name || "Нэргүй харилцагч")}</strong>
-              <span style="padding:5px 8px;border-radius:20px;background:\${colors[normalizedStatus] || colors["Шинэ"]};font-size:11px;font-weight:700;">\${escapeHTML(normalizedStatus)}</span>
+              <strong style="font-size:14px;">#${escapeHTML(order.id)} · ${escapeHTML(order.customer_name || "Нэргүй харилцагч")}</strong>
+              <span style="padding:5px 8px;border-radius:20px;background:${colors[normalizedStatus] || colors["Шинэ"]};font-size:11px;font-weight:700;">${escapeHTML(normalizedStatus)}</span>
             </div>
-            <div style="margin-top:7px;color:#64748b;font-size:12px;">\${source} · \${escapeHTML(order.phone || "Утас бүртгээгүй")} · \${new Date(order.created_at).toLocaleDateString("mn-MN")}</div>
-            <div style="margin-top:9px;font-weight:700;color:#0f172a;">\${escapeHTML(product)}</div>
-            <div style="margin-top:3px;color:#475569;font-size:13px;">\${escapeHTML(size)} · \${qty} ш</div>
+            <div style="margin-top:7px;color:#64748b;font-size:12px;">${source} · ${escapeHTML(order.phone || "Утас бүртгээгүй")} · ${new Date(order.created_at).toLocaleDateString("mn-MN")}</div>
+            <div style="margin-top:9px;font-weight:700;color:#0f172a;">${escapeHTML(product)}</div>
+            <div style="margin-top:3px;color:#475569;font-size:13px;">${escapeHTML(size)} · ${qty} ш</div>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:11px;padding-top:9px;border-top:1px solid #f1f5f9;">
-              <strong style="font-size:15px;">\${order.price == null ? "Тохиролцоно" : Number(order.price).toLocaleString("mn-MN")+" ₮"}</strong>
-              <span style="font-size:12px;color:\${hasUnpaid ? "#b91c1c" : "#64748b"};">\${normalizedStatus === "Дууссан" ? (unpaid == null ? "Үлдэгдэл оруулаагүй" : unpaid > 0 ? "Үлдэгдэл: "+unpaid.toLocaleString("mn-MN")+" ₮" : "✓ Төлөгдсөн") : "Дэлгэрэнгүй →"}</span>
+              <strong style="font-size:15px;">${order.price == null ? "Тохиролцоно" : Number(order.price).toLocaleString("mn-MN")+" ₮"}</strong>
+              <span style="font-size:12px;color:${hasUnpaid ? "#b91c1c" : "#64748b"};">${normalizedStatus === "Дууссан" ? (unpaid == null ? "Үлдэгдэл оруулаагүй" : unpaid > 0 ? "Үлдэгдэл: "+unpaid.toLocaleString("mn-MN")+" ₮" : "✓ Төлөгдсөн") : "Дэлгэрэнгүй →"}</span>
             </div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;">
-              \${photo ? "<span style='padding:4px 7px;border-radius:6px;background:#fff7ed;color:#9a3412;font-size:11px;font-weight:700;'>📷 Зурагтай</span>" : ""}
-              \${order.assigned_to ? "<span style='padding:4px 7px;border-radius:6px;background:#f1f5f9;color:#475569;font-size:11px;'>👤 Ажилтан оноосон</span>" : ""}
+              ${photo ? "<span style='padding:4px 7px;border-radius:6px;background:#fff7ed;color:#9a3412;font-size:11px;font-weight:700;'>📷 Зурагтай</span>" : ""}
+              ${order.assigned_to ? "<span style='padding:4px 7px;border-radius:6px;background:#f1f5f9;color:#475569;font-size:11px;'>👤 Ажилтан оноосон</span>" : ""}
             </div>
-          </article>\`;
+          </article>`;
       }).join("")}
     </div>
-  \`;
+  `;
 
   const searchInput = document.getElementById("orderSearch");
   const statusFilter = document.getElementById("orderStatusFilter");
