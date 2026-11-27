@@ -1567,109 +1567,43 @@ async function loadOrders() {
     console.warn("Зурагтай захиалгын тэмдэглэгээ ачаалсангүй:", photoStatusError);
   }
 
-  ordersList.innerHTML = `
-    <div style="width:100%;overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;">
-      <table style="width:100%;min-width:1200px;border-collapse:collapse;background:#fff;font-size:13px;">
-        <thead>
-          <tr style="background:#f1f5f9;color:#334155;">
-            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Эх үүсвэр</th>
-            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Харилцагч / утас</th>
-            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Бүтээгдэхүүн</th>
-            <th style="padding:12px 10px;text-align:center;border-bottom:1px solid #cbd5e1;">Хэмжээ (м)</th>
-            <th style="padding:12px 10px;text-align:right;border-bottom:1px solid #cbd5e1;">Тоо</th>
-            <th style="padding:12px 10px;text-align:right;border-bottom:1px solid #cbd5e1;">Нийт талбай</th>
-            <th style="padding:12px 10px;text-align:right;border-bottom:1px solid #cbd5e1;">1 м² үнэ</th>
-            <th style="padding:12px 10px;text-align:right;border-bottom:1px solid #cbd5e1;">Нийт үнэ</th>
-            <th style="padding:12px 10px;text-align:right;border-bottom:1px solid #cbd5e1;">Төлөгдөөгүй үлдэгдэл</th>
-            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Огноо</th>
-            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Төлөв</th>
-            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Хариуцсан ажилтан</th>
-            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Үйлдвэрлэл</th>
-            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Угсралт</th>
-            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Суурилуулалт</th>
-            <th style="padding:12px 10px;text-align:left;border-bottom:1px solid #cbd5e1;">Үйлдэл</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${orders.map(order => {
-            const orderItems = Array.isArray(order.quote_items) ? order.quote_items : [];
-            const qty = orderItems.length
-              ? orderItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
-              : Number(order.quantity || 1);
-            const area = orderItems.length
-              ? orderItems.reduce((sum, item) => sum + Number(item.area || 0) * Number(item.quantity || 1), 0)
-              : Number(order.area_per_unit || 1) * qty;
-            const productDisplay = orderItems.length
-              ? orderItems.map((item, index) => (index + 1) + ". " + escapeHTML(item.product_type || "Бүтээгдэхүүн")).join("<br>")
-              : escapeHTML(order.product || "");
-            const sizeDisplay = orderItems.length
-              ? orderItems.map(item => {
-                  const size = item.width != null && item.height != null
-                    ? Number(item.width) + " × " + Number(item.height) + " м"
-                    : Number(item.area || 0).toFixed(2) + " м²";
-                  return escapeHTML(size + " · " + Number(item.quantity || 1) + " ш");
-                }).join("<br>")
-              : escapeHTML(order.size || "—");
-            const unitPriceDisplay = orderItems.length > 1
-              ? "Олон үнэ"
-              : (order.unit_price == null ? "—" : Number(order.unit_price).toLocaleString("mn-MN") + " ₮");
-            const orderSource = order.order_source === "messenger" || (!order.order_source && order.messenger_sender_id) ? "messenger" : "in_person";
-            const sourceLabel = orderSource === "messenger" ? "💬 Messenger" : "🏢 Биечлэн";
-            const status = order.status || "Шинэ";
-            const normalizedStatus = status.startsWith("Шинэ захиалга") ? "Шинэ" : status;
-            const canCompleteOrder = [order.production_status, order.installation_status, order.site_installation_status].every(value => value === "Дууссан");
-            const unpaidAmount = order.unpaid_balance == null ? null : Number(order.unpaid_balance);
-            const hasUnpaidBalance = normalizedStatus === "Дууссан" && unpaidAmount > 0;
-            const missingUnpaidBalance = normalizedStatus === "Дууссан" && unpaidAmount == null;
-            const statusColors = {
-              "Шинэ": { background: "#dbeafe", color: "#1d4ed8", border: "#93c5fd" },
-              "Холбогдсон": { background: "#fef3c7", color: "#92400e", border: "#fcd34d" },
-              "Үнийн санал": { background: "#ede9fe", color: "#6d28d9", border: "#c4b5fd" },
-              "Баталгаажсан": { background: "#dcfce7", color: "#166534", border: "#86efac" },
-              "Дууссан": { background: "#e2e8f0", color: "#334155", border: "#cbd5e1" }
-            };
-            const statusColor = statusColors[normalizedStatus] || statusColors["Шинэ"];
-            return `
-              <tr onclick="if (!event.target.closest('button,select,input,a')) viewOrderDetails('${order.id}')" title="Дэлгэрэнгүй мэдээлэл харах" data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-source="${orderSource}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" data-order-date="${escapeHTML(localDateString(new Date(order.created_at)))}" data-order-unpaid="${hasUnpaidBalance ? "yes" : "no"}" data-order-has-photo="${photoOrderIds.has(String(order.id)) ? "yes" : "no"}" style="border-bottom:1px solid #e2e8f0;background:${hasUnpaidBalance ? '#fff1f2' : missingUnpaidBalance ? '#fffbeb' : '#ffffff'};border-left:${hasUnpaidBalance ? '5px solid #dc2626' : missingUnpaidBalance ? '5px solid #f59e0b' : '5px solid transparent'};cursor:pointer;">
-                <td style="padding:11px 10px;white-space:nowrap;"><span style="display:inline-block;padding:5px 8px;border-radius:7px;background:${orderSource === "messenger" ? "#e0e7ff" : "#dcfce7"};color:${orderSource === "messenger" ? "#3730a3" : "#166534"};font-weight:700;">${sourceLabel}</span>${photoOrderIds.has(String(order.id)) ? "<div style='margin-top:6px;display:inline-block;padding:4px 7px;border-radius:6px;background:#fff7ed;color:#9a3412;font-size:11px;font-weight:700;'>📷 Зурагтай</div>" : ""}</td>
-                <td style="padding:11px 10px;white-space:nowrap;"><strong>${escapeHTML(order.customer_name || "")}</strong><br><span style="color:#64748b;">${escapeHTML(order.phone || "")}</span></td>
-                <td style="padding:11px 10px;">${productDisplay}</td>
-                <td style="padding:11px 10px;text-align:center;white-space:nowrap;">${sizeDisplay}</td>
-                <td style="padding:11px 10px;text-align:right;">${qty.toLocaleString("mn-MN")}</td>
-                <td style="padding:11px 10px;text-align:right;white-space:nowrap;">${area.toLocaleString("mn-MN")} м²</td>
-                <td style="padding:11px 10px;text-align:right;white-space:nowrap;">${unitPriceDisplay}</td>
-                <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;">${order.price == null ? "Тохиролцоно" : Number(order.price).toLocaleString("mn-MN") + " ₮"}</td>
-                 <td style="padding:11px 10px;text-align:right;white-space:nowrap;font-weight:700;color:${normalizedStatus === "Дууссан" && Number(order.unpaid_balance || 0) > 0 ? "#b91c1c" : "#64748b"};">
-                   ${normalizedStatus !== "Дууссан" ? "—" : (order.unpaid_balance == null ? "Оруулаагүй" : Number(order.unpaid_balance).toLocaleString("mn-MN") + " ₮")}
-                   ${currentUserRole === "admin" && normalizedStatus === "Дууссан" ? (order.unpaid_balance == null ? "<div style='margin-top:7px;color:#92400e;font-size:12px;'>⚠️ Дүн оруулаагүй</div><div style='margin-top:7px;'><button type='button' style='padding:7px 9px;background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;' onclick='editUnpaidBalance(" + JSON.stringify(order.id) + ", 0)'>✏️ Үлдэгдэл засах</button></div>" : (Number(order.unpaid_balance) > 0 ? "<div style='margin-top:7px;display:flex;gap:6px;flex-wrap:wrap;'><button type='button' style='padding:7px 9px;background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;' onclick='editUnpaidBalance(" + JSON.stringify(order.id) + ", " + Number(order.unpaid_balance) + ")'>✏️ Үлдэгдэл засах</button><button type='button' style='padding:7px 9px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;' onclick='markUnpaidBalancePaid(" + JSON.stringify(order.id) + ", " + Number(order.unpaid_balance) + ")'>✓ Үлдэгдэл төлөгдсөн</button></div>" : "<div style='margin-top:7px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;'><span style='display:inline-block;padding:6px 8px;background:#dcfce7;color:#166534;border-radius:6px;font-size:12px;'>✓ Төлөгдсөн</span><button type='button' style='padding:6px 8px;background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:6px;font-size:12px;cursor:pointer;' onclick='editUnpaidBalance(" + JSON.stringify(order.id) + ", 0)'>✏️ Үлдэгдэл засах</button></div>")) : ""}
-                 </td>
-                <td style="padding:11px 10px;white-space:nowrap;">${new Date(order.created_at).toLocaleDateString("mn-MN")}</td>
-                <td style="padding:11px 10px;">
-                  ${currentUserRole !== "admin"
-                    ? "<span style='display:inline-block;padding:7px 10px;border-radius:7px;background:" + statusColor.background + ";color:" + statusColor.color + ";font-weight:700;'>" + escapeHTML(normalizedStatus) + "</span>"
-                    : `<select style="min-width:125px;padding:7px 9px;border:1px solid ${statusColor.border};border-radius:7px;background:${statusColor.background};color:${statusColor.color};font-weight:700;" onchange="updateOrderStatus('${order.id}', this.value)">
-                    <option value="Шинэ" ${(status === "Шинэ" || status.startsWith("Шинэ захиалга")) ? "selected" : ""}>Шинэ</option>
-                    <option value="Холбогдсон" ${status === "Холбогдсон" ? "selected" : ""}>Холбогдсон</option>
-                    <option value="Үнийн санал" ${status === "Үнийн санал" ? "selected" : ""}>Үнийн санал</option>
-                    ${currentUserRole === "admin" ? `<option value="Баталгаажсан" ${status === "Баталгаажсан" ? "selected" : ""}>Баталгаажсан</option><option value="Дууссан" ${status === "Дууссан" ? "selected" : ""} ${!canCompleteOrder && status !== "Дууссан" ? "disabled" : ""}>Дууссан</option>` : ""}
-                  </select>`}
-                </td>
-                <td style="padding:11px 10px;min-width:150px;">${renderOrderAssignee(order, orderStaff)}</td>
-                <td style="padding:11px 10px;min-width:145px;">${renderWorkStatusCell(order, "production")}</td>
-                <td style="padding:11px 10px;min-width:145px;">${renderWorkStatusCell(order, "assembly")}</td>
-                <td style="padding:11px 10px;min-width:145px;">${renderWorkStatusCell(order, "installation")}</td>
-                <td style="padding:11px 10px;white-space:nowrap;">
-                  <button type="button" style="padding:6px 8px;margin:2px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;color:#1d4ed8;cursor:pointer;" onclick="viewOrderDetails('${order.id}')">Дэлгэрэнгүй / Түүх</button>
-                  <button type="button" style="padding:6px 8px;margin:2px;" onclick="viewOrderPhotos('${order.id}')">Зураг</button>
-                  <button type="button" style="padding:6px 8px;margin:2px;display:${currentUserRole === "admin" ? "inline-block" : "none"};" onclick="editOrder('${order.id}')">Засах</button>
-${currentUserRole === "admin" ? `                  <button type="button" style="padding:6px 8px;margin:2px;" onclick="deleteOrder('${order.id}')">Устгах</button>` : ""}
-                </td>
-              </tr>`;
-          }).join("")}
-        </tbody>
-      </table>
+  ordersList.innerHTML = \`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px;">
+      \${orders.map(order => {
+        const items = Array.isArray(order.quote_items) ? order.quote_items : [];
+        const qty = items.length ? items.reduce((sum,item)=>sum+Number(item.quantity||1),0) : Number(order.quantity||1);
+        const source = order.order_source === "messenger" || (!order.order_source && order.messenger_sender_id) ? "💬 Messenger" : "🏢 Биечлэн";
+        const status = order.status || "Шинэ";
+        const normalizedStatus = status.startsWith("Шинэ захиалга") ? "Шинэ" : status;
+        const unpaid = order.unpaid_balance == null ? null : Number(order.unpaid_balance);
+        const hasUnpaid = normalizedStatus === "Дууссан" && unpaid > 0;
+        const missingUnpaid = normalizedStatus === "Дууссан" && unpaid == null;
+        const photo = photoOrderIds.has(String(order.id));
+        const colors = {"Шинэ":"#dbeafe","Холбогдсон":"#fef3c7","Үнийн санал":"#ede9fe","Баталгаажсан":"#dcfce7","Дууссан":"#e2e8f0"};
+        const searchText = [order.customer_name,order.phone,order.messenger_order_number,order.product,order.size].filter(Boolean).join(" ");
+        const product = order.product || (items[0]?.product_type) || "Бүтээгдэхүүн";
+        const size = order.size || (items.length ? items.map(item => (item.width ?? "—")+" × "+(item.height ?? "—")+" м").join(", ") : "Хэмжээ тодорхойгүй");
+        return \`
+          <article role="button" tabindex="0" onclick="viewOrderDetails(\${JSON.stringify(order.id)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewOrderDetails(\${JSON.stringify(order.id)});}" data-order-search="\${escapeHTML(searchText)}" data-order-status="\${escapeHTML(normalizedStatus)}" data-order-source="\${order.order_source === "messenger" || (!order.order_source && order.messenger_sender_id) ? "messenger" : "in_person"}" data-order-archive="\${normalizedStatus === "Дууссан" ? "yes" : "no"}" data-order-date="\${escapeHTML(localDateString(new Date(order.created_at)))}" data-order-unpaid="\${hasUnpaid ? "yes" : "no"}" data-order-has-photo="\${photo ? "yes" : "no"}" style="border:1px solid #e2e8f0;border-left:4px solid \${hasUnpaid ? "#dc2626" : missingUnpaid ? "#f59e0b" : "#cbd5e1"};border-radius:12px;background:#fff;padding:13px;cursor:pointer;min-width:0;box-shadow:0 1px 2px rgba(15,23,42,.05);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <strong style="font-size:14px;">#\${escapeHTML(order.id)} · \${escapeHTML(order.customer_name || "Нэргүй харилцагч")}</strong>
+              <span style="padding:5px 8px;border-radius:20px;background:\${colors[normalizedStatus] || colors["Шинэ"]};font-size:11px;font-weight:700;">\${escapeHTML(normalizedStatus)}</span>
+            </div>
+            <div style="margin-top:7px;color:#64748b;font-size:12px;">\${source} · \${escapeHTML(order.phone || "Утас бүртгээгүй")} · \${new Date(order.created_at).toLocaleDateString("mn-MN")}</div>
+            <div style="margin-top:9px;font-weight:700;color:#0f172a;">\${escapeHTML(product)}</div>
+            <div style="margin-top:3px;color:#475569;font-size:13px;">\${escapeHTML(size)} · \${qty} ш</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:11px;padding-top:9px;border-top:1px solid #f1f5f9;">
+              <strong style="font-size:15px;">\${order.price == null ? "Тохиролцоно" : Number(order.price).toLocaleString("mn-MN")+" ₮"}</strong>
+              <span style="font-size:12px;color:\${hasUnpaid ? "#b91c1c" : "#64748b"};">\${normalizedStatus === "Дууссан" ? (unpaid == null ? "Үлдэгдэл оруулаагүй" : unpaid > 0 ? "Үлдэгдэл: "+unpaid.toLocaleString("mn-MN")+" ₮" : "✓ Төлөгдсөн") : "Дэлгэрэнгүй →"}</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+              \${photo ? "<span style='padding:4px 7px;border-radius:6px;background:#fff7ed;color:#9a3412;font-size:11px;font-weight:700;'>📷 Зурагтай</span>" : ""}
+              \${order.assigned_to ? "<span style='padding:4px 7px;border-radius:6px;background:#f1f5f9;color:#475569;font-size:11px;'>👤 Ажилтан оноосон</span>" : ""}
+            </div>
+          </article>\`;
+      }).join("")}
     </div>
-  `;
+  \`;
 
   const searchInput = document.getElementById("orderSearch");
   const statusFilter = document.getElementById("orderStatusFilter");
@@ -1679,7 +1613,7 @@ ${currentUserRole === "admin" ? `                  <button type="button" style="
   const applyOrderFilters = () => {
     const query = (searchInput?.value || "").trim().toLocaleLowerCase("mn-MN");
     const selectedStatus = statusFilter?.value || "";
-    const rows = Array.from(ordersList.querySelectorAll("tbody tr[data-order-search]"));
+    const rows = Array.from(ordersList.querySelectorAll("[data-order-search]"));
     let visible = 0;
     let completedCount = 0;
     rows.forEach(row => {
