@@ -1802,13 +1802,26 @@ const eventNames={created:"Захиалга үүсгэсэн",updated:"Захи�
     const actor=actorDirectory[x.actor_user_id];
     const actorLabel=x.actor_user_id===currentOwnerUserId ? "Админ" : actor ? (actor.name ? actor.name+(actor.email?" · "+actor.email:"") : actor.email || "Бүртгэлтэй хэрэглэгч") : (x.actor_user_id ? "Хэрэглэгчийн мэдээлэл олдсонгүй" : "Систем / өмнөх бүртгэл");
     const category=categoryOf(x.event_type);
-    const title=eventNames[x.event_type]||escapeHTML(x.event_type||"Үйлдэл");
+    const title=x.event_type==="payment_received" ? (x.old_values && x.new_values ? "Төлбөрийн мэдээлэл өөрчилсөн" : "Төлбөр хүлээн авсан") : (eventNames[x.event_type]||escapeHTML(x.event_type||"Үйлдэл"));
     const workField={production_status_changed:"production_status",installation_status_changed:"installation_status",assembly_status_changed:"installation_status",site_installation_status_changed:"site_installation_status"}[x.event_type];
     const oldStage=workField && x.old_values ? x.old_values[workField] : null;
     const newStage=workField && x.new_values ? x.new_values[workField] : null;
     const stageSummary=workField && newStage!=null ? "<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px;background:#f8fafc;border-radius:8px;'><span style='padding:6px 9px;background:#fff7ed;color:#9a3412;border-radius:7px;font-weight:600;'>"+escapeHTML(oldStage??"—")+"</span><span style='color:#64748b;font-weight:700;'>→</span><span style='padding:6px 9px;background:#dcfce7;color:#166534;border-radius:7px;font-weight:700;'>"+escapeHTML(newStage)+"</span></div>" : "";
+    const renderPaymentValues=v=>{
+      if(!v) return "";
+      const amount=v.amount ?? v.payment_amount;
+      const category=v.category ?? v.payment_category;
+      const dateValue=v.entry_date;
+      const description=v.description;
+      return "<div style='display:grid;gap:5px;'><strong style='font-size:16px;color:#166534;'>"+(amount==null?"Дүн тодорхойгүй":money(amount))+"</strong>"+(category?"<div>Төрөл: <strong>"+escapeHTML(category)+"</strong></div>":"")+(dateValue?"<div>Огноо: "+escapeHTML(dateValue)+"</div>":"")+(description?"<div>Тайлбар: "+escapeHTML(description)+"</div>":"")+"</div>";
+    };
+    const paymentSummary=x.event_type==="payment_received"
+      ? "<div style='display:grid;gap:8px;padding:11px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;'>"+(x.old_values && x.new_values
+        ? "<div><strong style='font-size:12px;color:#9a3412;'>ӨМНӨХ ТӨЛБӨР</strong><div style='margin-top:5px;'>"+renderPaymentValues(x.old_values)+"</div></div><div style='font-weight:700;color:#64748b;'>↓ ШИНЭЧИЛСЭН</div><div><strong style='font-size:12px;color:#166534;'>ШИНЭ ТӨЛБӨР</strong><div style='margin-top:5px;'>"+renderPaymentValues(x.new_values)+"</div></div>"
+        : "<div><strong style='font-size:12px;color:#166534;'>ХҮЛЭЭН АВСАН ТӨЛБӨР</strong><div style='margin-top:5px;'>"+renderPaymentValues(x.new_values||x.old_values)+"</div></div>")+"</div>"
+      : "";
     const searchable=[title,actorLabel,date(x.created_at),JSON.stringify(x.old_values||{}),JSON.stringify(x.new_values||{})].join(" ").toLocaleLowerCase("mn-MN");
-    return "<article data-history-category='"+category+"' data-history-search='"+escapeHTML(searchable)+"' style='border:1px solid #e2e8f0;border-radius:10px;padding:13px;margin-bottom:9px;'><div style='display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap;'><strong>"+title+"</strong><span style='font-size:11px;padding:4px 7px;border-radius:20px;background:#f1f5f9;color:#475569;'>"+categoryNames[category]+"</span></div><div style='font-size:12px;color:#64748b;margin:6px 0 10px;'>🕒 "+date(x.created_at)+"<br>👤 "+escapeHTML(actorLabel)+"</div>"+(stageSummary || ((x.old_values?"<div style='background:#fff7ed;padding:9px;border-radius:7px;margin-bottom:7px;'><strong style='font-size:12px;color:#9a3412;'>ӨМНӨХ МЭДЭЭЛЭЛ</strong>"+render(x.old_values)+"</div>":"")+(x.new_values?"<div style='background:#f0fdf4;padding:9px;border-radius:7px;'><strong style='font-size:12px;color:#166534;'>ШИНЭ МЭДЭЭЛЭЛ</strong>"+render(x.new_values)+"</div>":"")))+"</article>";
+    return "<article data-history-category='"+category+"' data-history-search='"+escapeHTML(searchable)+"' style='border:1px solid #e2e8f0;border-radius:10px;padding:13px;margin-bottom:9px;'><div style='display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap;'><strong>"+title+"</strong><span style='font-size:11px;padding:4px 7px;border-radius:20px;background:#f1f5f9;color:#475569;'>"+categoryNames[category]+"</span></div><div style='font-size:12px;color:#64748b;margin:6px 0 10px;'>🕒 "+date(x.created_at)+"<br>👤 "+escapeHTML(actorLabel)+"</div>"+(paymentSummary || stageSummary || ((x.old_values?"<div style='background:#fff7ed;padding:9px;border-radius:7px;margin-bottom:7px;'><strong style='font-size:12px;color:#9a3412;'>ӨМНӨХ МЭДЭЭЛЭЛ</strong>"+render(x.old_values)+"</div>":"")+(x.new_values?"<div style='background:#f0fdf4;padding:9px;border-radius:7px;'><strong style='font-size:12px;color:#166534;'>ШИНЭ МЭДЭЭЛЭЛ</strong>"+render(x.new_values)+"</div>":"")))+"</article>";
   }).join(""):"<p style='padding:12px;background:#f8fafc;border-radius:8px;color:#64748b;'>Өөрчлөлтийн түүх одоогоор байхгүй.</p>";
   let modal=document.getElementById("orderDetailsHistoryModal");
   if(!modal){modal=document.createElement("div");modal.id="orderDetailsHistoryModal";document.body.appendChild(modal);}
