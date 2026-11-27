@@ -1536,6 +1536,35 @@ async function loadOrders() {
     return;
   }
 
+  const photoOrderIds = new Set();
+  try {
+    const chunks = [];
+    for (let i = 0; i < orders.length; i += 200) chunks.push(orders.slice(i, i + 200).map(order => order.id));
+    let accessToken = session.access_token;
+    for (const orderIds of chunks) {
+      let response = await fetch("/api/get-order-photo-statuses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + accessToken },
+        body: JSON.stringify({ orderIds })
+      });
+      if (response.status === 401) {
+        const refreshed = await supabaseClient.auth.refreshSession();
+        if (refreshed.error || !refreshed.data.session) throw new Error("Нэвтрэх хугацаа дууссан байна.");
+        accessToken = refreshed.data.session.access_token;
+        response = await fetch("/api/get-order-photo-statuses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + accessToken },
+          body: JSON.stringify({ orderIds })
+        });
+      }
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || "Зургийн мэдээлэл ачаалж чадсангүй.");
+      (result.photoOrderIds || []).forEach(id => photoOrderIds.add(String(id)));
+    }
+  } catch (photoStatusError) {
+    console.warn("Зурагтай захиалгын тэмдэглэгээ ачаалсангүй:", photoStatusError);
+  }
+
   ordersList.innerHTML = `
     <div style="width:100%;overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;">
       <table style="width:100%;min-width:1200px;border-collapse:collapse;background:#fff;font-size:13px;">
@@ -1600,7 +1629,7 @@ async function loadOrders() {
             const statusColor = statusColors[normalizedStatus] || statusColors["Шинэ"];
             return `
               <tr onclick="if (!event.target.closest('button,select,input,a')) viewOrderDetails('${order.id}')" title="Дэлгэрэнгүй мэдээлэл харах" data-order-search="${escapeHTML([order.customer_name, order.phone, order.messenger_order_number, order.product, order.size].filter(Boolean).join(" "))}" data-order-status="${escapeHTML(normalizedStatus)}" data-order-source="${orderSource}" data-order-archive="${normalizedStatus === "Дууссан" ? "yes" : "no"}" data-order-date="${escapeHTML(localDateString(new Date(order.created_at)))}" data-order-unpaid="${hasUnpaidBalance ? "yes" : "no"}" style="border-bottom:1px solid #e2e8f0;background:${hasUnpaidBalance ? '#fff1f2' : missingUnpaidBalance ? '#fffbeb' : '#ffffff'};border-left:${hasUnpaidBalance ? '5px solid #dc2626' : missingUnpaidBalance ? '5px solid #f59e0b' : '5px solid transparent'};cursor:pointer;">
-                <td style="padding:11px 10px;white-space:nowrap;"><span style="display:inline-block;padding:5px 8px;border-radius:7px;background:${orderSource === "messenger" ? "#e0e7ff" : "#dcfce7"};color:${orderSource === "messenger" ? "#3730a3" : "#166534"};font-weight:700;">${sourceLabel}</span></td>
+                <td style="padding:11px 10px;white-space:nowrap;"><span style="display:inline-block;padding:5px 8px;border-radius:7px;background:${orderSource === "messenger" ? "#e0e7ff" : "#dcfce7"};color:${orderSource === "messenger" ? "#3730a3" : "#166534"};font-weight:700;">${sourceLabel}</span>${photoOrderIds.has(String(order.id)) ? "<div style='margin-top:6px;display:inline-block;padding:4px 7px;border-radius:6px;background:#fff7ed;color:#9a3412;font-size:11px;font-weight:700;'>📷 Зурагтай</div>" : ""}</td>
                 <td style="padding:11px 10px;white-space:nowrap;"><strong>${escapeHTML(order.customer_name || "")}</strong><br><span style="color:#64748b;">${escapeHTML(order.phone || "")}</span></td>
                 <td style="padding:11px 10px;">${productDisplay}</td>
                 <td style="padding:11px 10px;text-align:center;white-space:nowrap;">${sizeDisplay}</td>
