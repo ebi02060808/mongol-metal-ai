@@ -937,6 +937,7 @@ let currentQuote = null;
 let currentUserRole = null;
 let currentOwnerUserId = null;
 let currentUserCanCreateOrders = false;
+let currentUserCanReceivePayments = false;
 let currentUserId = null;
 let currentUserCanUpdateProduction = false;
 let currentUserCanUpdateAssembly = false;
@@ -1739,6 +1740,60 @@ window.setOrderView = function(view) {
   loadOrders();
 };
 
+window.receiveAssignedOrderPayment = async function(orderId) {
+  if (currentUserRole === "admin" || !currentUserCanReceivePayments) {
+    return showAppNotice("Төлбөр хүлээн авах эрх олгогдоогүй байна.");
+  }
+  const amountText = await showAppInput(
+    "Бодитоор хүлээн авсан төлбөрийн дүнг оруулна уу (₮).",
+    "",
+    "Төлбөр бүртгэх"
+  );
+  if (amountText === null) return;
+  const amount = Number(String(amountText).replace(/,/g, "").trim());
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000) {
+    return showAppNotice("Төлбөрийн дүнг 0-ээс их тоогоор оруулна уу.");
+  }
+
+  try {
+    let { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !session) throw new Error("Нэвтрэх хугацаа дууссан байна. Дахин нэвтэрнэ үү.");
+
+    const sendRequest = async token => {
+      const response = await fetch("/api/receive-order-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({
+          orderId,
+          amount,
+          entryDate: localDateString(),
+          description: "Ажилтан хүлээн авсан төлбөр"
+        })
+      });
+      const result = await response.json();
+      return { response, result };
+    };
+
+    let { response, result } = await sendRequest(session.access_token);
+    if (response.status === 401) {
+      const refreshed = await supabaseClient.auth.refreshSession();
+      if (refreshed.error || !refreshed.data.session) {
+        throw new Error("Нэвтрэх хугацаа дууссан байна. Дахин нэвтэрнэ үү.");
+      }
+      ({ response, result } = await sendRequest(refreshed.data.session.access_token));
+    }
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Төлбөр бүртгэж чадсангүй.");
+    }
+
+    showAppNotice(result.message || "Төлбөр амжилттай бүртгэгдлээ.");
+    await loadOrders();
+    await window.viewOrderDetails(orderId);
+  } catch (error) {
+    showAppNotice(friendlyErrorMessage(error,"Төлбөр бүртгэж чадсангүй."));
+  }
+};
+
 window.viewOrderDetails = async function(orderId) {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return showAppNotice("Та эхлээд нэвтэрнэ үү.");
@@ -1790,7 +1845,7 @@ window.viewOrderDetails = async function(orderId) {
   };
   const workStatusCard=(label,value)=>"<div style='padding:11px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;min-width:0;'><small style='display:block;color:#64748b;margin-bottom:5px;'>"+label+"</small><strong style='display:block;overflow-wrap:anywhere;color:"+(value==="Дууссан"?"#166534":"#334155")+";'>"+escapeHTML(value||"Хүлээгдэж байна")+"</strong></div>";
 const assigneeControl="<div style='padding:11px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;margin-top:10px;'><small style='display:block;color:#64748b;margin-bottom:7px;'>Хариуцсан ажилтан</small>"+renderOrderAssignee(order,detailStaff)+"</div>";
-  const paymentActions=currentUserRole==="admin" && order.status==="Дууссан" ? (order.unpaid_balance==null ? "<button type='button' data-order-action='edit-balance' style='padding:9px 11px;border:1px solid #fdba74;border-radius:8px;background:#fff7ed;color:#9a3412;font-weight:700;'>✏️ Үлдэгдэл оруулах</button>" : Number(order.unpaid_balance)>0 ? "<button type='button' data-order-action='edit-balance' style='padding:9px 11px;border:1px solid #fdba74;border-radius:8px;background:#fff7ed;color:#9a3412;font-weight:700;'>✏️ Үлдэгдэл засах</button><button type='button' data-order-action='mark-paid' style='padding:9px 11px;border:1px solid #86efac;border-radius:8px;background:#dcfce7;color:#166534;font-weight:700;'>✓ Үлдэгдэл төлөгдсөн</button>" : "<button type='button' data-order-action='edit-balance' style='padding:9px 11px;border:1px solid #fdba74;border-radius:8px;background:#fff7ed;color:#9a3412;font-weight:700;'>✏️ Үлдэгдэл засах</button>") : "";
+  const paymentActions=currentUserRole==="admin" && order.status==="Дууссан" ? (order.unpaid_balance==null ? "<button type='button' data-order-action='edit-balance' style='padding:9px 11px;border:1px solid #fdba74;border-radius:8px;background:#fff7ed;color:#9a3412;font-weight:700;'>✏️ Үлдэгдэл оруулах</button>" : Number(order.unpaid_balance)>0 ? "<button type='button' data-order-action='edit-balance' style='padding:9px 11px;border:1px solid #fdba74;border-radius:8px;background:#fff7ed;color:#9a3412;font-weight:700;'>✏️ Үлдэгдэл засах</button><button type='button' data-order-action='mark-paid' style='padding:9px 11px;border:1px solid #86efac;border-radius:8px;background:#dcfce7;color:#166534;font-weight:700;'>✓ Үлдэгдэл төлөгдсөн</button>" : "<button type='button' data-order-action='edit-balance' style='padding:9px 11px;border:1px solid #fdba74;border-radius:8px;background:#fff7ed;color:#9a3412;font-weight:700;'>✏️ Үлдэгдэл засах</button>") : currentUserRole!=="admin" && currentUserCanReceivePayments && (order.status!=="Дууссан" || Number(order.unpaid_balance||0)>0) ? "<button type='button' data-order-action='receive-payment' style='padding:10px 13px;border:1px solid #86efac;border-radius:8px;background:#f0fdf4;color:#166534;font-weight:700;'>💳 Төлбөр бүртгэх</button>" : "";
   const detailActions="<div style='display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 4px;'><button type='button' data-order-action='photos' style='padding:9px 11px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-weight:700;'>📷 Зураг харах</button>"+(currentUserRole==="admin"?"<button type='button' data-order-action='edit' style='padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;background:white;font-weight:700;'>✏️ Захиалга засах</button><button type='button' data-order-action='delete' style='padding:9px 11px;border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#b91c1c;font-weight:700;'>🗑 Устгах</button>":"")+paymentActions+"</div>";
   const workProgress="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:8px;'>"+["production","assembly"].map((type,index)=>{const label=["Үйлдвэрлэл","Суурилуулалт"][index];const control=renderWorkStatusCell(order,type).replace("<select ","<select data-detail-control='true' ");return "<div style='padding:11px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;min-width:0;'><small style='display:block;color:#64748b;margin-bottom:7px;'>"+label+"</small>"+control+"</div>";}).join("")+"</div>";
    const mainStatusOptions=["Шинэ","Холбогдсон","Үнийн санал","Баталгаажсан","Дууссан"];
@@ -1878,6 +1933,7 @@ const eventNames={created:"Захиалга үүсгэсэн",updated:"Захи�
   bindAction("delete",()=>{modal.remove();window.deleteOrder(order.id);});
   bindAction("edit-balance",async()=>{await window.editUnpaidBalance(order.id,Number(order.unpaid_balance||0));});
   bindAction("mark-paid",async()=>{await window.markUnpaidBalancePaid(order.id,Number(order.unpaid_balance||0));});
+  bindAction("receive-payment",async()=>{await window.receiveAssignedOrderPayment(order.id);});
   const assigneeSelect=modal.querySelector("select[onchange*='assignOrderToEmployee']");
   if(assigneeSelect)assigneeSelect.onchange=async()=>{await window.assignOrderToEmployee(order.id,assigneeSelect.value,assigneeSelect);await window.viewOrderDetails(order.id);};
   const mainStatusSelect=modal.querySelector("[data-detail-main-status]");
@@ -2099,6 +2155,7 @@ window.loadStaff = async function() {
       "<button type='button' aria-label='Ажилтны мэдээлэл засах' title='Ажилтны мэдээлэл засах' data-user-id='" + escapeHTML(employee.user_id) + "' onclick='window.editStaff(this.dataset.userId)' style='display:inline-block!important;box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:24px!important;min-width:24px!important;height:24px!important;padding:0!important;margin:0!important;border:1px solid #93c5fd!important;border-radius:5px!important;background:#eff6ff!important;color:#1d4ed8!important;font-size:14px!important;line-height:1!important;cursor:pointer!important;'>✎</button></div>" +
       "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_view_all_orders ? "checked" : "") + " onchange='window.setStaffOrderVisibility(this.dataset.userId,this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Компанийн бүх захиалгыг харах</strong><br><span style='color:#64748b;'>Идэвхгүй бол зөвхөн өөрт оноосон захиалга харагдана. Энэ эрх нь засварлах эрх өгөхгүй.</span></span></label>" +
       "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_create_orders ? "checked" : "") + " onchange='window.setStaffCreatePermission(this.dataset.userId,this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Шинэ захиалга үүсгэх</strong><br><span style='color:#64748b;'>Идэвхтэй үед шинэ захиалга, үнийн санал үүсгэнэ. Өмнөх захиалгыг засах эрх өгөхгүй.</span></span></label>" +
+      "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_receive_payments ? "checked" : "") + " onchange='window.setStaffPermission(this.dataset.userId,"can_receive_payments",this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Төлбөр хүлээн авах</strong><br><span style='color:#64748b;'>Зөвхөн өөрт хариуцсан захиалгын төлбөрийг бүртгэж, тухайн захиалгын орлогын мэдээллийг харна. Компанийн санхүү, зарлагын тайлан харахгүй.</span></span></label>" +
       "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_update_production_status ? "checked" : "") + " onchange='window.setStaffWorkPermission(this.dataset.userId,\"production\",this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Үйлдвэрлэлийн явц шинэчлэх</strong><br><span style='color:#64748b;'>Зөвхөн өөрт оноосон захиалгын үйлдвэрлэлийн төлөвийг өөрчилнө.</span></span></label>" +
       "<label style='display:flex;align-items:flex-start;gap:9px;padding:10px 11px;margin:8px 0 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:13px;color:#334155;'><input type='checkbox' data-user-id='" + escapeHTML(employee.user_id) + "' " + (employee.can_update_installation_status ? "checked" : "") + " onchange='window.setStaffWorkPermission(this.dataset.userId,\"assembly\",this.checked,this)' style='width:17px;height:17px;flex-shrink:0;margin-top:1px;'><span><strong>Суурилуулалтын явц шинэчлэх</strong><br><span style='color:#64748b;'>Зөвхөн өөрт оноосон, үйлдвэрлэл дууссан захиалгын суурилуулалтын төлөвийг шинэчилнэ.</span></span></label>" +
       "<div style='display:block;width:100%;margin-bottom:4px;'>" +
@@ -2123,6 +2180,29 @@ window.setStaffCreatePermission = async function(userId, enabled, checkbox) {
       label.style.background = enabled ? "#f0fdf4" : "#f8fafc";
     }
     showAppNotice(result.message);
+  } catch (error) {
+    if (checkbox) checkbox.checked = !enabled;
+    showAppNotice(friendlyErrorMessage(error,"Ажилтны эрхийг хадгалж чадсангүй."));
+  } finally {
+    if (checkbox) checkbox.disabled = false;
+  }
+};
+
+window.setStaffPermission = async function(userId, permission, enabled, checkbox) {
+  if (currentUserRole !== "admin") {
+    if (checkbox) checkbox.checked = !enabled;
+    return showAppNotice("Админы эрх шаардлагатай.");
+  }
+  if (checkbox) checkbox.disabled = true;
+  try {
+    const result = await staffApi("update-permission", { userId, permission, enabled: enabled === true });
+    const label = checkbox?.closest("label");
+    if (label) {
+      label.style.borderColor = enabled ? "#86efac" : "#e2e8f0";
+      label.style.background = enabled ? "#f0fdf4" : "#f8fafc";
+    }
+    const message = document.getElementById("staffMessage");
+    if (message) message.textContent = "✅ " + result.message;
   } catch (error) {
     if (checkbox) checkbox.checked = !enabled;
     showAppNotice(friendlyErrorMessage(error,"Ажилтны эрхийг хадгалж чадсангүй."));
@@ -3495,7 +3575,7 @@ function showCustomerDetails(index) {
 
   const { data: admin, error } = await supabaseClient
     .from("admin_users")
-    .select("role, owner_user_id, can_create_orders, can_update_production_status, can_update_installation_status, can_update_site_installation_status")
+    .select("role, owner_user_id, can_create_orders, can_receive_payments, can_update_production_status, can_update_installation_status, can_update_site_installation_status")
     .eq("user_id", session.user.id)
     .maybeSingle();
 
@@ -3509,6 +3589,7 @@ function showCustomerDetails(index) {
   currentUserId = session.user.id;
   currentOwnerUserId = admin.owner_user_id || session.user.id;
   currentUserCanCreateOrders = admin.role === "admin" || admin.can_create_orders === true;
+  currentUserCanReceivePayments = admin.role === "admin" || admin.can_receive_payments === true;
   currentUserCanUpdateProduction = admin.role === "admin" || admin.can_update_production_status === true;
   currentUserCanUpdateAssembly = admin.role === "admin" || admin.can_update_installation_status === true;
   currentUserCanUpdateInstallation = admin.role === "admin" || admin.can_update_site_installation_status === true;
