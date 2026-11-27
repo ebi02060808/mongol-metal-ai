@@ -597,8 +597,8 @@ export default async function handler(req, res) {
       }
 
       // Үнийн саналын PDF авах/татгалзах Messenger postback
-      if (event.postback?.payload) {
-        const payload = String(event.postback.payload);
+      if (event.postback?.payload || event.message?.quick_reply?.payload) {
+        const payload = String(event.postback?.payload || event.message?.quick_reply?.payload || "");
         const pdfMatch = payload.match(/^GET_QUOTE_PDF:(\d+)$/);
         const declineMatch = payload.match(/^DECLINE_QUOTE_PDF:(\d+)$/);
 
@@ -1837,12 +1837,6 @@ if (quoteOrderId) {
   }
   if (pdfPath) {
     quotePdfReady = true;
-    try {
-      await sendQuotePdfQuestion(senderId, quoteOrderId);
-    } catch (questionError) {
-      console.error("Messenger quote PDF question error:", questionError);
-      await sendMessage(senderId, "Таны үнийн санал бэлэн боллоо. PDF авах бол 📄 PDF авах гэж бичнэ үү.");
-    }
   }
 }
 
@@ -1898,8 +1892,19 @@ if (!completedSession) {
     "Нийт үнэ: " + (items.some(item => item.pricing_mode === "labor_only")
       ? (totalPrice > 0 ? totalPrice.toLocaleString("mn-MN") + "₮ + ажлын хөлс тохиролцоно" : "Ажлын хөлсийг тохиролцоно")
       : totalPrice.toLocaleString("mn-MN") + "₮") + "\n\n" +
-    "Манай ажилтан удахгүй холбогдоно. Баярлалаа!" + (quotePdfReady ? "\n\n📄 PDF авах бол дээрх товчийг дарна уу." : "")
+    "Манай ажилтан удахгүй холбогдоно. Баярлалаа!"
   );
+
+  // Quick reply нь хамгийн сүүлд илгээгдсэн мессеж дээр харагддаг.
+  // Иймээс захиалгын баталгааны дараа PDF авах сонголтыг харуулна.
+  if (quotePdfReady) {
+    try {
+      await sendQuotePdfQuestion(senderId, quoteOrderId);
+    } catch (questionError) {
+      console.error("Messenger quote PDF question error:", questionError);
+      await sendMessage(senderId, "Таны үнийн санал бэлэн боллоо. PDF авах бол 📄 PDF авах гэж бичнэ үү.");
+    }
+  }
 
   continue;
 }
