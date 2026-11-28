@@ -3131,6 +3131,50 @@ window.exportFinanceTypeExcel = function(type) {
   const summarySheet = window.XLSX.utils.aoa_to_sheet(summary);
   summarySheet["!cols"] = [{wch:34},{wch:34}];
   window.XLSX.utils.book_append_sheet(workbook, summarySheet, "Нэгтгэл");
+
+  const monthlyGroups = new Map();
+  const categoryGroups = new Map();
+  entries.forEach(entry => {
+    const month = String(entry.entry_date || "").slice(0, 7) || "Огноогүй";
+    const category = String(entry.category || "Ангилалгүй");
+    const amount = Number(entry.amount || 0);
+    const unpaid = entry.payment_status === "unpaid";
+    if (!monthlyGroups.has(month)) monthlyGroups.set(month, {count:0,total:0,paid:0,unpaid:0});
+    const monthly = monthlyGroups.get(month);
+    monthly.count += 1; monthly.total += amount;
+    if (unpaid) monthly.unpaid += amount; else monthly.paid += amount;
+    if (!categoryGroups.has(category)) categoryGroups.set(category, {count:0,total:0,paid:0,unpaid:0});
+    const grouped = categoryGroups.get(category);
+    grouped.count += 1; grouped.total += amount;
+    if (unpaid) grouped.unpaid += amount; else grouped.paid += amount;
+  });
+  const makeGroupRows = groups => Array.from(groups.entries())
+    .sort((a,b) => b[1].total - a[1].total)
+    .map(([name, values]) => ({
+      [isIncome ? "Сар" : "Сар"]: name,
+      "Бүртгэлийн тоо": values.count,
+      [isIncome ? "Орлогын дүн (₮)" : "Зарлагын дүн (₮)"]: money(values.total),
+      "Төлөгдсөн (₮)": money(values.paid),
+      "Төлөгдөөгүй (₮)": money(values.unpaid)
+    }));
+  const monthlyRows = Array.from(monthlyGroups.entries()).sort((a,b) => a[0].localeCompare(b[0])).map(([month, values]) => ({
+    "Сар": month, "Бүртгэлийн тоо": values.count,
+    [isIncome ? "Орлого (₮)" : "Зарлага (₮)"]: money(values.total),
+    "Төлөгдсөн (₮)": money(values.paid), "Төлөгдөөгүй (₮)": money(values.unpaid)
+  }));
+  const categoryRows = makeGroupRows(categoryGroups).map(row => ({
+    "Ангилал": row["Сар"],
+    "Бүртгэлийн тоо": row["Бүртгэлийн тоо"],
+    [isIncome ? "Орлого (₮)" : "Зарлага (₮)"]: row[isIncome ? "Орлогын дүн (₮)" : "Зарлагын дүн (₮)"],
+    "Төлөгдсөн (₮)": row["Төлөгдсөн (₮)"],
+    "Төлөгдөөгүй (₮)": row["Төлөгдөөгүй (₮)"]
+  }));
+  const monthlySheet = window.XLSX.utils.json_to_sheet(monthlyRows);
+  monthlySheet["!cols"] = [{wch:18},{wch:18},{wch:22},{wch:20},{wch:22}];
+  window.XLSX.utils.book_append_sheet(workbook, monthlySheet, "Сарын нэгтгэл");
+  const categorySheet = window.XLSX.utils.json_to_sheet(categoryRows);
+  categorySheet["!cols"] = [{wch:32},{wch:18},{wch:22},{wch:20},{wch:22}];
+  window.XLSX.utils.book_append_sheet(workbook, categorySheet, "Ангиллын нэгтгэл");
   const detailSheet = window.XLSX.utils.json_to_sheet(detailRows);
   detailSheet["!cols"] = Object.keys(detailRows[0]).map(key => ({wch:Math.min(32,Math.max(14,key.length+4))}));
   window.XLSX.utils.book_append_sheet(workbook, detailSheet, isIncome ? "Орлогын бүртгэл" : "Зарлагын бүртгэл");
