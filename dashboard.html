@@ -2485,6 +2485,33 @@ window.getAdminMonitorExcelRows = function() {
     "Тайлбар": event.description || event.label || ""
   }));
 };
+window.getAdminMonitorSummary = function(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const summary = {
+    totalEvents: list.length,
+    orderCount: list.filter(row => row["Төрөл"] === "Шинэ захиалга").length,
+    totalIncome: list.reduce((sum, row) => sum + (row["Төрөл"] === "Орлого" ? Number(row["Орлогын дүн (₮)"]) || 0 : 0), 0),
+    staffRows: []
+  };
+  const staff = new Map();
+  const systemNames = new Set(["Систем", "Систем / өмнөх бүртгэл", "Messenger / Систем", ""]);
+  list.forEach(row => {
+    const name = String(row["Үйлдэл хийсэн ажилтан"] || "").trim();
+    if (!name || systemNames.has(name)) return;
+    if (!staff.has(name)) staff.set(name, { "Ажилтан": name, "Нийт үйлдэл": 0, "Шинэ захиалга": 0, "Ажил оноолт": 0, "Төлөв өөрчилсөн": 0, "Төлбөр бүртгэсэн": 0, "Хүлээн авсан орлого (₮)": 0 });
+    const item = staff.get(name);
+    item["Нийт үйлдэл"]++;
+    if (row["Төрөл"] === "Шинэ захиалга") item["Шинэ захиалга"]++;
+    if (row["Төрөл"] === "Ажил оноолт") item["Ажил оноолт"]++;
+    if (row["Төрөл"] === "Төлөвийн өөрчлөлт") item["Төлөв өөрчилсөн"]++;
+    if (row["Төрөл"] === "Орлого") {
+      item["Төлбөр бүртгэсэн"]++;
+      item["Хүлээн авсан орлого (₮)"] += Number(row["Орлогын дүн (₮)"]) || 0;
+    }
+  });
+  summary.staffRows = Array.from(staff.values()).sort((a,b) => b["Нийт үйлдэл"] - a["Нийт үйлдэл"]);
+  return summary;
+};
 window.exportAdminMonitorExcel = function() {
   const rows = window.getAdminMonitorExcelRows();
   if (!rows) return;
@@ -2497,6 +2524,19 @@ window.exportAdminMonitorExcel = function() {
   sheet["!autofilter"] = {ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:14}})};
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Админы хяналт");
+  const summary = window.getAdminMonitorSummary(rows);
+  const overviewSheet = XLSX.utils.json_to_sheet([
+    { "Үзүүлэлт": "Нийт бүртгэл", "Утга": summary.totalEvents },
+    { "Үзүүлэлт": "Шинэ захиалга", "Утга": summary.orderCount },
+    { "Үзүүлэлт": "Нийт орлого (₮)", "Утга": summary.totalIncome }
+  ]);
+  overviewSheet["!cols"] = [{wch:24},{wch:24}];
+  XLSX.utils.book_append_sheet(workbook, overviewSheet, "Нэгтгэл");
+  if (summary.staffRows.length) {
+    const staffSheet = XLSX.utils.json_to_sheet(summary.staffRows);
+    staffSheet["!cols"] = [{wch:24},{wch:16},{wch:18},{wch:16},{wch:18},{wch:18},{wch:24}];
+    XLSX.utils.book_append_sheet(workbook, staffSheet, "Ажилтны нэгтгэл");
+  }
   const date = new Date().toISOString().slice(0,10);
   XLSX.writeFile(workbook, "Mongol-Metal-Admin-Tailan-" + date + ".xlsx");
 };
@@ -2522,6 +2562,52 @@ window.previewAdminMonitorExcel = function() {
   const hint = document.createElement("div");
   hint.textContent = "Энэ цонхонд тайланг шууд харж болно. Файл татах шаардлагагүй.";
   hint.style.cssText = "padding:9px 16px;color:#64748b;font-size:13px;";
+  const summary = window.getAdminMonitorSummary(rows);
+  const summaryPanel = document.createElement("div");
+  summaryPanel.style.cssText = "padding:4px 14px 14px;overflow:auto;flex:0 0 auto;";
+  const cards = document.createElement("div");
+  cards.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:12px;";
+  [
+    ["Нийт бүртгэл", summary.totalEvents.toLocaleString("mn-MN")],
+    ["Шинэ захиалга", summary.orderCount.toLocaleString("mn-MN")],
+    ["Нийт орлого", summary.totalIncome.toLocaleString("mn-MN") + " ₮"]
+  ].forEach(([label,value]) => {
+    const card = document.createElement("div");
+    card.style.cssText = "border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#f8fafc;";
+    const caption = document.createElement("div");
+    caption.textContent = label;
+    caption.style.cssText = "font-size:12px;color:#64748b;margin-bottom:5px;";
+    const number = document.createElement("strong");
+    number.textContent = value;
+    number.style.cssText = "font-size:19px;color:#0f172a;";
+    card.append(caption,number);
+    cards.appendChild(card);
+  });
+  summaryPanel.appendChild(cards);
+  const staffHeading = document.createElement("strong");
+  staffHeading.textContent = "Ажилтан тус бүрийн үйл ажиллагааны нэгтгэл";
+  staffHeading.style.cssText = "display:block;margin:5px 0 8px;";
+  summaryPanel.appendChild(staffHeading);
+  if (summary.staffRows.length) {
+    const staffTable = document.createElement("table");
+    staffTable.style.cssText = "border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;margin-bottom:12px;";
+    const staffKeys = Object.keys(summary.staffRows[0]);
+    const staffHead = document.createElement("tr");
+    staffKeys.forEach(key => { const th=document.createElement("th"); th.textContent=key; th.style.cssText="background:#f1f5f9;padding:9px;border:1px solid #e2e8f0;text-align:left;"; staffHead.appendChild(th); });
+    const staffBody = document.createElement("tbody");
+    summary.staffRows.forEach(row => {
+      const tr=document.createElement("tr");
+      staffKeys.forEach(key => { const td=document.createElement("td"); td.textContent=key.includes("(₮)") ? (Number(row[key]) || 0).toLocaleString("mn-MN") : String(row[key] ?? ""); td.style.cssText="padding:8px;border:1px solid #e2e8f0;"; tr.appendChild(td); });
+      staffBody.appendChild(tr);
+    });
+    staffTable.append(staffHead,staffBody);
+    summaryPanel.appendChild(staffTable);
+  } else {
+    const noStaff = document.createElement("p");
+    noStaff.textContent = "Ажилтны үйл ажиллагааны бүртгэл алга байна.";
+    noStaff.style.cssText = "color:#64748b;font-size:13px;margin-bottom:12px;";
+    summaryPanel.appendChild(noStaff);
+  }
   const scroll = document.createElement("div");
   scroll.style.cssText = "overflow:auto;padding:0 12px 14px;";
   const table = document.createElement("table");
@@ -2533,7 +2619,7 @@ window.previewAdminMonitorExcel = function() {
   thead.appendChild(headRow);
   const tbody = document.createElement("tbody");
   rows.forEach(row => { const tr=document.createElement("tr"); keys.forEach(key => { const td=document.createElement("td"); td.textContent=row[key] === undefined || row[key] === null ? "" : String(row[key]); td.style.cssText="padding:9px;border:1px solid #e2e8f0;"; tr.appendChild(td); }); tbody.appendChild(tr); });
-  table.append(thead,tbody); scroll.appendChild(table); panel.append(header,hint,scroll); overlay.appendChild(panel);
+  table.append(thead,tbody); scroll.appendChild(table); panel.append(header,hint,summaryPanel,scroll); overlay.appendChild(panel);
   overlay.addEventListener("click", event => { if(event.target===overlay) overlay.remove(); });
   document.addEventListener("keydown", function closeOnEscape(event) { if(event.key==="Escape" && document.getElementById("adminMonitorPreviewOverlay")) { overlay.remove(); document.removeEventListener("keydown",closeOnEscape); } });
   document.body.appendChild(overlay);
