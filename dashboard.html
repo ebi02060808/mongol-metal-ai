@@ -1899,8 +1899,9 @@ const eventNames={created:"Захиалга үүсгэсэн",updated:"Захи�
       const amount=v.amount ?? v.payment_amount;
       const category=v.category ?? v.payment_category;
       const dateValue=v.entry_date;
+      const paymentMethod=v.payment_method;
       const description=v.description;
-      return "<div style='display:grid;gap:5px;'><strong style='font-size:16px;color:#166534;'>"+(amount==null?"Дүн тодорхойгүй":money(amount))+"</strong>"+(category?"<div>Төрөл: <strong>"+escapeHTML(category)+"</strong></div>":"")+(dateValue?"<div>Огноо: "+escapeHTML(dateValue)+"</div>":"")+(description?"<div>Тайлбар: "+escapeHTML(description)+"</div>":"")+"</div>";
+      return "<div style='display:grid;gap:5px;'><strong style='font-size:16px;color:#166534;'>"+(amount==null?"Дүн тодорхойгүй":money(amount))+"</strong>"+(category?"<div>Төрөл: <strong>"+escapeHTML(category)+"</strong></div>":"")+(paymentMethod?"<div>Төлбөрийн хэлбэр: <strong>"+escapeHTML(paymentMethod==="Банк"?"Банкны шилжүүлэг":paymentMethod==="Бэлэн"?"Бэлэн мөнгө":paymentMethod)+"</strong></div>":"<div>Төлбөрийн хэлбэр: <strong>Хуучин бүртгэлд байхгүй</strong></div>")+(dateValue?"<div>Огноо: "+escapeHTML(dateValue)+"</div>":"")+(description?"<div>Тайлбар: "+escapeHTML(description)+"</div>":"")+"</div>";
     };
     const paymentSummary=x.event_type==="payment_received"
       ? "<div style='display:grid;gap:8px;padding:11px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;'>"+(x.old_values && x.new_values
