@@ -798,6 +798,7 @@
         <p id="financeMessage" style="margin:10px 0;color:#475569;"></p>
         <div id="financeAlerts" style="margin:14px 0;"></div>
         <div id="financeChart" style="margin:18px 0;padding:15px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;"></div>
+        <div id="financePaymentMethodSummary" style="margin:18px 0;padding:15px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;"><button type="button" onclick="exportFinanceTypeExcel('income')" style="padding:10px 14px;min-height:44px;border:0;border-radius:8px;background:#15803d;color:white;font-weight:700;">📥 Орлогын Excel татах</button><button type="button" onclick="exportFinanceTypeExcel('expense')" style="padding:10px 14px;min-height:44px;border:0;border-radius:8px;background:#c2410c;color:white;font-weight:700;">📥 Зарлагын Excel татах</button><button type="button" onclick="exportFinancePDF()" style="padding:10px 14px;min-height:44px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">📄 PDF тайлан татах</button></div>
         <div id="financeReceivables" style="margin:18px 0;"></div>
         <div id="financePayables" style="margin:18px 0;"></div>
@@ -3011,6 +3012,23 @@ async function loadFinance() {
     if(!startDate && keys.length>6) keys=keys.slice(-6);
     const max=Math.max(1,...keys.flatMap(k=>[groups[k].income,groups[k].expense]));
     chart.innerHTML="<h3 style='margin-bottom:12px;'>📈 Сарын мөнгөн урсгал</h3>"+(keys.length?"<div style='display:grid;grid-template-columns:repeat("+keys.length+",minmax(48px,1fr));gap:9px;align-items:end;height:170px;'>"+keys.map(k=>"<div style='height:100%;display:flex;flex-direction:column;justify-content:end;align-items:center;gap:4px;'><div style='display:flex;align-items:end;gap:3px;height:130px;width:100%;justify-content:center;'><span title='Орлого "+money(groups[k].income)+"' style='display:block;width:13px;height:"+Math.max(2,groups[k].income/max*120)+"px;background:#16a34a;border-radius:4px 4px 0 0;'></span><span title='Зарлага "+money(groups[k].expense)+"' style='display:block;width:13px;height:"+Math.max(2,groups[k].expense/max*120)+"px;background:#f97316;border-radius:4px 4px 0 0;'></span></div><small>"+escapeHTML(k)+"</small></div>").join("")+"</div><p style='font-size:12px;color:#64748b;margin-top:9px;'>🟩 Орлого · 🟧 Зарлага. Бүртгэлийн огноогоор тооцов.</p>":"<p style='color:#64748b;'>График гаргах бүртгэл алга.</p>");
+  }
+
+  const paymentSummary=document.getElementById("financePaymentMethodSummary");
+  if(paymentSummary){
+    const paymentTotals={income:new Map(),expense:new Map()};
+    entries.forEach(entry=>{
+      const type=entry.entry_type==="income"?"income":"expense";
+      const method=String(entry.payment_method||"").trim()||"Тодорхойгүй";
+      if(!paymentTotals[type].has(method)) paymentTotals[type].set(method,{count:0,total:0,paid:0,unpaid:0});
+      const item=paymentTotals[type].get(method);
+      const amount=Number(entry.amount||0);
+      item.count+=1; item.total+=amount;
+      if(entry.payment_status==="unpaid") item.unpaid+=amount; else item.paid+=amount;
+    });
+    const renderPaymentRows=(groups,type)=>Array.from(groups.entries()).sort((a,b)=>b[1].total-a[1].total).map(([method,item])=>"<tr style='border-top:1px solid #e2e8f0;'><td style='padding:9px;'>"+escapeHTML(method)+"</td><td style='padding:9px;text-align:right;'>"+item.count+"</td><td style='padding:9px;text-align:right;font-weight:700;'>"+money(item.total)+"</td><td style='padding:9px;text-align:right;color:#15803d;'>"+money(item.paid)+"</td><td style='padding:9px;text-align:right;color:#b91c1c;'>"+money(item.unpaid)+"</td></tr>").join("");
+    const renderPaymentTable=(groups,type,label)=>"<div style='min-width:0;'><h4 style='margin:8px 0;'>"+label+"</h4>"+(groups.size?"<div style='overflow-x:auto;'><table style='width:100%;min-width:560px;border-collapse:collapse;font-size:13px;'><thead><tr style='background:#f8fafc;'><th style='padding:9px;text-align:left;'>Төлбөрийн хэлбэр</th><th style='padding:9px;text-align:right;'>Тоо</th><th style='padding:9px;text-align:right;'>Нийт дүн</th><th style='padding:9px;text-align:right;'>Төлөгдсөн</th><th style='padding:9px;text-align:right;'>Төлөгдөөгүй</th></tr></thead><tbody>"+renderPaymentRows(groups,type)+"</tbody></table></div>":"<p style='color:#64748b;'>Бүртгэл алга.</p>")+"</div>";
+    paymentSummary.innerHTML="<h3 style='margin:0 0 10px;'>💳 Төлбөрийн хэлбэрийн задаргаа</h3><p style='font-size:12px;color:#64748b;margin:0 0 12px;'>Сонгосон хугацааны орлого, зарлагыг төлбөрийн хэлбэрээр харуулна.</p><div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;'>"+renderPaymentTable(paymentTotals.income,"income","📥 Орлого")+" "+renderPaymentTable(paymentTotals.expense,"expense","📤 Зарлага")+"</div>";
   }
 
   currentFinanceReport={entries,orders,receivables,payables,income,expense:allExpense,paidExpense:expense,receivableTotal,payableTotal,startDate,endDate,profitRows};
