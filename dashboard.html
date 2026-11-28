@@ -2457,12 +2457,42 @@ window.filterAdminMonitorEvents = function() {
   if (!target) return;
   const query = (document.getElementById("adminMonitorSearch")?.value || "").trim().toLocaleLowerCase();
   target.querySelectorAll("[data-monitor-search]").forEach(card => {
+    card.querySelectorAll("mark[data-monitor-highlight]").forEach(mark => {
+      mark.replaceWith(document.createTextNode(mark.textContent || ""));
+    });
+    card.normalize();
     const haystack = (card.getAttribute("data-monitor-search") || "").toLocaleLowerCase();
-    card.style.display = !query || haystack.includes(query) ? "" : "none";
+    const matched = !query || haystack.includes(query);
+    card.style.display = matched ? "" : "none";
+    if (!query || !matched) return;
+    const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(node => {
+      const original = node.nodeValue || "";
+      const lower = original.toLocaleLowerCase();
+      let from = 0;
+      let at = lower.indexOf(query, from);
+      if (at < 0) return;
+      const fragment = document.createDocumentFragment();
+      while (at >= 0) {
+        if (at > from) fragment.appendChild(document.createTextNode(original.slice(from, at)));
+        const mark = document.createElement("mark");
+        mark.setAttribute("data-monitor-highlight", "true");
+        mark.style.cssText = "background:#fef08a;color:#713f12;padding:1px 2px;border-radius:3px;font-weight:800;";
+        mark.textContent = original.slice(at, at + query.length);
+        fragment.appendChild(mark);
+        from = at + query.length;
+        at = lower.indexOf(query, from);
+      }
+      if (from < original.length) fragment.appendChild(document.createTextNode(original.slice(from)));
+      node.parentNode.replaceChild(fragment, node);
+    });
   });
-  const visible = [...target.querySelectorAll("[data-monitor-search]")].some(card => card.style.display !== "none");
+  const cards = [...target.querySelectorAll("[data-monitor-search]")];
+  const visible = cards.some(card => card.style.display !== "none");
   let empty = target.querySelector("[data-monitor-empty]");
-  if (!empty && target.querySelectorAll("[data-monitor-search]").length) {
+  if (!empty && cards.length) {
     empty = document.createElement("p");
     empty.setAttribute("data-monitor-empty","true");
     empty.style.cssText = "padding:18px;text-align:center;color:#64748b;";
