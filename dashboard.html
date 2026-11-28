@@ -623,6 +623,27 @@
             <button type="button" data-monitor-filter="status_change" onclick="setAdminMonitorFilter('status_change')" style="white-space:nowrap;padding:10px 13px;border:1px solid #cbd5e1;border-radius:9px;background:white;color:#334155;font-weight:700;">🔄 Төлөв <span id="monitorCountStatuses">0</span></button>
             <button type="button" data-monitor-filter="payment" onclick="setAdminMonitorFilter('payment')" style="white-space:nowrap;padding:10px 13px;border:1px solid #cbd5e1;border-radius:9px;background:white;color:#334155;font-weight:700;">💰 Орлого <span id="monitorCountPayments">0</span></button>
           </div>
+          <div id="adminMonitorFilters" style="display:flex;flex-wrap:wrap;gap:9px;margin:4px 0 12px;">
+            <label style="display:grid;gap:4px;flex:1;min-width:135px;font-size:12px;color:#475569;font-weight:700;">Эхлэх огноо
+              <input id="monitorDateFrom" type="date" onchange="loadAdminMonitor()" style="width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:white;">
+            </label>
+            <label style="display:grid;gap:4px;flex:1;min-width:135px;font-size:12px;color:#475569;font-weight:700;">Дуусах огноо
+              <input id="monitorDateTo" type="date" onchange="loadAdminMonitor()" style="width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:white;">
+            </label>
+            <label id="monitorEmployeeFilterWrap" style="display:none;gap:4px;flex:1;min-width:160px;font-size:12px;color:#475569;font-weight:700;">Ажилтан
+              <select id="monitorEmployeeFilter" onchange="loadAdminMonitor()" style="width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:white;"><option value="">Бүх ажилтан</option></select>
+            </label>
+            <label id="monitorPaymentFilterWrap" style="display:none;gap:4px;flex:1;min-width:160px;font-size:12px;color:#475569;font-weight:700;">Төлбөрийн төрөл
+              <select id="monitorPaymentFilter" onchange="loadAdminMonitor()" style="width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:white;">
+                <option value="">Бүх орлого</option>
+                <option value="advance">Урьдчилгаа</option>
+                <option value="full">Бүтэн төлбөр</option>
+                <option value="remaining">Үлдэгдэл төлбөр</option>
+                <option value="other">Бусад орлого</option>
+              </select>
+            </label>
+            <button type="button" onclick="resetAdminMonitorFilters()" style="align-self:end;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;font-weight:700;">Цэвэрлэх</button>
+          </div>
           <div id="adminMonitorEvents" style="margin-top:8px;">Мэдээлэл ачаалж байна...</div>
         </div>
       </div>
@@ -2443,6 +2464,13 @@ window.setAdminMonitorFilter = function(filter) {
   activeAdminMonitorFilter = filter;
   loadAdminMonitor();
 };
+window.resetAdminMonitorFilters = function() {
+  ["monitorDateFrom","monitorDateTo","monitorEmployeeFilter","monitorPaymentFilter"].forEach(id => {
+    const input = document.getElementById(id);
+    if (input) input.value = "";
+  });
+  loadAdminMonitor();
+};
 
 async function loadAdminMonitor() {
   if (currentUserRole !== "admin") throw new Error("Зөвхөн админ энэ хэсгийг харах эрхтэй.");
@@ -2476,15 +2504,56 @@ async function loadAdminMonitor() {
     const el = document.getElementById(countElements[key]);
     if (el) el.textContent = "(" + count + ")";
   });
+
+  const employeeWrap = document.getElementById("monitorEmployeeFilterWrap");
+  const paymentWrap = document.getElementById("monitorPaymentFilterWrap");
+  if (employeeWrap) employeeWrap.style.display = activeAdminMonitorFilter === "assignment_change" ? "grid" : "none";
+  if (paymentWrap) paymentWrap.style.display = activeAdminMonitorFilter === "payment" ? "grid" : "none";
+
+  const employeeSelect = document.getElementById("monitorEmployeeFilter");
+  if (employeeSelect) {
+    const selectedEmployee = employeeSelect.value;
+    const employeeNames = [...new Set(events.filter(event => event.type === "assignment_change")
+      .flatMap(event => [event.actor_name, event.previous_assignee, event.new_assignee])
+      .filter(name => name && !["Систем","Оноогоогүй","Хуваарилаагүй"].includes(name)))].sort((a,b)=>a.localeCompare(b,"mn"));
+    employeeSelect.innerHTML = '<option value="">Бүх ажилтан</option>' + employeeNames.map(name =>
+      '<option value="' + escapeHTML(name) + '">' + escapeHTML(name) + '</option>'
+    ).join("");
+    if (employeeNames.includes(selectedEmployee)) employeeSelect.value = selectedEmployee;
+  }
+
   document.querySelectorAll("[data-monitor-filter]").forEach(button => {
     const active = button.dataset.monitorFilter === activeAdminMonitorFilter;
     button.style.background = active ? "#2563eb" : "#fff";
     button.style.color = active ? "#fff" : "#334155";
     button.style.borderColor = active ? "#2563eb" : "#cbd5e1";
   });
-  const visibleEvents = activeAdminMonitorFilter === "all"
-    ? events
-    : events.filter(event => event.type === activeAdminMonitorFilter);
+
+  const dateFrom = document.getElementById("monitorDateFrom")?.value || "";
+  const dateTo = document.getElementById("monitorDateTo")?.value || "";
+  const employeeFilter = employeeSelect?.value || "";
+  const paymentFilter = document.getElementById("monitorPaymentFilter")?.value || "";
+  const categoryMatches = (event, filter) => {
+    const category = String(event.category || "").toLocaleLowerCase();
+    if (filter === "advance") return category.includes("урьдчилгаа");
+    if (filter === "full") return category.includes("бүтэн");
+    if (filter === "remaining") return category.includes("үлдэгдэл");
+    if (filter === "other") return !["урьдчилгаа","бүтэн","үлдэгдэл"].some(word => category.includes(word));
+    return true;
+  };
+  const visibleEvents = events.filter(event => {
+    if (activeAdminMonitorFilter !== "all" && event.type !== activeAdminMonitorFilter) return false;
+    const eventDate = new Date(event.created_at);
+    if ((dateFrom || dateTo) && Number.isNaN(eventDate.getTime())) return false;
+    const eventDay = Number.isNaN(eventDate.getTime()) ? "" : localDateString(eventDate);
+    if (dateFrom && eventDay < dateFrom) return false;
+    if (dateTo && eventDay > dateTo) return false;
+    if (activeAdminMonitorFilter === "assignment_change" && employeeFilter &&
+        ![event.actor_name,event.previous_assignee,event.new_assignee].includes(employeeFilter)) return false;
+    if (activeAdminMonitorFilter === "payment" && paymentFilter && !categoryMatches(event,paymentFilter)) return false;
+    return true;
+  });
+
   if (target) {
     target.innerHTML = visibleEvents.length ? visibleEvents.map(event => {
       const common = '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
@@ -2508,9 +2577,14 @@ async function loadAdminMonitor() {
         detail = '<div style="margin-top:7px;">💰 ' + escapeHTML(event.category) + ' · <strong>' +
           money(event.amount) + '</strong></div><div style="margin-top:5px;color:#475569;">Хүлээн авсан: <strong>' +
           escapeHTML(event.actor_name) + '</strong>' + (event.payment_method ? ' · ' + escapeHTML(event.payment_method) : '') + '</div>';
+        if (event.description) detail += '<div style="margin-top:4px;color:#64748b;font-size:13px;">' + escapeHTML(event.description) + '</div>';
       }
-      return '<article style="padding:13px;margin:9px 0;border:1px solid #e2e8f0;border-radius:11px;background:#fff;">' + common + detail + '</article>';
-    }).join("") : '<p style="padding:18px;text-align:center;color:#64748b;">Энэ ангилалд одоогоор бүртгэл алга байна.</p>';
+      const orderId = Number(event.order_id);
+      const detailsButton = Number.isSafeInteger(orderId) && orderId > 0
+        ? '<button type="button" onclick="window.viewOrderDetails(' + orderId + ')" style="margin-top:10px;padding:8px 11px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-weight:700;">Захиалгын дэлгэрэнгүй харах →</button>'
+        : "";
+      return '<article style="padding:13px;margin:9px 0;border:1px solid #e2e8f0;border-radius:11px;background:#fff;">' + common + detail + detailsButton + '</article>';
+    }).join("") : '<p style="padding:18px;text-align:center;color:#64748b;">Сонгосон шүүлтэд тохирох бүртгэл алга байна.</p>';
   }
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session && data.unreadCount > 0) {
