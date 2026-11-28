@@ -208,7 +208,7 @@ export default async function handler(req, res) {
       const paymentType = confirmationIncome?.paymentType === "full" ? "full" : confirmationIncome?.paymentType === "deposit" ? "deposit" : "";
       const entryDate = String(confirmationIncome?.entryDate || "").trim();
       const paymentMethod = ["Бэлэн","Банк","Карт","Бусад"].includes(confirmationIncome?.paymentMethod) ? confirmationIncome.paymentMethod : "";
-      if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000 || !paymentType ||
+      if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000 || !paymentType || !paymentMethod ||
           !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
         return res.status(400).json({ error: "Төлбөрийн төрөл, бодитоор авсан орлогын дүн эсвэл огноо буруу байна." });
       }
