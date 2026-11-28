@@ -624,11 +624,11 @@
             <button type="button" data-monitor-filter="status_change" onclick="setAdminMonitorFilter('status_change')" style="white-space:nowrap;padding:10px 13px;border:1px solid #cbd5e1;border-radius:9px;background:white;color:#334155;font-weight:700;">🔄 Төлөв <span id="monitorCountStatuses">0</span></button>
             <button type="button" data-monitor-filter="payment" onclick="setAdminMonitorFilter('payment')" style="white-space:nowrap;padding:10px 13px;border:1px solid #cbd5e1;border-radius:9px;background:white;color:#334155;font-weight:700;">💰 Орлого <span id="monitorCountPayments">0</span></button>
           </div>
-          <div id="adminMonitorFilters" style="display:flex;gap:8px;align-items:center;margin:4px 0 12px;">
-            <input id="adminMonitorSearch" type="search" oninput="filterAdminMonitorEvents()" placeholder="Ажилтан, захиалгын дугаар, харилцагч, утас, төлөв, орлогоор хайх..." style="flex:1;min-width:0;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;background:white;font-size:14px;">
-            <button type="button" onclick="resetAdminMonitorFilters()" style="flex-shrink:0;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;font-weight:700;">Цэвэрлэх</button>
-            <button type="button" onclick="exportAdminMonitorExcel()" style="flex-shrink:0;padding:11px 12px;border:0;border-radius:8px;background:#166534;color:white;font-weight:700;white-space:nowrap;">📥 Excel татах</button>
-            <button type="button" onclick="previewAdminMonitorExcel()" style="flex-shrink:0;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;font-weight:700;white-space:nowrap;">👁 Excel харах</button>
+          <div id="adminMonitorFilters" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 12px;">
+            <input id="adminMonitorSearch" type="search" oninput="filterAdminMonitorEvents()" placeholder="Ажилтан, захиалгын дугаар, харилцагч, утас, төлөв, орлогоор хайх..." style="display:block;flex:1 1 100%;min-width:100%;width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:9px;background:white;font-size:15px;min-height:44px;">
+            <button type="button" onclick="resetAdminMonitorFilters()" style="flex:0 0 auto;padding:9px 13px;min-height:40px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;font-size:13px;font-weight:600;white-space:nowrap;">Цэвэрлэх</button>
+            <button type="button" onclick="exportAdminMonitorExcel()" style="flex:0 0 auto;padding:9px 13px;min-height:40px;border:0;border-radius:8px;background:#166534;color:white;font-size:13px;font-weight:600;white-space:nowrap;">📥 Excel татах</button>
+            <button type="button" onclick="previewAdminMonitorExcel()" style="flex:0 0 auto;padding:9px 13px;min-height:40px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;font-size:13px;font-weight:600;white-space:nowrap;">👁 Excel харах</button>
           </div>
           <div id="adminMonitorEvents" style="margin-top:8px;">Мэдээлэл ачаалж байна...</div>
         </div>
