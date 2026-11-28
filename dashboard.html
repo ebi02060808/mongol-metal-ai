@@ -2444,9 +2444,9 @@ async function loadAdminMonitor() {
   };
   const summary = document.getElementById("adminMonitorSummary");
   if (summary) {
-    const counts = { new_order: 0, status_change: 0, payment: 0 };
+    const counts = { new_order: 0, assignment_change: 0, status_change: 0, payment: 0 };
     events.forEach(event => { if (counts[event.type] !== undefined) counts[event.type]++; });
-    const cards = [["📦 Шинэ захиалга", counts.new_order], ["🔄 Төлөвийн өөрчлөлт", counts.status_change], ["💰 Орлогын бүртгэл", counts.payment]];
+    const cards = [["📦 Шинэ захиалга", counts.new_order], ["👥 Ажилтан оноолт", counts.assignment_change], ["🔄 Төлөвийн өөрчлөлт", counts.status_change], ["💰 Орлогын бүртгэл", counts.payment]];
     summary.innerHTML = cards.map(item =>
       '<div style="flex:1;min-width:135px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;">' +
       '<div style="font-size:12px;color:#64748b;">' + item[0] + '</div>' +
@@ -2464,6 +2464,10 @@ async function loadAdminMonitor() {
           ' · ' + escapeHTML(event.source || "Эх сурвалж тодорхойгүй") + '</div>' +
           '<div style="margin-top:5px;color:#475569;">Бүртгэсэн: <strong>' + escapeHTML(event.actor_name) +
           '</strong> · Хариуцагч: <strong>' + escapeHTML(event.assigned_name) + '</strong></div>';
+      } else if (event.type === "assignment_change") {
+        detail = '<div style="margin-top:7px;">👥 Хариуцсан ажилтан: <strong>' +
+          escapeHTML(event.previous_assignee) + '</strong> → <strong>' + escapeHTML(event.new_assignee) + '</strong></div>' +
+          '<div style="margin-top:5px;color:#475569;">Оноосон: <strong>' + escapeHTML(event.actor_name) + '</strong></div>';
       } else if (event.type === "status_change") {
         detail = '<div style="margin-top:7px;">🔄 ' + escapeHTML(event.label) + ': <strong>' +
           escapeHTML(event.previous_status) + '</strong> → <strong>' + escapeHTML(event.new_status) + '</strong></div>' +
