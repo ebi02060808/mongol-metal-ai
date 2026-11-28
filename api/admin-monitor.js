@@ -118,6 +118,23 @@ export default async function handler(req, res) {
       let previous = "";
       let next = "";
 
+      if (item.event_type === "updated" &&
+          (oldValues.assigned_to_name !== undefined || newValues.assigned_to_name !== undefined)) {
+        const order = orders.find(value => value.id === item.order_id);
+        events.push({
+          id: "assignment-" + item.id,
+          type: "assignment_change",
+          created_at: item.created_at,
+          order_id: item.order_id,
+          order_number: order?.messenger_order_number || ("#" + item.order_id),
+          customer_name: order?.customer_name || "",
+          actor_name: item.actor_user_id ? (names.get(item.actor_user_id) || "Бүртгэлтэй хэрэглэгч") : "Систем",
+          previous_assignee: oldValues.assigned_to_name || "Оноогоогүй",
+          new_assignee: newValues.assigned_to_name || "Оноогоогүй"
+        });
+        continue;
+      }
+
       if (item.event_type === "updated" && oldValues.status !== newValues.status &&
           (oldValues.status !== undefined || newValues.status !== undefined)) {
         label = "Захиалгын төлөв өөрчилсөн";
