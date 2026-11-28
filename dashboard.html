@@ -789,7 +789,7 @@
           <div style="display:flex;flex-direction:column;gap:4px;"><label id="financeDateLabel" for="financeDate" style="font-size:12px;font-weight:600;color:#334155;">Орлого орсон өдөр</label><input id="financeDate" type="date" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><small id="financeDateHelp" style="font-size:11px;color:#64748b;">Мөнгө бодитоор орж ирсэн өдрийг сонгоно.</small></div>
           <select id="financeOrderId" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Захиалгатай холбох (заавал биш)</option></select>
           <input id="financeCounterparty" type="text" placeholder="Нийлүүлэгч / төлбөр төлөгч" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
-          <select id="financePaymentMethod" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Төлбөрийн хэлбэр</option><option value="Бэлэн">Бэлэн</option><option value="Банк">Банкны шилжүүлэг</option><option value="Карт">Карт</option><option value="Бусад">Бусад</option></select>
+          <select id="financePaymentMethod" required style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="">Төлбөрийн хэлбэр сонгох *</option><option value="Бэлэн">Бэлэн</option><option value="Банк">Банкны шилжүүлэг</option><option value="Карт">Карт</option><option value="Бусад">Бусад</option></select>
           <select id="financePaymentStatus" style="padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><option value="paid">Төлөгдсөн</option><option value="unpaid">Төлөгдөөгүй / өглөг</option></select>
           <div style="display:flex;flex-direction:column;gap:4px;"><label for="financeDueDate" style="font-size:12px;font-weight:600;color:#334155;">Төлөхөөр товлосон өдөр</label><input id="financeDueDate" type="date" title="Төлөхөөр товлосон өдөр" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #cbd5e1;border-radius:8px;"><small style="font-size:11px;color:#64748b;">Төлбөрийг ирээдүйд хийхээр тохирсон өдрийг сонгоно.</small></div>
           <input id="financeDescription" type="text" placeholder="Юунд зориулагдсан / юу авсан (гараар бичнэ)" style="width:100%;min-width:0;box-sizing:border-box;padding:11px;border:1px solid #cbd5e1;border-radius:8px;">
@@ -3275,7 +3275,7 @@ window.saveFinanceEntry = async function() {
   const dueDate=type==="expense"?(document.getElementById("financeDueDate").value||null):null;
   const message=document.getElementById("financeMessage");
   if(!Number.isFinite(amount)||amount<=0||!category||!entryDate){message.textContent="Дүн, ангилал, огноог зөв бөглөнө үү.";return;}
-  if(type==="income"&&!paymentMethod){message.textContent="Орлого бүртгэхийн өмнө төлбөрийн хэлбэрээ сонгоно уу.";document.getElementById("financePaymentMethod")?.focus();return;}
+  if(!paymentMethod){message.textContent=(type==="income"?"Орлого":"Зарлага")+" бүртгэхийн өмнө төлбөрийн хэлбэрээ сонгоно уу.";document.getElementById("financePaymentMethod")?.focus();return;}
   if(type==="expense"&&paymentStatus==="unpaid"&&!counterparty){message.textContent="Төлөгдөөгүй өглөгт нийлүүлэгчийн нэрийг оруулна уу.";return;}
   const {error}=await supabaseClient.from("finance_entries").insert({
     user_id:session.user.id,created_by:session.user.id,entry_type:type,amount,category,
