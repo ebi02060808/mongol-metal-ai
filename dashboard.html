@@ -616,8 +616,14 @@
         <div class="section">
           <h2>🔔 Админы хяналт, үйл ажиллагааны түүх</h2>
           <p style="color:#64748b;margin:6px 0 14px;">Ажилтнуудын ажлыг батлахгүй. Захиалга, төлөвийн өөрчлөлт, орлогын бүртгэлийг зөвхөн хянана.</p>
-          <div id="adminMonitorSummary" style="display:flex;flex-wrap:wrap;gap:9px;margin:12px 0;"></div>
-          <div id="adminMonitorEvents" style="margin-top:14px;">Мэдээлэл ачаалж байна...</div>
+          <div id="adminMonitorTabs" style="display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;margin:12px 0;-webkit-overflow-scrolling:touch;">
+            <button type="button" data-monitor-filter="all" onclick="setAdminMonitorFilter('all')" style="white-space:nowrap;padding:10px 13px;border:1px solid #2563eb;border-radius:9px;background:#2563eb;color:white;font-weight:700;">Бүгд <span id="monitorCountAll">0</span></button>
+            <button type="button" data-monitor-filter="new_order" onclick="setAdminMonitorFilter('new_order')" style="white-space:nowrap;padding:10px 13px;border:1px solid #cbd5e1;border-radius:9px;background:white;color:#334155;font-weight:700;">📦 Шинэ захиалга <span id="monitorCountOrders">0</span></button>
+            <button type="button" data-monitor-filter="assignment_change" onclick="setAdminMonitorFilter('assignment_change')" style="white-space:nowrap;padding:10px 13px;border:1px solid #cbd5e1;border-radius:9px;background:white;color:#334155;font-weight:700;">👥 Ажил оноолт <span id="monitorCountAssignments">0</span></button>
+            <button type="button" data-monitor-filter="status_change" onclick="setAdminMonitorFilter('status_change')" style="white-space:nowrap;padding:10px 13px;border:1px solid #cbd5e1;border-radius:9px;background:white;color:#334155;font-weight:700;">🔄 Төлөв <span id="monitorCountStatuses">0</span></button>
+            <button type="button" data-monitor-filter="payment" onclick="setAdminMonitorFilter('payment')" style="white-space:nowrap;padding:10px 13px;border:1px solid #cbd5e1;border-radius:9px;background:white;color:#334155;font-weight:700;">💰 Орлого <span id="monitorCountPayments">0</span></button>
+          </div>
+          <div id="adminMonitorEvents" style="margin-top:8px;">Мэдээлэл ачаалж байна...</div>
         </div>
       </div>
       <div class="page-section" id="ordersPage">
@@ -2430,6 +2436,14 @@ async function loadAdminMonitorBadge() {
   try { const data = await requestAdminMonitor(); updateAdminMonitorBadge(data.unreadCount); }
   catch (error) { console.warn("Admin monitor badge:", error); }
 }
+let activeAdminMonitorFilter = "all";
+window.setAdminMonitorFilter = function(filter) {
+  const allowed = ["all", "new_order", "assignment_change", "status_change", "payment"];
+  if (!allowed.includes(filter)) return;
+  activeAdminMonitorFilter = filter;
+  loadAdminMonitor();
+};
+
 async function loadAdminMonitor() {
   if (currentUserRole !== "admin") throw new Error("Зөвхөн админ энэ хэсгийг харах эрхтэй.");
   const target = document.getElementById("adminMonitorEvents");
@@ -2442,19 +2456,37 @@ async function loadAdminMonitor() {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? "Огноо тодорхойгүй" : date.toLocaleString("mn-MN");
   };
-  const summary = document.getElementById("adminMonitorSummary");
-  if (summary) {
-    const counts = { new_order: 0, assignment_change: 0, status_change: 0, payment: 0 };
-    events.forEach(event => { if (counts[event.type] !== undefined) counts[event.type]++; });
-    const cards = [["📦 Шинэ захиалга", counts.new_order], ["👥 Ажилтан оноолт", counts.assignment_change], ["🔄 Төлөвийн өөрчлөлт", counts.status_change], ["💰 Орлогын бүртгэл", counts.payment]];
-    summary.innerHTML = cards.map(item =>
-      '<div style="flex:1;min-width:135px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;">' +
-      '<div style="font-size:12px;color:#64748b;">' + item[0] + '</div>' +
-      '<strong style="display:block;font-size:22px;margin-top:4px;">' + item[1] + '</strong></div>'
-    ).join("");
-  }
+  const counts = { new_order: 0, assignment_change: 0, status_change: 0, payment: 0 };
+  events.forEach(event => { if (counts[event.type] !== undefined) counts[event.type]++; });
+  const countIds = {
+    all: events.length,
+    new_order: counts.new_order,
+    assignment_change: counts.assignment_change,
+    status_change: counts.status_change,
+    payment: counts.payment
+  };
+  const countElements = {
+    all: "monitorCountAll",
+    new_order: "monitorCountOrders",
+    assignment_change: "monitorCountAssignments",
+    status_change: "monitorCountStatuses",
+    payment: "monitorCountPayments"
+  };
+  Object.entries(countIds).forEach(([key, count]) => {
+    const el = document.getElementById(countElements[key]);
+    if (el) el.textContent = "(" + count + ")";
+  });
+  document.querySelectorAll("[data-monitor-filter]").forEach(button => {
+    const active = button.dataset.monitorFilter === activeAdminMonitorFilter;
+    button.style.background = active ? "#2563eb" : "#fff";
+    button.style.color = active ? "#fff" : "#334155";
+    button.style.borderColor = active ? "#2563eb" : "#cbd5e1";
+  });
+  const visibleEvents = activeAdminMonitorFilter === "all"
+    ? events
+    : events.filter(event => event.type === activeAdminMonitorFilter);
   if (target) {
-    target.innerHTML = events.length ? events.map(event => {
+    target.innerHTML = visibleEvents.length ? visibleEvents.map(event => {
       const common = '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
         '<strong>' + escapeHTML(event.order_number || ("#" + event.order_id)) + ' · ' + escapeHTML(event.customer_name || "Харилцагч") + '</strong>' +
         '<span style="font-size:12px;color:#64748b;">' + escapeHTML(dateLabel(event.created_at)) + '</span></div>';
@@ -2478,7 +2510,7 @@ async function loadAdminMonitor() {
           escapeHTML(event.actor_name) + '</strong>' + (event.payment_method ? ' · ' + escapeHTML(event.payment_method) : '') + '</div>';
       }
       return '<article style="padding:13px;margin:9px 0;border:1px solid #e2e8f0;border-radius:11px;background:#fff;">' + common + detail + '</article>';
-    }).join("") : '<p style="padding:18px;text-align:center;color:#64748b;">Одоогоор үйл ажиллагааны бүртгэл алга байна.</p>';
+    }).join("") : '<p style="padding:18px;text-align:center;color:#64748b;">Энэ ангилалд одоогоор бүртгэл алга байна.</p>';
   }
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session && data.unreadCount > 0) {
