@@ -235,7 +235,8 @@ export default async function handler(req, res) {
           amount: priorIncome.amount,
           category: priorIncome.category,
           description: priorIncome.description,
-          entry_date: priorIncome.entry_date
+          entry_date: priorIncome.entry_date,
+          payment_method: priorIncome.payment_method
         };
         const { data: updatedIncome, error: incomeUpdateError } = await supabase
           .from("finance_entries")
@@ -253,7 +254,7 @@ export default async function handler(req, res) {
         const { data: insertedIncome, error: incomeInsertError } = await supabase
           .from("finance_entries").insert({
             user_id: ownerUserId, created_by: user.id, order_id: orderId, entry_type: "income",
-            amount, category, description: incomeDescription, entry_date: entryDate
+            amount, category, description: incomeDescription, entry_date: entryDate, payment_method: paymentMethod
           }).select("id").single();
         if (incomeInsertError) return res.status(500).json({ error: "Орлого бүртгэж чадсангүй. Захиалгын төлөв өөрчлөгдөөгүй: " + incomeInsertError.message });
         confirmationIncomeEntryId = insertedIncome.id;
@@ -276,7 +277,8 @@ export default async function handler(req, res) {
               amount: confirmationIncomePrevious.amount,
               category: confirmationIncomePrevious.category,
               description: confirmationIncomePrevious.description,
-              entry_date: confirmationIncomePrevious.entry_date
+              entry_date: confirmationIncomePrevious.entry_date,
+              payment_method: confirmationIncomePrevious.payment_method
             })
             .eq("id", confirmationIncomeUpdatedId)
             .eq("user_id", ownerUserId);
@@ -392,7 +394,8 @@ export default async function handler(req, res) {
             amount: confirmationIncomePrevious.amount,
             category: confirmationIncomePrevious.category,
             description: confirmationIncomePrevious.description,
-            entry_date: confirmationIncomePrevious.entry_date
+            entry_date: confirmationIncomePrevious.entry_date,
+            payment_method: confirmationIncomePrevious.payment_method
           })
           .eq("id", confirmationIncomeUpdatedId)
           .eq("user_id", ownerUserId);
@@ -441,12 +444,14 @@ export default async function handler(req, res) {
         old_values: {
           amount: Number(confirmationIncomePrevious.amount),
           category: confirmationIncomePrevious.category,
-          entry_date: confirmationIncomePrevious.entry_date
+          entry_date: confirmationIncomePrevious.entry_date,
+          payment_method: confirmationIncomePrevious.payment_method
         },
         new_values: {
           amount: Number(confirmationIncome?.amount),
           category: confirmationIncome?.paymentType === "full" ? "Бүтэн төлбөрийн орлого" : "Урьдчилгаа орлого",
-          entry_date: confirmationIncome?.entryDate
+          entry_date: confirmationIncome?.entryDate,
+          payment_method: confirmationIncome?.paymentMethod || ""
         }
       });
       if (paymentHistoryError) console.error("Payment update history insert error:", paymentHistoryError);
@@ -464,6 +469,7 @@ export default async function handler(req, res) {
           amount: Number(confirmationIncome?.amount),
           category: paymentCategory,
           entry_date: confirmationIncome?.entryDate,
+          payment_method: confirmationIncome?.paymentMethod || "",
           description: confirmationIncome?.description || ""
         }
       });
