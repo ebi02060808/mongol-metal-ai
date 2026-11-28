@@ -2874,6 +2874,7 @@ window.updateFinanceFormFields = function() {
   const status = document.getElementById("financePaymentStatus");
   const due = document.getElementById("financeDueDate");
   const counterparty = document.getElementById("financeCounterparty");
+  const paymentMethod = document.getElementById("financePaymentMethod");
   const dateLabel = document.getElementById("financeDateLabel");
   const dateHelp = document.getElementById("financeDateHelp");
   if (dateLabel) dateLabel.textContent = type === "income" ? "Орлого орсон өдөр" : "Зарлага гарсан өдөр";
@@ -2882,6 +2883,12 @@ window.updateFinanceFormFields = function() {
     const options = FINANCE_CATEGORY_OPTIONS[type] || [];
     category.innerHTML = "<option value=''>Ангилал сонгох</option>" + options.map(value => "<option value='" + escapeHTML(value) + "'>" + escapeHTML(value) + "</option>").join("");
     if (options.includes(previous)) category.value = previous;
+  }
+  if (paymentMethod) {
+    paymentMethod.required = type === "income";
+    paymentMethod.setAttribute("aria-required", type === "income" ? "true" : "false");
+    const placeholder = paymentMethod.options[0];
+    if (placeholder) placeholder.textContent = type === "income" ? "Төлбөрийн хэлбэр сонгох (заавал)" : "Төлбөрийн хэлбэр (заавал биш)";
   }
   if (type === "income") {
     if (status) { status.value = "paid"; status.disabled = true; }
@@ -3268,6 +3275,7 @@ window.saveFinanceEntry = async function() {
   const dueDate=type==="expense"?(document.getElementById("financeDueDate").value||null):null;
   const message=document.getElementById("financeMessage");
   if(!Number.isFinite(amount)||amount<=0||!category||!entryDate){message.textContent="Дүн, ангилал, огноог зөв бөглөнө үү.";return;}
+  if(type==="income"&&!paymentMethod){message.textContent="Орлого бүртгэхийн өмнө төлбөрийн хэлбэрээ сонгоно уу.";document.getElementById("financePaymentMethod")?.focus();return;}
   if(type==="expense"&&paymentStatus==="unpaid"&&!counterparty){message.textContent="Төлөгдөөгүй өглөгт нийлүүлэгчийн нэрийг оруулна уу.";return;}
   const {error}=await supabaseClient.from("finance_entries").insert({
     user_id:session.user.id,created_by:session.user.id,entry_type:type,amount,category,
