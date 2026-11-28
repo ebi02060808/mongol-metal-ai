@@ -343,12 +343,29 @@ export default async function handler(req, res) {
     let remainingIncomeEntryId = null;
     let remainingIncomeAlreadyRecorded = false;
     if (newStatus === "Дууссан" && remainingIncome) {
-      const amount = Number(remainingIncome.amount);
-      const entryDate = String(remainingIncome.entryDate || "").trim();
-      const paymentMethod = ["Бэлэн","Банк","Карт","Бусад"].includes(remainingIncome.paymentMethod) ? remainingIncome.paymentMethod : "";
+      const amount = Number(String(remainingIncome.amount ?? "").replace(/,/g, "").trim());
+      const entryDate = String(remainingIncome.entryDate || "").trim().slice(0, 10);
+      const rawPaymentMethod = String(remainingIncome.paymentMethod || "").trim();
+      const paymentMethodAliases = {
+        "Бэлэн": "Бэлэн",
+        "Бэлэн мөнгө": "Бэлэн",
+        "Банк": "Банк",
+        "Банкны шилжүүлэг": "Банк",
+        "Карт": "Карт",
+        "Бусад": "Бусад"
+      };
+      const paymentMethod = paymentMethodAliases[rawPaymentMethod] || "";
+      const validEntryDate = /^\d{4}-\d{2}-\d{2}$/.test(entryDate) &&
+        !Number.isNaN(Date.parse(entryDate + "T00:00:00"));
       if (!Number.isFinite(amount) || amount < 0 || amount > 100000000000 ||
-          (amount > 0 && !paymentMethod) || !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
-        return res.status(400).json({ error: "Үлдэгдэл орлогын дүн, төлбөрийн хэлбэр эсвэл огноо буруу байна." });
+          (amount > 0 && (!paymentMethod || !validEntryDate))) {
+        return res.status(400).json({
+          error: !Number.isFinite(amount) || amount < 0 || amount > 100000000000
+            ? "Үлдэгдэл орлогын дүн буруу байна."
+            : !paymentMethod
+              ? "Төлбөрийн хэлбэрээ дахин сонгоно уу."
+              : "Төлбөрийн огноо буруу байна."
+        });
       }
       if (amount > 0) {
         const { data: priorRemaining, error: priorRemainingError } = await supabase
