@@ -48,7 +48,7 @@ export default async function handler(req, res) {
 
     const [ordersResult, historyResult, financeResult, staffResult, readResult] = await Promise.all([
       supabase.from("orders")
-        .select("id, customer_name, product, size, price, status, created_at, order_source, assigned_to, messenger_order_number")
+        .select("id, customer_name, phone, product, size, price, status, created_at, order_source, assigned_to, messenger_order_number")
         .eq("user_id", ownerUserId)
         .order("created_at", { ascending: false })
         .limit(75),
@@ -102,6 +102,7 @@ export default async function handler(req, res) {
         order_id: order.id,
         order_number: order.messenger_order_number || ("#" + order.id),
         customer_name: order.customer_name || "Нэргүй",
+        phone: order.phone || "",
         product: order.product || "",
         status: order.status || "",
         source: order.order_source === "messenger" ? "Messenger" : order.order_source === "in_person" ? "Биечлэн ирсэн" : "Тодорхойгүй",
