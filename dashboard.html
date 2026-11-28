@@ -3813,8 +3813,20 @@ async function updateOrderStatus(orderId, newStatus) {
       modal.focus();
     });
     if (!paymentChoice) { await loadOrders(); return; }
+    let completionPaymentMethod = null;
+    if (Number(paymentChoice.amount) > 0) {
+      completionPaymentMethod = await showAppChoice("Одоо авсан үлдэгдэл төлбөрийг ямар хэлбэрээр хүлээн авсан бэ?",[
+        {label:"Бэлэн мөнгө",value:"Бэлэн"},
+        {label:"Банкны шилжүүлэг",value:"Банк"},
+        {label:"Карт",value:"Карт"},
+        {label:"Бусад",value:"Бусад"},
+        {label:"Болих",value:null}
+      ],"Төлбөрийн хэлбэр");
+      if (!completionPaymentMethod) { await loadOrders(); return; }
+    }
     remainingIncome = {
       amount: paymentChoice.amount,
+      paymentMethod: completionPaymentMethod,
       description: "Захиалгын үлдэгдэл төлбөр",
       entryDate: localDateString()
     };
