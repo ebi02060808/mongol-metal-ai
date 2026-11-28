@@ -628,6 +628,7 @@
             <input id="adminMonitorSearch" type="search" oninput="filterAdminMonitorEvents()" placeholder="Ажилтан, захиалгын дугаар, харилцагч, утас, төлөв, орлогоор хайх..." style="flex:1;min-width:0;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;background:white;font-size:14px;">
             <button type="button" onclick="resetAdminMonitorFilters()" style="flex-shrink:0;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;font-weight:700;">Цэвэрлэх</button>
             <button type="button" onclick="exportAdminMonitorExcel()" style="flex-shrink:0;padding:11px 12px;border:0;border-radius:8px;background:#166534;color:white;font-weight:700;white-space:nowrap;">📥 Excel татах</button>
+            <button type="button" onclick="previewAdminMonitorExcel()" style="flex-shrink:0;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;font-weight:700;white-space:nowrap;">👁 Excel харах</button>
           </div>
           <div id="adminMonitorEvents" style="margin-top:8px;">Мэдээлэл ачаалж байна...</div>
         </div>
@@ -2445,14 +2446,11 @@ async function loadAdminMonitorBadge() {
 let activeAdminMonitorFilter = "all";
 
 let adminMonitorEventsCache = [];
-window.exportAdminMonitorExcel = function() {
+
+window.getAdminMonitorExcelRows = function() {
   if (!Array.isArray(adminMonitorEventsCache) || !adminMonitorEventsCache.length) {
-    showAppNotice("Татах бүртгэл алга байна.");
-    return;
-  }
-  if (!window.XLSX) {
-    showAppNotice("Excel сан ачаалагдсангүй. Хуудсыг дахин ачаалаад оролдоно уу.");
-    return;
+    showAppNotice("Хяналтын бүртгэл алга байна.");
+    return null;
   }
   const query = (document.getElementById("adminMonitorSearch")?.value || "").trim().toLocaleLowerCase();
   const selected = activeAdminMonitorFilter === "all"
@@ -2466,15 +2464,10 @@ window.exportAdminMonitorExcel = function() {
   });
   if (!filtered.length) {
     showAppNotice("Хайлтад тохирох бүртгэл байхгүй байна.");
-    return;
+    return null;
   }
-  const typeNames = {
-    new_order: "Шинэ захиалга",
-    assignment_change: "Ажил оноолт",
-    status_change: "Төлөвийн өөрчлөлт",
-    payment: "Орлого"
-  };
-  const rows = filtered.map(event => ({
+  const typeNames = {new_order:"Шинэ захиалга",assignment_change:"Ажил оноолт",status_change:"Төлөвийн өөрчлөлт",payment:"Орлого"};
+  return filtered.map(event => ({
     "Төрөл": typeNames[event.type] || event.type || "",
     "Огноо": event.created_at ? new Date(event.created_at).toLocaleString("mn-MN") : "",
     "Захиалгын дугаар": event.order_number || (event.order_id ? "#" + event.order_id : ""),
@@ -2491,18 +2484,61 @@ window.exportAdminMonitorExcel = function() {
     "Төлбөрийн хэлбэр": event.payment_method || "",
     "Тайлбар": event.description || event.label || ""
   }));
+};
+window.exportAdminMonitorExcel = function() {
+  const rows = window.getAdminMonitorExcelRows();
+  if (!rows) return;
+  if (!window.XLSX) {
+    showAppNotice("Excel сан ачаалагдсангүй. Хуудсыг дахин ачаалаад оролдоно уу.");
+    return;
+  }
   const sheet = XLSX.utils.json_to_sheet(rows);
-  sheet["!cols"] = [
-    {wch:18},{wch:22},{wch:22},{wch:22},{wch:16},{wch:28},{wch:18},
-    {wch:24},{wch:24},{wch:22},{wch:22},{wch:22},{wch:18},{wch:20},{wch:36}
-  ];
-  sheet["!autofilter"] = { ref: XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:14}}) };
+  sheet["!cols"] = [{wch:18},{wch:22},{wch:22},{wch:22},{wch:16},{wch:28},{wch:18},{wch:24},{wch:24},{wch:22},{wch:22},{wch:22},{wch:18},{wch:20},{wch:36}];
+  sheet["!autofilter"] = {ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:14}})};
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Админы хяналт");
   const date = new Date().toISOString().slice(0,10);
   XLSX.writeFile(workbook, "Mongol-Metal-Admin-Tailan-" + date + ".xlsx");
-  showAppNotice(filtered.length + " бүртгэлтэй Excel тайлан бэлэн боллоо.");
 };
+window.previewAdminMonitorExcel = function() {
+  const rows = window.getAdminMonitorExcelRows();
+  if (!rows) return;
+  const old = document.getElementById("adminMonitorPreviewOverlay");
+  if (old) old.remove();
+  const overlay = document.createElement("div");
+  overlay.id = "adminMonitorPreviewOverlay";
+  overlay.style.cssText = "position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:12px;";
+  const panel = document.createElement("div");
+  panel.style.cssText = "width:min(1100px,100%);max-height:92vh;background:white;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25);";
+  const header = document.createElement("div");
+  header.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid #e2e8f0;";
+  const heading = document.createElement("strong");
+  heading.textContent = "Админы хяналтын Excel тайлан — " + rows.length + " бүртгэл";
+  const close = document.createElement("button");
+  close.type = "button"; close.textContent = "✕ Хаах";
+  close.style.cssText = "padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;background:white;font-weight:700;";
+  close.onclick = () => overlay.remove();
+  header.append(heading,close);
+  const hint = document.createElement("div");
+  hint.textContent = "Энэ цонхонд тайланг шууд харж болно. Файл татах шаардлагагүй.";
+  hint.style.cssText = "padding:9px 16px;color:#64748b;font-size:13px;";
+  const scroll = document.createElement("div");
+  scroll.style.cssText = "overflow:auto;padding:0 12px 14px;";
+  const table = document.createElement("table");
+  table.style.cssText = "border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;";
+  const keys = Object.keys(rows[0]);
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  keys.forEach(key => { const th=document.createElement("th"); th.textContent=key; th.style.cssText="position:sticky;top:0;background:#f1f5f9;padding:10px;border:1px solid #e2e8f0;text-align:left;"; headRow.appendChild(th); });
+  thead.appendChild(headRow);
+  const tbody = document.createElement("tbody");
+  rows.forEach(row => { const tr=document.createElement("tr"); keys.forEach(key => { const td=document.createElement("td"); td.textContent=row[key] === undefined || row[key] === null ? "" : String(row[key]); td.style.cssText="padding:9px;border:1px solid #e2e8f0;"; tr.appendChild(td); }); tbody.appendChild(tr); });
+  table.append(thead,tbody); scroll.appendChild(table); panel.append(header,hint,scroll); overlay.appendChild(panel);
+  overlay.addEventListener("click", event => { if(event.target===overlay) overlay.remove(); });
+  document.addEventListener("keydown", function closeOnEscape(event) { if(event.key==="Escape" && document.getElementById("adminMonitorPreviewOverlay")) { overlay.remove(); document.removeEventListener("keydown",closeOnEscape); } });
+  document.body.appendChild(overlay);
+};
+
 
 window.setAdminMonitorFilter = function(filter) {
   const allowed = ["all", "new_order", "assignment_change", "status_change", "payment"];
