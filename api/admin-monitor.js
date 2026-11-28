@@ -104,7 +104,7 @@ export default async function handler(req, res) {
         customer_name: order.customer_name || "Нэргүй",
         product: order.product || "",
         status: order.status || "",
-        source: order.order_source || "Тодорхойгүй",
+        source: order.order_source === "messenger" ? "Messenger" : order.order_source === "in_person" ? "Биечлэн ирсэн" : "Тодорхойгүй",
         actor_name: actorId ? (names.get(actorId) || "Бүртгэлтэй хэрэглэгч") : "Messenger / Систем",
         assigned_name: order.assigned_to ? (names.get(order.assigned_to) || "Хариуцагч тодорхойгүй") : "Хуваарилаагүй",
         assigned_to: order.assigned_to
