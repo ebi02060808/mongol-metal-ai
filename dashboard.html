@@ -3705,9 +3705,18 @@ async function updateOrderStatus(orderId, newStatus) {
       await loadOrders();
       return;
     }
+    const paymentMethod = await showAppChoice("Төлбөрийг ямар хэлбэрээр хүлээн авсан бэ?",[
+      {label:"Бэлэн мөнгө",value:"Бэлэн"},
+      {label:"Банкны шилжүүлэг",value:"Банк"},
+      {label:"Карт",value:"Карт"},
+      {label:"Бусад",value:"Бусад"},
+      {label:"Болих",value:null}
+    ],"Төлбөрийн хэлбэр");
+    if (!paymentMethod) { await loadOrders(); return; }
     confirmationIncome = {
       amount,
       paymentType: normalizedPaymentType,
+      paymentMethod,
       description: normalizedPaymentType === "deposit" ? "Урьдчилгаа төлбөр" : "Бүтэн төлбөр",
       entryDate: localDateString()
     };
