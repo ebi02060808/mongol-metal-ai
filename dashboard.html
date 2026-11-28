@@ -798,7 +798,7 @@
         <p id="financeMessage" style="margin:10px 0;color:#475569;"></p>
         <div id="financeAlerts" style="margin:14px 0;"></div>
         <div id="financeChart" style="margin:18px 0;padding:15px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;"><button type="button" onclick="exportFinanceCSV()" style="padding:9px 13px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">⬇ Excel / CSV татах</button><button type="button" onclick="exportFinancePDF()" style="padding:9px 13px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">📄 PDF тайлан татах</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;"><button type="button" onclick="exportFinanceTypeExcel('income')" style="padding:10px 14px;min-height:44px;border:0;border-radius:8px;background:#15803d;color:white;font-weight:700;">📥 Орлогын Excel татах</button><button type="button" onclick="exportFinanceTypeExcel('expense')" style="padding:10px 14px;min-height:44px;border:0;border-radius:8px;background:#c2410c;color:white;font-weight:700;">📥 Зарлагын Excel татах</button><button type="button" onclick="exportFinancePDF()" style="padding:10px 14px;min-height:44px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">📄 PDF тайлан татах</button></div>
         <div id="financeReceivables" style="margin:18px 0;"></div>
         <div id="financePayables" style="margin:18px 0;"></div>
         <div id="financeEntries">Санхүүгийн мэдээлэл ачаалж байна...</div>
@@ -2859,6 +2859,8 @@ function localDateString(date = new Date()) {
 
 let currentFinanceReport = null;
 let currentFinanceOrders = [];
+let currentFinanceAdminId = null;
+let currentFinanceStaffNames = new Map();
 
 const FINANCE_CATEGORY_OPTIONS = {
   expense: ["Түүхий эд, материал","Шил, вакум","Будаг, өнгөлгөө","Тоноглол, хэрэгсэл","Цалин, ажилчдын хөлс","Гүйцэтгэлийн хөлс","Тээвэр, хүргэлт","Суурилуулалтын зардал","Түрээс","Цахилгаан, ашиглалт","Багаж, тоног төхөөрөмж","Засвар үйлчилгээ","Татвар, шимтгэл","Оффис, бичиг хэрэг","Зар сурталчилгаа","Бусад зардал"],
@@ -2908,6 +2910,14 @@ async function loadFinance() {
   const allEntries = entriesResult.data || [];
   const orders = ordersResult.data || [];
   currentFinanceOrders = orders;
+  currentFinanceAdminId = session.user.id;
+  try {
+    const staffResult = await staffApi("list");
+    currentFinanceStaffNames = new Map((staffResult.employees || []).map(employee => [String(employee.user_id), employee.full_name || employee.name || employee.email || "Ажилтан"]));
+  } catch (staffError) {
+    console.warn("Санхүүгийн тайлангийн ажилтны нэр ачаалсангүй:", staffError);
+    currentFinanceStaffNames = new Map();
+  }
   const select = document.getElementById("financeOrderId");
   if (select) {
     const selected = select.value;
@@ -3068,6 +3078,66 @@ window.markFinanceEntryPaid = async function(id) {
   const {error}=await supabaseClient.from("finance_entries").update({payment_status:"paid"}).eq("id",id).eq("user_id",session.user.id).eq("entry_type","expense");
   if(error) return showAppNotice(friendlyErrorMessage(error,"Санхүүгийн төлөв өөрчилж чадсангүй."));
   await loadFinance();
+};
+
+window.exportFinanceTypeExcel = function(type) {
+  if (currentUserRole !== "admin") return showAppNotice("Зөвхөн админ тайлан татах эрхтэй.");
+  if (!currentFinanceReport) return showAppNotice("Эхлээд санхүүгийн тайлангаа ачаална уу.");
+  if (!window.XLSX) return showAppNotice("Excel сан ачаалагдсангүй. Хуудсыг дахин ачаална уу.");
+  if (!["income", "expense"].includes(type)) return;
+  const entries = currentFinanceReport.entries.filter(entry => entry.entry_type === type);
+  if (!entries.length) return showAppNotice(type === "income" ? "Сонгосон хугацаанд орлогын бүртгэл алга." : "Сонгосон хугацаанд зарлагын бүртгэл алга.");
+  const orderById = new Map((currentFinanceReport.orders || []).map(order => [String(order.id), order]));
+  const isIncome = type === "income";
+  const amountTotal = entries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const paidTotal = entries.filter(entry => entry.payment_status !== "unpaid").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const unpaidTotal = entries.filter(entry => entry.payment_status === "unpaid").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const money = value => Math.round(Number(value || 0));
+  const summary = [
+    ["МОНГОЛ МЕТАЛ ХИЙЦ — " + (isIncome ? "ОРЛОГЫН" : "ЗАРЛАГЫН") + " ТАЙЛАН"],
+    ["Хугацаа", (currentFinanceReport.startDate || "Бүх хугацаа") + " — " + (currentFinanceReport.endDate || localDateString())],
+    ["Нийт бүртгэл", entries.length],
+    [isIncome ? "Нийт орлого (₮)" : "Нийт зарлага (₮)", money(amountTotal)],
+    ["Төлөгдсөн дүн (₮)", money(paidTotal)],
+    ["Төлөгдөөгүй дүн (₮)", money(unpaidTotal)]
+  ];
+  const detailRows = entries.map(entry => {
+    const order = entry.order_id ? orderById.get(String(entry.order_id)) : null;
+    const status = entry.payment_status === "unpaid" ? "Төлөгдөөгүй" : "Төлөгдсөн";
+    return isIncome ? {
+      "Огноо": entry.entry_date || "",
+      "Захиалгын дугаар": order?.messenger_order_number || (entry.order_id ? "Захиалга #" + entry.order_id : ""),
+      "Харилцагч": entry.counterparty || order?.customer_name || "",
+      "Орлогын төрөл": entry.category || "",
+      "Хүлээн авсан дүн (₮)": money(entry.amount),
+      "Төлбөрийн хэлбэр": entry.payment_method || "",
+      "Бүртгэсэн ажилтан": entry.created_by === currentFinanceAdminId ? "Админ" : (currentFinanceStaffNames.get(String(entry.created_by)) || "Ажилтан"),
+      "Төлөв": status,
+      "Тайлбар": entry.description || ""
+    } : {
+      "Огноо": entry.entry_date || "",
+      "Захиалгын дугаар": order?.messenger_order_number || (entry.order_id ? "Захиалга #" + entry.order_id : ""),
+      "Зарлагын төрөл": entry.category || "",
+      "Зарцуулсан дүн (₮)": money(entry.amount),
+      "Нийлүүлэгч": entry.counterparty || "",
+      "Төлбөрийн хэлбэр": entry.payment_method || "",
+      "Бүртгэсэн ажилтан": entry.created_by === currentFinanceAdminId ? "Админ" : (currentFinanceStaffNames.get(String(entry.created_by)) || "Ажилтан"),
+      "Төлөв": status,
+      "Төлөх хугацаа": entry.due_date || "",
+      "Тайлбар": entry.description || ""
+    };
+  });
+  const workbook = window.XLSX.utils.book_new();
+  const summarySheet = window.XLSX.utils.aoa_to_sheet(summary);
+  summarySheet["!cols"] = [{wch:34},{wch:34}];
+  window.XLSX.utils.book_append_sheet(workbook, summarySheet, "Нэгтгэл");
+  const detailSheet = window.XLSX.utils.json_to_sheet(detailRows);
+  detailSheet["!cols"] = Object.keys(detailRows[0]).map(key => ({wch:Math.min(32,Math.max(14,key.length+4))}));
+  window.XLSX.utils.book_append_sheet(workbook, detailSheet, isIncome ? "Орлогын бүртгэл" : "Зарлагын бүртгэл");
+  const periodName = currentFinanceReport.startDate && currentFinanceReport.endDate
+    ? currentFinanceReport.startDate + "-" + currentFinanceReport.endDate
+    : localDateString();
+  window.XLSX.writeFile(workbook, "Mongol-Metal-" + (isIncome ? "Orlogo-" : "Zarlaga-") + periodName + ".xlsx");
 };
 
 window.exportFinanceCSV = function() {
