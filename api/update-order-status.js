@@ -410,7 +410,7 @@ export default async function handler(req, res) {
       .eq("user_id", ownerUserId)
       .eq("event_type", "updated")
       .is("actor_user_id", null)
-      .eq("old_values->>status", currentStatus)
+      .eq("old_values->>status", String(order.status || "Шинэ"))
       .eq("new_values->>status", newStatus)
       .gte("created_at", statusChangeStartedAt)
       .order("created_at", { ascending: false })
