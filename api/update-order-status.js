@@ -207,6 +207,7 @@ export default async function handler(req, res) {
       const amount = Number(confirmationIncome?.amount);
       const paymentType = confirmationIncome?.paymentType === "full" ? "full" : confirmationIncome?.paymentType === "deposit" ? "deposit" : "";
       const entryDate = String(confirmationIncome?.entryDate || "").trim();
+      const paymentMethod = ["Бэлэн","Банк","Карт","Бусад"].includes(confirmationIncome?.paymentMethod) ? confirmationIncome.paymentMethod : "";
       if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000 || !paymentType ||
           !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
         return res.status(400).json({ error: "Төлбөрийн төрөл, бодитоор авсан орлогын дүн эсвэл огноо буруу байна." });
@@ -215,7 +216,7 @@ export default async function handler(req, res) {
       const incomeDescription = category + ": " + (confirmationIncome.description || "Бодитоор хүлээн авсан төлбөр");
       const { data: priorIncomeRows, error: priorIncomeError } = await supabase
         .from("finance_entries")
-        .select("id, amount, category, description, entry_date")
+        .select("id, amount, category, description, entry_date, payment_method")
         .eq("user_id", ownerUserId)
         .eq("order_id", orderId)
         .eq("entry_type", "income")
@@ -238,7 +239,7 @@ export default async function handler(req, res) {
         };
         const { data: updatedIncome, error: incomeUpdateError } = await supabase
           .from("finance_entries")
-          .update({ amount, category, description: incomeDescription, entry_date: entryDate })
+          .update({ amount, category, description: incomeDescription, entry_date: entryDate, payment_method: paymentMethod })
           .eq("id", priorIncome.id)
           .eq("user_id", ownerUserId)
           .select("id")
