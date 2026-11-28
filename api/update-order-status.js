@@ -343,8 +343,10 @@ export default async function handler(req, res) {
     if (newStatus === "Дууссан" && remainingIncome) {
       const amount = Number(remainingIncome.amount);
       const entryDate = String(remainingIncome.entryDate || "").trim();
-      if (!Number.isFinite(amount) || amount < 0 || amount > 100000000000 || !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
-        return res.status(400).json({ error: "Үлдэгдэл орлогын дүн эсвэл огноо буруу байна." });
+      const paymentMethod = ["Бэлэн","Банк","Карт","Бусад"].includes(remainingIncome.paymentMethod) ? remainingIncome.paymentMethod : "";
+      if (!Number.isFinite(amount) || amount < 0 || amount > 100000000000 ||
+          (amount > 0 && !paymentMethod) || !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
+        return res.status(400).json({ error: "Үлдэгдэл орлогын дүн, төлбөрийн хэлбэр эсвэл огноо буруу байна." });
       }
       if (amount > 0) {
         const { data: priorRemaining, error: priorRemainingError } = await supabase
@@ -357,7 +359,7 @@ export default async function handler(req, res) {
           const { data: insertedRemaining, error: remainingInsertError } = await supabase
             .from("finance_entries").insert({
               user_id: ownerUserId, created_by: user.id, order_id: orderId, entry_type: "income",
-              amount, category: "Үлдэгдэл орлого",
+              amount, category: "Үлдэгдэл орлого", payment_method: paymentMethod,
               description: "Захиалгын үлдэгдэл төлбөр: " + String(remainingIncome.description || "").slice(0, 500),
               entry_date: entryDate
             }).select("id").single();
@@ -479,6 +481,7 @@ export default async function handler(req, res) {
           amount: Number(remainingIncome?.amount),
           category: "Үлдэгдэл орлого",
           entry_date: remainingIncome?.entryDate,
+          payment_method: remainingIncome?.paymentMethod || "",
           description: remainingIncome?.description || ""
         }
       });
