@@ -6,6 +6,7 @@
   <title>Mongol Metal AI - Dashboard</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
     * {
@@ -626,6 +627,7 @@
           <div id="adminMonitorFilters" style="display:flex;gap:8px;align-items:center;margin:4px 0 12px;">
             <input id="adminMonitorSearch" type="search" oninput="filterAdminMonitorEvents()" placeholder="Ажилтан, захиалгын дугаар, харилцагч, утас, төлөв, орлогоор хайх..." style="flex:1;min-width:0;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;background:white;font-size:14px;">
             <button type="button" onclick="resetAdminMonitorFilters()" style="flex-shrink:0;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#334155;font-weight:700;">Цэвэрлэх</button>
+            <button type="button" onclick="exportAdminMonitorExcel()" style="flex-shrink:0;padding:11px 12px;border:0;border-radius:8px;background:#166534;color:white;font-weight:700;white-space:nowrap;">📥 Excel татах</button>
           </div>
           <div id="adminMonitorEvents" style="margin-top:8px;">Мэдээлэл ачаалж байна...</div>
         </div>
@@ -2441,6 +2443,67 @@ async function loadAdminMonitorBadge() {
   catch (error) { console.warn("Admin monitor badge:", error); }
 }
 let activeAdminMonitorFilter = "all";
+
+let adminMonitorEventsCache = [];
+window.exportAdminMonitorExcel = function() {
+  if (!Array.isArray(adminMonitorEventsCache) || !adminMonitorEventsCache.length) {
+    showAppNotice("Татах бүртгэл алга байна.");
+    return;
+  }
+  if (!window.XLSX) {
+    showAppNotice("Excel сан ачаалагдсангүй. Хуудсыг дахин ачаалаад оролдоно уу.");
+    return;
+  }
+  const query = (document.getElementById("adminMonitorSearch")?.value || "").trim().toLocaleLowerCase();
+  const selected = activeAdminMonitorFilter === "all"
+    ? adminMonitorEventsCache
+    : adminMonitorEventsCache.filter(event => event.type === activeAdminMonitorFilter);
+  const filtered = selected.filter(event => {
+    if (!query) return true;
+    const searchable = [event.order_id,event.order_number,event.customer_name,event.phone,event.product,event.source,event.actor_name,event.assigned_name,event.previous_assignee,event.new_assignee,event.label,event.previous_status,event.new_status,event.category,event.description,event.amount,event.payment_method]
+      .filter(value => value !== undefined && value !== null).join(" ").toLocaleLowerCase();
+    return searchable.includes(query);
+  });
+  if (!filtered.length) {
+    showAppNotice("Хайлтад тохирох бүртгэл байхгүй байна.");
+    return;
+  }
+  const typeNames = {
+    new_order: "Шинэ захиалга",
+    assignment_change: "Ажил оноолт",
+    status_change: "Төлөвийн өөрчлөлт",
+    payment: "Орлого"
+  };
+  const rows = filtered.map(event => ({
+    "Төрөл": typeNames[event.type] || event.type || "",
+    "Огноо": event.created_at ? new Date(event.created_at).toLocaleString("mn-MN") : "",
+    "Захиалгын дугаар": event.order_number || (event.order_id ? "#" + event.order_id : ""),
+    "Харилцагч": event.customer_name || "",
+    "Утас": event.phone || "",
+    "Бүтээгдэхүүн": event.product || "",
+    "Эх сурвалж": event.source || "",
+    "Үйлдэл хийсэн ажилтан": event.actor_name || "",
+    "Хариуцсан ажилтан": event.assigned_name || event.new_assignee || "",
+    "Өмнөх утга": event.previous_status || event.previous_assignee || "",
+    "Шинэ утга": event.new_status || event.new_assignee || "",
+    "Орлогын төрөл": event.category || "",
+    "Орлогын дүн (₮)": event.type === "payment" ? Number(event.amount) || 0 : "",
+    "Төлбөрийн хэлбэр": event.payment_method || "",
+    "Тайлбар": event.description || event.label || ""
+  }));
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  sheet["!cols"] = [
+    {wch:18},{wch:22},{wch:22},{wch:22},{wch:16},{wch:28},{wch:18},
+    {wch:24},{wch:24},{wch:22},{wch:22},{wch:22},{wch:18},{wch:20},{wch:36}
+  ];
+  sheet["!autofilter"] = { ref: XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:14}}) };
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Админы хяналт");
+  const date = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(workbook, "Mongol-Metal-Admin-Tailan-" + date + ".xlsx");
+  showAppNotice(filtered.length + " бүртгэлтэй Excel тайлан бэлэн боллоо.");
+};
+
 window.setAdminMonitorFilter = function(filter) {
   const allowed = ["all", "new_order", "assignment_change", "status_change", "payment"];
   if (!allowed.includes(filter)) return;
@@ -2509,6 +2572,7 @@ async function loadAdminMonitor() {
   const data = await requestAdminMonitor();
   updateAdminMonitorBadge(data.unreadCount);
   const events = Array.isArray(data.events) ? data.events : [];
+  adminMonitorEventsCache = events;
   const money = value => (Number(value) || 0).toLocaleString("mn-MN") + " ₮";
   const dateLabel = value => {
     const date = new Date(value);
